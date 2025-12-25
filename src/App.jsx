@@ -51,17 +51,17 @@ const toNumber = (v) => {
 function SmallButton({ children, onClick, tone = "default", className = "", disabled, title }) {
   const cls =
     tone === "primary"
-      ? "bg-slate-900 hover:bg-slate-800 text-white border-slate-900"
+      ? "bg-neutral-900 hover:bg-neutral-800 text-white border-neutral-900 shadow-sm"
       : tone === "danger"
-        ? "bg-rose-600 hover:bg-rose-700 text-white border-rose-700"
-        : "bg-white hover:bg-slate-50 text-slate-900 border-slate-200";
+        ? "bg-red-50 hover:bg-red-100 text-red-700 border-red-200 shadow-sm"
+        : "bg-white hover:bg-neutral-50 text-neutral-900 border-neutral-200 shadow-sm";
 
   return (
     <button
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className={`print:hidden px-3 py-2 rounded-xl text-sm font-medium border transition disabled:opacity-50 disabled:cursor-not-allowed ${cls} ${className}`}
+      className={`print:hidden px-3 py-2 rounded-xl text-sm font-medium border transition active:translate-y-[1px] disabled:opacity-50 disabled:cursor-not-allowed ${cls} ${className}`}
     >
       {children}
     </button>
@@ -242,9 +242,7 @@ export default function BudgitApp() {
   const updateExpenseGroupLabel = (groupId, label) => {
     updateMonth((cur) => ({
       ...cur,
-      expenseGroups: (cur.expenseGroups || []).map((g) =>
-        g.id === groupId ? { ...g, label } : g
-      ),
+      expenseGroups: (cur.expenseGroups || []).map((g) => (g.id === groupId ? { ...g, label } : g)),
     }));
   };
 
@@ -364,7 +362,7 @@ export default function BudgitApp() {
   const previewGroups = active.expenseGroups || [];
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-neutral-50 text-neutral-900">
       <style>{`
         @media print {
           body { background: white !important; }
@@ -410,69 +408,68 @@ export default function BudgitApp() {
               </div>
             </div>
 
-            <div className="rounded-2xl bg-white border border-slate-200 shadow-lg overflow-auto max-h-[80vh]">
+            <div className="rounded-2xl bg-white border border-neutral-200 shadow-lg overflow-auto max-h-[80vh]">
               <div id="budgit-print-preview" className="p-6">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <div className="text-2xl font-semibold text-slate-900">Budgit</div>
-                    <div className="text-sm text-slate-600">{monthLabel(app.activeMonth)}</div>
+                    <div className="text-2xl font-semibold text-neutral-900">Budgit</div>
+                    <div className="text-sm text-neutral-600">{monthLabel(app.activeMonth)}</div>
+                    <div className="mt-3 h-[2px] w-64 rounded-full bg-gradient-to-r from-lime-400/0 via-lime-400 to-emerald-400/0" />
                   </div>
-                  <div className="text-sm text-slate-600">Generated: {new Date().toLocaleString()}</div>
+                  <div className="text-sm text-neutral-600">Generated: {new Date().toLocaleString()}</div>
                 </div>
 
                 <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="rounded-2xl border border-slate-200">
-                    <div className="px-4 py-3 border-b border-slate-100 font-semibold text-slate-900">
+                  <div className="rounded-2xl border border-neutral-200">
+                    <div className="px-4 py-3 border-b border-neutral-100 font-semibold text-neutral-900">
                       Income
                     </div>
                     <div className="p-4 space-y-2">
                       {previewIncomes.length === 0 ? (
-                        <div className="text-sm text-slate-600">No income items.</div>
+                        <div className="text-sm text-neutral-600">No income items.</div>
                       ) : (
                         previewIncomes.map((i) => (
                           <div key={i.id} className="flex items-center justify-between gap-3">
-                            <div className="text-slate-900">{i.name || "(unnamed)"}</div>
-                            <div className="font-semibold text-slate-900">
+                            <div className="text-neutral-900">{i.name || "(unnamed)"}</div>
+                            <div className="font-semibold text-neutral-900">
                               <Money value={toNumber(i.amount)} />
                             </div>
                           </div>
                         ))
                       )}
-                      <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between">
-                        <div className="font-semibold text-slate-900">Total income</div>
-                        <div className="font-semibold text-slate-900">
+                      <div className="pt-3 mt-3 border-t border-neutral-100 flex items-center justify-between">
+                        <div className="font-semibold text-neutral-900">Total income</div>
+                        <div className="font-semibold text-neutral-900">
                           <Money value={incomeTotal} />
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-slate-200">
-                    <div className="px-4 py-3 border-b border-slate-100 font-semibold text-slate-900">
+                  <div className="rounded-2xl border border-neutral-200">
+                    <div className="px-4 py-3 border-b border-neutral-100 font-semibold text-neutral-900">
                       Expenses
                     </div>
                     <div className="p-4 space-y-4">
                       {previewGroups.length === 0 ? (
-                        <div className="text-sm text-slate-600">No expense sections.</div>
+                        <div className="text-sm text-neutral-600">No expense sections.</div>
                       ) : (
                         previewGroups.map((g) => (
-                          <div key={g.id} className="rounded-2xl border border-slate-200">
-                            <div className="px-3 py-2 border-b border-slate-100 flex items-center justify-between">
-                              <div className="font-semibold text-slate-900">
-                                {(g.label || "General").trim()}
-                              </div>
-                              <div className="font-semibold text-slate-900">
+                          <div key={g.id} className="rounded-2xl border border-neutral-200">
+                            <div className="px-3 py-2 border-b border-neutral-100 flex items-center justify-between">
+                              <div className="font-semibold text-neutral-900">{(g.label || "General").trim()}</div>
+                              <div className="font-semibold text-neutral-900">
                                 <Money value={groupTotal(g)} />
                               </div>
                             </div>
                             <div className="p-3 space-y-2">
                               {(g.items || []).length === 0 ? (
-                                <div className="text-sm text-slate-600">No items.</div>
+                                <div className="text-sm text-neutral-600">No items.</div>
                               ) : (
                                 (g.items || []).map((e) => (
                                   <div key={e.id} className="flex items-center justify-between gap-3">
-                                    <div className="text-slate-900">{e.name || "(unnamed)"}</div>
-                                    <div className="text-slate-900">
+                                    <div className="text-neutral-900">{e.name || "(unnamed)"}</div>
+                                    <div className="text-neutral-900">
                                       <Money value={toNumber(e.amount)} />
                                     </div>
                                   </div>
@@ -483,9 +480,9 @@ export default function BudgitApp() {
                         ))
                       )}
 
-                      <div className="pt-3 mt-2 border-t border-slate-100 flex items-center justify-between">
-                        <div className="font-semibold text-slate-900">Total expenses</div>
-                        <div className="font-semibold text-slate-900">
+                      <div className="pt-3 mt-2 border-t border-neutral-100 flex items-center justify-between">
+                        <div className="font-semibold text-neutral-900">Total expenses</div>
+                        <div className="font-semibold text-neutral-900">
                           <Money value={expenseTotal} />
                         </div>
                       </div>
@@ -494,25 +491,25 @@ export default function BudgitApp() {
                 </div>
 
                 <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className={`rounded-2xl border p-4 ${net >= 0 ? "border-emerald-200" : "border-rose-200"}`}>
-                    <div className="text-sm text-slate-600">Net</div>
-                    <div className="text-2xl font-semibold text-slate-900 mt-1">
+                  <div className={`rounded-2xl border p-4 ${net >= 0 ? "border-emerald-200" : "border-red-200"}`}>
+                    <div className="text-sm text-neutral-600">Net</div>
+                    <div className="text-2xl font-semibold text-neutral-900 mt-1">
                       <Money value={net} />
                     </div>
-                    <div className="text-xs text-slate-600 mt-2">
+                    <div className="text-xs text-neutral-600 mt-2">
                       Savings rate: <span className="font-medium">{savingsRate.toFixed(1)}%</span>
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-slate-200 p-4">
-                    <div className="text-sm text-slate-600">Notes</div>
-                    <div className="mt-2 whitespace-pre-wrap text-slate-900 text-sm">
+                  <div className="rounded-2xl border border-neutral-200 p-4">
+                    <div className="text-sm text-neutral-600">Notes</div>
+                    <div className="mt-2 whitespace-pre-wrap text-neutral-900 text-sm">
                       {String(active.notes || "").trim() ? active.notes : "(none)"}
                     </div>
                   </div>
                 </div>
 
-                <div className="mt-4 text-xs text-slate-500">
+                <div className="mt-4 text-xs text-neutral-500">
                   Tip: If the preview looks right, hit “Print / Save PDF” and choose “Save as PDF”.
                 </div>
               </div>
@@ -524,17 +521,18 @@ export default function BudgitApp() {
       <div className="max-w-5xl mx-auto px-4 py-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <div className="text-2xl font-semibold text-slate-900">Budgit</div>
-            <div className="text-sm text-slate-600">
+            <div className="text-2xl font-semibold text-neutral-900">Budgit</div>
+            <div className="text-sm text-neutral-600">
               Simple monthly budget • income at the top • expenses below • totals at the bottom
             </div>
+            <div className="mt-3 h-[2px] w-80 rounded-full bg-gradient-to-r from-lime-400/0 via-lime-400 to-emerald-400/0" />
           </div>
 
           <div className="flex items-center gap-2">
             <SmallButton onClick={openPreview}>Preview</SmallButton>
             <SmallButton onClick={() => window.print()}>Print / Save PDF</SmallButton>
             <SmallButton onClick={exportJSON}>Export</SmallButton>
-            <label className="print:hidden px-3 py-2 rounded-xl text-sm font-medium bg-white hover:bg-slate-50 text-slate-900 border border-slate-200 cursor-pointer">
+            <label className="print:hidden px-3 py-2 rounded-xl text-sm font-medium border border-neutral-900 bg-neutral-900 text-white shadow-sm hover:bg-neutral-800 cursor-pointer active:translate-y-[1px]">
               Import
               <input
                 type="file"
@@ -547,48 +545,52 @@ export default function BudgitApp() {
         </div>
 
         <div className="mt-5 grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div className="md:col-span-2 rounded-2xl bg-white shadow-sm border border-slate-200 print:shadow-none">
-            <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between gap-3">
-              <div className="font-semibold text-slate-900">Month</div>
+          <div className="md:col-span-2 rounded-2xl bg-white shadow-sm border border-neutral-200 print:shadow-none">
+            <div className="px-4 py-3 border-b border-neutral-100 flex items-center justify-between gap-3">
+              <div className="font-semibold text-neutral-900">Month</div>
               <div className="flex items-center gap-2">
                 <input
                   type="month"
                   value={app.activeMonth}
                   onChange={(e) => ensureMonth(e.target.value)}
-                  className="print:hidden rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white"
+                  className="print:hidden rounded-xl border border-neutral-200 px-3 py-2 text-sm bg-white"
                 />
-                <SmallButton tone="danger" onClick={clearMonth}>Clear</SmallButton>
+                <SmallButton tone="danger" onClick={clearMonth}>
+                  Clear
+                </SmallButton>
               </div>
             </div>
 
             <div className="p-4 space-y-4">
               {/* Income */}
-              <div className="rounded-2xl border border-slate-200 bg-white">
-                <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-                  <div className="font-semibold text-slate-900">Income</div>
-                  <SmallButton tone="primary" onClick={addIncome}>+ Add income</SmallButton>
+              <div className="rounded-2xl border border-neutral-200 bg-white">
+                <div className="px-4 py-3 border-b border-neutral-100 flex items-center justify-between">
+                  <div className="font-semibold text-neutral-900">Income</div>
+                  <SmallButton tone="primary" onClick={addIncome}>
+                    + Add income
+                  </SmallButton>
                 </div>
                 <div className="p-4 space-y-2">
                   {(active.incomes || []).length === 0 ? (
-                    <div className="text-sm text-slate-600">No income items yet.</div>
+                    <div className="text-sm text-neutral-600">No income items yet.</div>
                   ) : (
                     (active.incomes || []).map((i) => (
                       <div key={i.id} className="grid grid-cols-12 gap-2 items-center">
                         <input
-                          className="col-span-7 rounded-xl border border-slate-200 px-3 py-2 bg-white"
+                          className="col-span-7 rounded-xl border border-neutral-200 px-3 py-2 bg-white"
                           value={i.name || ""}
                           onChange={(e) => updateIncome(i.id, { name: e.target.value })}
                           placeholder="Income name"
                         />
                         <input
-                          className="col-span-4 rounded-xl border border-slate-200 px-3 py-2 bg-white text-right tabular-nums"
+                          className="col-span-4 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-right tabular-nums"
                           value={i.amount ?? 0}
                           onChange={(e) => updateIncome(i.id, { amount: e.target.value })}
                           inputMode="decimal"
                           placeholder="0"
                         />
                         <button
-                          className="print:hidden col-span-1 rounded-xl border border-slate-200 bg-slate-100 hover:bg-slate-200 px-3 py-2"
+                          className="print:hidden col-span-1 rounded-xl border border-neutral-200 bg-neutral-50 hover:bg-neutral-100 px-3 py-2"
                           title="Remove"
                           onClick={() => deleteIncome(i.id)}
                         >
@@ -601,60 +603,66 @@ export default function BudgitApp() {
               </div>
 
               {/* Expenses */}
-              <div className="rounded-2xl border border-slate-200 bg-white">
-                <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-                  <div className="font-semibold text-slate-900">Expenses</div>
-                  <SmallButton tone="primary" onClick={addExpenseGroup}>+ Add section</SmallButton>
+              <div className="rounded-2xl border border-neutral-200 bg-white">
+                <div className="px-4 py-3 border-b border-neutral-100 flex items-center justify-between">
+                  <div className="font-semibold text-neutral-900">Expenses</div>
+                  <SmallButton tone="primary" onClick={addExpenseGroup}>
+                    + Add section
+                  </SmallButton>
                 </div>
 
                 <div className="p-4 space-y-3">
                   {(active.expenseGroups || []).map((g) => (
-                    <div key={g.id} className="rounded-2xl border border-slate-200">
-                      <div className="px-3 py-2 border-b border-slate-100 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                    <div key={g.id} className="rounded-2xl border border-neutral-200">
+                      <div className="px-3 py-2 border-b border-neutral-100 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                         <div className="flex items-center gap-2">
                           <input
                             ref={focusGroupId === g.id ? groupLabelInputRef : null}
-                            className="w-[220px] max-w-full rounded-xl border border-slate-200 bg-white px-3 py-2 font-semibold text-slate-900"
+                            className="w-[220px] max-w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 font-semibold text-neutral-900"
                             value={g.label ?? ""}
                             onChange={(e) => updateExpenseGroupLabel(g.id, e.target.value)}
                             onBlur={() => normalizeExpenseGroupLabel(g.id)}
                             placeholder="Section label (e.g., Loans)"
                           />
-                          <div className="text-sm text-slate-600">
+                          <div className="text-sm text-neutral-600">
                             Total:{" "}
-                            <span className="font-semibold text-slate-900">
+                            <span className="font-semibold text-neutral-900">
                               <Money value={groupTotal(g)} />
                             </span>
                           </div>
                         </div>
 
                         <div className="flex items-center gap-2">
-                          <SmallButton tone="primary" onClick={() => addExpenseItem(g.id)}>+ Add item</SmallButton>
-                          <SmallButton tone="danger" onClick={() => deleteExpenseGroup(g.id)}>Delete section</SmallButton>
+                          <SmallButton tone="primary" onClick={() => addExpenseItem(g.id)}>
+                            + Add item
+                          </SmallButton>
+                          <SmallButton tone="danger" onClick={() => deleteExpenseGroup(g.id)}>
+                            Delete section
+                          </SmallButton>
                         </div>
                       </div>
 
                       <div className="p-3 space-y-2">
                         {(g.items || []).length === 0 ? (
-                          <div className="text-sm text-slate-600">No items in this section.</div>
+                          <div className="text-sm text-neutral-600">No items in this section.</div>
                         ) : (
                           (g.items || []).map((e) => (
                             <div key={e.id} className="grid grid-cols-12 gap-2 items-center">
                               <input
-                                className="col-span-7 rounded-xl border border-slate-200 px-3 py-2 bg-white"
+                                className="col-span-7 rounded-xl border border-neutral-200 px-3 py-2 bg-white"
                                 value={e.name || ""}
                                 onChange={(ev) => updateExpenseItem(g.id, e.id, { name: ev.target.value })}
                                 placeholder="Expense name"
                               />
                               <input
-                                className="col-span-4 rounded-xl border border-slate-200 px-3 py-2 bg-white text-right tabular-nums"
+                                className="col-span-4 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-right tabular-nums"
                                 value={e.amount ?? 0}
                                 onChange={(ev) => updateExpenseItem(g.id, e.id, { amount: ev.target.value })}
                                 inputMode="decimal"
                                 placeholder="0"
                               />
                               <button
-                                className="print:hidden col-span-1 rounded-xl border border-slate-200 bg-slate-100 hover:bg-slate-200 px-3 py-2"
+                                className="print:hidden col-span-1 rounded-xl border border-neutral-200 bg-neutral-50 hover:bg-neutral-100 px-3 py-2"
                                 title="Remove"
                                 onClick={() => deleteExpenseItem(g.id, e.id)}
                               >
@@ -668,19 +676,19 @@ export default function BudgitApp() {
                   ))}
 
                   {(active.expenseGroups || []).length === 0 ? (
-                    <div className="text-sm text-slate-600">No expense sections yet. Click “Add section”.</div>
+                    <div className="text-sm text-neutral-600">No expense sections yet. Click “Add section”.</div>
                   ) : null}
                 </div>
               </div>
 
               {/* Notes */}
-              <div className="rounded-2xl border border-slate-200 bg-white">
-                <div className="px-4 py-3 border-b border-slate-100">
-                  <div className="font-semibold text-slate-900">Notes</div>
+              <div className="rounded-2xl border border-neutral-200 bg-white">
+                <div className="px-4 py-3 border-b border-neutral-100">
+                  <div className="font-semibold text-neutral-900">Notes</div>
                 </div>
                 <div className="p-4">
                   <textarea
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 bg-white min-h-[90px]"
+                    className="w-full rounded-xl border border-neutral-200 px-3 py-2 bg-white min-h-[90px]"
                     value={active.notes || ""}
                     onChange={(e) => updateMonth((cur) => ({ ...cur, notes: e.target.value }))}
                     placeholder="Optional notes for this month…"
@@ -691,34 +699,40 @@ export default function BudgitApp() {
           </div>
 
           {/* Summary */}
-          <div className="rounded-2xl bg-white shadow-sm border border-slate-200 print:shadow-none">
-            <div className="px-4 py-3 border-b border-slate-100">
-              <div className="font-semibold text-slate-900">Summary</div>
+          <div className="rounded-2xl bg-white shadow-sm border border-neutral-200 print:shadow-none">
+            <div className="px-4 py-3 border-b border-neutral-100">
+              <div className="font-semibold text-neutral-900">Summary</div>
             </div>
             <div className="p-4 space-y-4">
-              <div className="rounded-2xl border border-slate-200 p-4">
-                <div className="text-sm text-slate-600">Total income</div>
-                <div className="text-2xl font-semibold text-slate-900 mt-1"><Money value={incomeTotal} /></div>
+              <div className="rounded-2xl border border-neutral-200 p-4">
+                <div className="text-sm text-neutral-600">Total income</div>
+                <div className="text-2xl font-semibold text-neutral-900 mt-1">
+                  <Money value={incomeTotal} />
+                </div>
               </div>
-              <div className="rounded-2xl border border-slate-200 p-4">
-                <div className="text-sm text-slate-600">Total expenses</div>
-                <div className="text-2xl font-semibold text-slate-900 mt-1"><Money value={expenseTotal} /></div>
+              <div className="rounded-2xl border border-neutral-200 p-4">
+                <div className="text-sm text-neutral-600">Total expenses</div>
+                <div className="text-2xl font-semibold text-neutral-900 mt-1">
+                  <Money value={expenseTotal} />
+                </div>
               </div>
-              <div className={`rounded-2xl border p-4 ${net >= 0 ? "border-emerald-200" : "border-rose-200"}`}>
-                <div className="text-sm text-slate-600">Net</div>
-                <div className="text-2xl font-semibold text-slate-900 mt-1"><Money value={net} /></div>
-                <div className="text-xs text-slate-600 mt-2">
+              <div className={`rounded-2xl border p-4 ${net >= 0 ? "border-emerald-200" : "border-red-200"}`}>
+                <div className="text-sm text-neutral-600">Net</div>
+                <div className="text-2xl font-semibold text-neutral-900 mt-1">
+                  <Money value={net} />
+                </div>
+                <div className="text-xs text-neutral-600 mt-2">
                   Savings rate: <span className="font-medium">{savingsRate.toFixed(1)}%</span>
                 </div>
               </div>
 
-              <div className="text-xs text-slate-500">Tip: Use “Preview” to check layout before saving to PDF.</div>
+              <div className="text-xs text-neutral-500">Tip: Use “Preview” to check layout before saving to PDF.</div>
             </div>
           </div>
         </div>
 
         {toast ? (
-          <div className="fixed bottom-6 right-6 rounded-2xl bg-slate-900 text-white px-4 py-3 shadow-lg print:hidden">
+          <div className="fixed bottom-6 right-6 rounded-2xl bg-neutral-900 text-white px-4 py-3 shadow-lg print:hidden">
             <div className="text-sm">{toast}</div>
           </div>
         ) : null}
