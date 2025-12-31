@@ -68,6 +68,44 @@ function SmallButton({ children, onClick, tone = "default", className = "", disa
   );
 }
 
+/** Normalized Top Actions (mobile-aligned “table/grid”) */
+const ACTION_BASE =
+  "print:hidden h-10 w-full rounded-xl text-sm font-medium border transition shadow-sm active:translate-y-[1px] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center";
+
+function ActionButton({ children, onClick, tone = "default", disabled, title }) {
+  const cls =
+    tone === "primary"
+      ? "bg-neutral-900 hover:bg-neutral-800 text-white border-neutral-900"
+      : tone === "danger"
+        ? "bg-red-50 hover:bg-red-100 text-red-700 border-red-200"
+        : "bg-white hover:bg-neutral-50 text-neutral-900 border-neutral-200";
+
+  return (
+    <button type="button" onClick={onClick} disabled={disabled} title={title} className={`${ACTION_BASE} ${cls}`}>
+      {children}
+    </button>
+  );
+}
+
+function ActionFileButton({ children, onFile, accept = "application/json", tone = "primary", title }) {
+  const cls =
+    tone === "primary"
+      ? "bg-neutral-900 hover:bg-neutral-800 text-white border-neutral-900"
+      : "bg-white hover:bg-neutral-50 text-neutral-900 border-neutral-200";
+
+  return (
+    <label title={title} className={`${ACTION_BASE} ${cls} cursor-pointer`}>
+      <span>{children}</span>
+      <input
+        type="file"
+        accept={accept}
+        className="hidden"
+        onChange={(e) => onFile?.(e.target.files?.[0] || null)}
+      />
+    </label>
+  );
+}
+
 function Money({ value }) {
   const v = Number(value) || 0;
   const sign = v < 0 ? "-" : "";
@@ -519,7 +557,8 @@ export default function BudgitApp() {
       ) : null}
 
       <div className="max-w-5xl mx-auto px-4 py-6">
-        <div className="flex items-start justify-between gap-4">
+        {/* Header + normalized actions */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <div className="text-2xl font-semibold text-neutral-900">Budgit</div>
             <div className="text-sm text-neutral-600">
@@ -528,19 +567,15 @@ export default function BudgitApp() {
             <div className="mt-3 h-[2px] w-80 rounded-full bg-gradient-to-r from-lime-400/0 via-lime-400 to-emerald-400/0" />
           </div>
 
-          <div className="flex items-center gap-2">
-            <SmallButton onClick={openPreview}>Preview</SmallButton>
-            <SmallButton onClick={() => window.print()}>Print / Save PDF</SmallButton>
-            <SmallButton onClick={exportJSON}>Export</SmallButton>
-            <label className="print:hidden px-3 py-2 rounded-xl text-sm font-medium border border-neutral-900 bg-neutral-900 text-white shadow-sm hover:bg-neutral-800 cursor-pointer active:translate-y-[1px]">
-              Import
-              <input
-                type="file"
-                accept="application/json"
-                className="hidden"
-                onChange={(e) => importJSON(e.target.files?.[0] || null)}
-              />
-            </label>
+          <div className="w-full sm:w-[520px] lg:w-[620px]">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <ActionButton onClick={openPreview}>Preview</ActionButton>
+              <ActionButton onClick={() => window.print()}>Print / Save PDF</ActionButton>
+              <ActionButton onClick={exportJSON}>Export</ActionButton>
+              <ActionFileButton onFile={(f) => importJSON(f)} tone="primary">
+                Import
+              </ActionFileButton>
+            </div>
           </div>
         </div>
 
