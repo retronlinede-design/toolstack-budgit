@@ -117,6 +117,84 @@ function Money({ value }) {
   );
 }
 
+/** ToolStack — Help Pack v1 (shared modal) */
+function HelpModal({ open, onClose }) {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8 print:hidden">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative w-full max-w-2xl rounded-2xl bg-white border border-neutral-200 shadow-xl overflow-hidden">
+        <div className="p-4 border-b border-neutral-100 flex items-start justify-between gap-4">
+          <div>
+            <div className="text-lg font-semibold text-neutral-900">Help</div>
+            <div className="text-sm text-neutral-600 mt-1">How your data is saved + how to keep continuity.</div>
+            <div className="mt-3 h-[2px] w-56 rounded-full bg-gradient-to-r from-lime-400/0 via-lime-400 to-emerald-400/0" />
+          </div>
+          <button
+            type="button"
+            className="px-3 py-2 rounded-xl text-sm font-medium border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-900 transition"
+            onClick={onClose}
+          >
+            Close
+          </button>
+        </div>
+
+        <div className="p-4 space-y-4">
+          <div className="rounded-2xl border border-neutral-200 p-4">
+            <div className="font-semibold text-neutral-900">Autosave (default)</div>
+            <div className="text-sm text-neutral-700 mt-1">
+              Budgit saves automatically in your browser (localStorage) under:
+              <span className="ml-2 font-mono text-xs bg-neutral-50 border border-neutral-200 rounded-lg px-2 py-1">
+                {LS_KEY}
+              </span>
+            </div>
+            <div className="text-xs text-neutral-500 mt-2">
+              If you clear browser data or switch devices/browsers, your local data won’t follow automatically.
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-neutral-200 p-4">
+            <div className="font-semibold text-neutral-900">Best practice (continuity)</div>
+            <ul className="mt-2 space-y-2 text-sm text-neutral-700 list-disc pl-5">
+              <li>
+                Use <span className="font-semibold">Export</span> once a week (or after big updates) to create a backup
+                JSON file.
+              </li>
+              <li>
+                Store that JSON in a safe place (Google Drive / iCloud / email to yourself / USB).
+              </li>
+              <li>
+                On a new device/browser, use <span className="font-semibold">Import</span> to restore everything.
+              </li>
+            </ul>
+          </div>
+
+          <div className="rounded-2xl border border-neutral-200 p-4">
+            <div className="font-semibold text-neutral-900">Printing / PDF</div>
+            <div className="text-sm text-neutral-700 mt-1">
+              Use <span className="font-semibold">Preview</span> to check the layout, then{" "}
+              <span className="font-semibold">Print / Save PDF</span> and choose “Save as PDF”.
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-neutral-200 p-4">
+            <div className="font-semibold text-neutral-900">Privacy</div>
+            <div className="text-sm text-neutral-700 mt-1">
+              Budgit runs in your browser. There’s no account system here yet, and nothing is uploaded unless you choose
+              to share your exported file.
+            </div>
+          </div>
+        </div>
+
+        <div className="p-4 border-t border-neutral-100 text-xs text-neutral-500">
+          ToolStack • Help Pack v1
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Migration:
 // - Legacy: { expenses: [] }
 // - New: { expenseGroups: [{ id, label, items: [] }] }
@@ -179,6 +257,9 @@ export default function BudgitApp() {
   const [focusGroupId, setFocusGroupId] = useState(null);
   const groupLabelInputRef = useRef(null);
   const [previewOpen, setPreviewOpen] = useState(false);
+
+  // Help Pack v1
+  const [helpOpen, setHelpOpen] = useState(false);
 
   const notify = (msg) => {
     setToast(msg);
@@ -411,6 +492,9 @@ export default function BudgitApp() {
         }
       `}</style>
 
+      {/* Help Pack v1 */}
+      <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
+
       {/* When preview is open, print only the preview sheet */}
       {previewOpen ? (
         <style>{`
@@ -568,13 +652,26 @@ export default function BudgitApp() {
           </div>
 
           <div className="w-full sm:w-[520px] lg:w-[620px]">
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <ActionButton onClick={openPreview}>Preview</ActionButton>
-              <ActionButton onClick={() => window.print()}>Print / Save PDF</ActionButton>
-              <ActionButton onClick={exportJSON}>Export</ActionButton>
-              <ActionFileButton onFile={(f) => importJSON(f)} tone="primary">
-                Import
-              </ActionFileButton>
+            {/* Top actions + pinned Help icon (standard) */}
+            <div className="relative">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 pr-12">
+                <ActionButton onClick={openPreview}>Preview</ActionButton>
+                <ActionButton onClick={() => window.print()}>Print / Save PDF</ActionButton>
+                <ActionButton onClick={exportJSON}>Export</ActionButton>
+                <ActionFileButton onFile={(f) => importJSON(f)} tone="primary">
+                  Import
+                </ActionFileButton>
+              </div>
+
+              <button
+                type="button"
+                title="Help"
+                onClick={() => setHelpOpen(true)}
+                className="print:hidden absolute right-0 top-0 h-10 w-10 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 shadow-sm flex items-center justify-center font-bold text-neutral-900"
+                aria-label="Help"
+              >
+                ?
+              </button>
             </div>
           </div>
         </div>
