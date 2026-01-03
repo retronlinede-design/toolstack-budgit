@@ -300,7 +300,9 @@ function HelpModal({ open, onClose }) {
               Budgit saves automatically in your browser (localStorage) under:
               <span className="ml-2 font-mono text-xs bg-neutral-50 border border-neutral-200 rounded-lg px-2 py-1">{LS_KEY}</span>
             </div>
-            <div className="text-xs text-neutral-500 mt-2">If you clear browser data or switch devices/browsers, your local data won’t follow automatically.</div>
+            <div className="text-xs text-neutral-500 mt-2">
+              If you clear browser data or switch devices/browsers, your local data won’t follow automatically.
+            </div>
           </div>
 
           <div className="rounded-2xl border border-neutral-200 p-4">
@@ -533,7 +535,6 @@ export default function BudgitApp() {
       if (fromIndex < 0) return cur;
       const [moved] = items.splice(fromIndex, 1);
       let insertAt = clamp(toIndex, 0, items.length);
-      // Adjust if moving downward within same list
       if (fromIndex < insertAt) insertAt = insertAt - 1;
       items.splice(clamp(insertAt, 0, items.length), 0, moved);
       return { ...cur, incomes: items };
@@ -635,8 +636,6 @@ export default function BudgitApp() {
       if (!moved) return cur;
 
       let insertAt = clamp(toIndex, 0, toG.items.length);
-
-      // If same list and we removed an earlier index, insertion shifts by -1
       if (fromGroupId === toGroupId && fromIndex < insertAt) insertAt = insertAt - 1;
 
       toG.items.splice(clamp(insertAt, 0, toG.items.length), 0, moved);
@@ -862,17 +861,15 @@ export default function BudgitApp() {
   // ---------------------------
 
   useEffect(() => {
-    // basic invariants
     try {
       const t = normalizeMonthData(null);
       console.assert(Array.isArray(t.expenseGroups) && t.expenseGroups.length >= 1, "normalizeMonthData should create at least one group");
 
-      // moveExpenseInsert: should not throw
       const g1 = { id: "g1", label: "A", items: [{ id: "i1", name: "x", amount: "1", paid: false, dueDay: 1 }] };
       const g2 = { id: "g2", label: "B", items: [] };
       const m = normalizeMonthData({ incomes: [], expenseGroups: [g1, g2], notes: "" });
       const before = m.expenseGroups[0].items.length;
-      // simulate insertion
+
       const sim = (() => {
         const cur = { ...m, expenseGroups: m.expenseGroups.map((gg) => ({ ...gg, items: [...gg.items] })) };
         const groups = cur.expenseGroups;
@@ -883,6 +880,7 @@ export default function BudgitApp() {
         toG.items.splice(0, 0, mv);
         return cur;
       })();
+
       console.assert(sim.expenseGroups[0].items.length === before - 1, "sim move should remove from source");
       console.assert(sim.expenseGroups[1].items.length === 1, "sim move should insert into target");
     } catch {
@@ -909,7 +907,6 @@ export default function BudgitApp() {
 
       <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
 
-      {/* When preview is open, print only the preview sheet */}
       {previewOpen ? (
         <style>{`
           @media print {
@@ -920,7 +917,6 @@ export default function BudgitApp() {
         `}</style>
       ) : null}
 
-      {/* Print Preview Modal */}
       {previewOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8">
           <div className="absolute inset-0 bg-black/40" onClick={() => setPreviewOpen(false)} />
@@ -991,7 +987,8 @@ export default function BudgitApp() {
                             <div className="px-3 py-2 border-b border-neutral-100 flex items-center justify-between">
                               <div className="font-semibold text-neutral-900">{(g.label || "General").trim()}</div>
                               <div className="text-sm text-neutral-700">
-                                Remaining: <span className="font-semibold text-neutral-900">€{groupRemainingTotal(g).toFixed(2)}</span>
+                                Remaining:{" "}
+                                <span className="font-semibold text-neutral-900">€{groupRemainingTotal(g).toFixed(2)}</span>
                                 <span className="text-neutral-400"> • </span>
                                 Planned: <span className="font-medium">€{groupPlannedTotal(g).toFixed(2)}</span>
                               </div>
@@ -1044,11 +1041,15 @@ export default function BudgitApp() {
 
                   <div className="rounded-2xl border border-neutral-200 p-4">
                     <div className="text-sm text-neutral-600">Notes</div>
-                    <div className="mt-2 whitespace-pre-wrap text-neutral-900 text-sm">{String(active.notes || "").trim() ? active.notes : "(none)"}</div>
+                    <div className="mt-2 whitespace-pre-wrap text-neutral-900 text-sm">
+                      {String(active.notes || "").trim() ? active.notes : "(none)"}
+                    </div>
                   </div>
                 </div>
 
-                <div className="mt-4 text-xs text-neutral-500">Tip: If the preview looks right, hit “Print / Save PDF” and choose “Save as PDF”.</div>
+                <div className="mt-4 text-xs text-neutral-500">
+                  Tip: If the preview looks right, hit “Print / Save PDF” and choose “Save as PDF”.
+                </div>
               </div>
             </div>
           </div>
@@ -1056,7 +1057,6 @@ export default function BudgitApp() {
       ) : null}
 
       <div className="max-w-5xl mx-auto px-4 py-6">
-        {/* Header + normalized actions */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <div className="text-2xl font-semibold text-neutral-900">Budgit</div>
@@ -1065,7 +1065,6 @@ export default function BudgitApp() {
           </div>
 
           <div className="w-full sm:w-[520px] lg:w-[620px]">
-            {/* Top actions + pinned Help icon (standard) */}
             <div className="relative">
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 pr-12">
                 <ActionButton onClick={openPreview}>Preview</ActionButton>
@@ -1091,7 +1090,6 @@ export default function BudgitApp() {
 
         <div className="mt-5 grid grid-cols-1 md:grid-cols-3 gap-3">
           <div className="md:col-span-2 rounded-2xl bg-white shadow-sm border border-neutral-200 print:shadow-none">
-            {/* Month header */}
             <div className="px-4 py-3 border-b border-neutral-100">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="font-semibold text-neutral-900">Month</div>
@@ -1148,7 +1146,9 @@ export default function BudgitApp() {
                             Cancel
                           </MiniActionButton>
                         </div>
-                        <div className="mt-2 text-xs text-neutral-500">Note: copied items are set to unpaid in the new month.</div>
+                        <div className="mt-2 text-xs text-neutral-500">
+                          Note: copied items are set to unpaid in the new month.
+                        </div>
                       </div>
                     ) : null}
                   </div>
@@ -1173,7 +1173,6 @@ export default function BudgitApp() {
                 </div>
 
                 <div className="p-4 space-y-2">
-                  {/* Top dropzone */}
                   <InsertDropZone
                     active={dropHint?.type === "incomeInsert" && dropHint?.index === 0}
                     onDragOver={(e) => {
@@ -1327,10 +1326,11 @@ export default function BudgitApp() {
                             </div>
 
                             {/* ACTIONS TABLE (consistent sizes) */}
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                               <MiniActionButton title="Sort by due day (earliest first)" onClick={() => sortGroupByDue(g.id)}>
                                 Sort due
                               </MiniActionButton>
+
                               <TogglePill
                                 on={hidePaid}
                                 labelOn="Hide paid"
@@ -1338,15 +1338,21 @@ export default function BudgitApp() {
                                 title="Toggle visibility of paid items"
                                 onClick={() => setHidePaid((v) => !v)}
                               />
+
                               <MiniActionButton title="Remove all PAID items in this section" onClick={() => clearPaidInGroup(g.id)}>
                                 Clear paid
                               </MiniActionButton>
-                              <MiniActionButton tone="danger" title="Clear ALL items in this section" onClick={() => clearGroupItems(g.id)}>
+
+                              <MiniActionButton
+                                tone="danger"
+                                title="Clear ALL items in this section"
+                                onClick={() => clearGroupItems(g.id)}
+                              >
                                 Clear items
                               </MiniActionButton>
 
+                              {/* ✅ FIX: no col-span, same size as others */}
                               <MiniActionButton
-                                className="sm:col-span-4"
                                 tone="danger"
                                 title="Delete this section and all its items"
                                 onClick={() => deleteExpenseGroup(g.id)}
@@ -1366,7 +1372,6 @@ export default function BudgitApp() {
 
                         {!isCollapsed ? (
                           <div className="p-3 space-y-2">
-                            {/* Dropzone at top of list */}
                             <InsertDropZone
                               active={dropHint?.type === "expenseInsert" && dropHint?.groupId === g.id && dropHint?.index === 0}
                               onDragOver={(e) => {
@@ -1393,14 +1398,19 @@ export default function BudgitApp() {
                                     <div
                                       className="col-span-1"
                                       draggable
-                                      onDragStart={(ev) => setDragPayload({ type: "expense", fromGroupId: g.id, itemId: e.id }, ev)}
+                                      onDragStart={(ev) =>
+                                        setDragPayload({ type: "expense", fromGroupId: g.id, itemId: e.id }, ev)
+                                      }
                                       onDragEnd={clearDragState}
                                     >
                                       <DragHandle title="Drag expense item" />
                                     </div>
 
                                     <div className="col-span-1">
-                                      <PaidCheck checked={!!e.paid} onChange={(v) => updateExpenseItem(g.id, e.id, { paid: !!v })} />
+                                      <PaidCheck
+                                        checked={!!e.paid}
+                                        onChange={(v) => updateExpenseItem(g.id, e.id, { paid: !!v })}
+                                      />
                                     </div>
 
                                     <input
@@ -1444,9 +1454,12 @@ export default function BudgitApp() {
                                     </button>
                                   </div>
 
-                                  {/* Dropzone after each visible item */}
                                   <InsertDropZone
-                                    active={dropHint?.type === "expenseInsert" && dropHint?.groupId === g.id && dropHint?.index === idx + 1}
+                                    active={
+                                      dropHint?.type === "expenseInsert" &&
+                                      dropHint?.groupId === g.id &&
+                                      dropHint?.index === idx + 1
+                                    }
                                     onDragOver={(ev) => {
                                       const p = readDragPayload(ev);
                                       if (p?.type !== "expense") return;
@@ -1562,11 +1575,15 @@ export default function BudgitApp() {
                   </div>
                   <div className="flex items-center justify-between">
                     <span>Expense items</span>
-                    <span className="font-medium text-neutral-900">{(active.expenseGroups || []).reduce((s, g) => s + (g.items || []).length, 0)}</span>
+                    <span className="font-medium text-neutral-900">
+                      {(active.expenseGroups || []).reduce((s, g) => s + (g.items || []).length, 0)}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span>Unpaid items</span>
-                    <span className="font-medium text-neutral-900">{(active.expenseGroups || []).reduce((s, g) => s + (g.items || []).filter((it) => !it.paid).length, 0)}</span>
+                    <span className="font-medium text-neutral-900">
+                      {(active.expenseGroups || []).reduce((s, g) => s + (g.items || []).filter((it) => !it.paid).length, 0)}
+                    </span>
                   </div>
                 </div>
               </div>
