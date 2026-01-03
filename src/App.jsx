@@ -6,7 +6,11 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 // - Tracks Income + Expenses for each month
 // - Expenses support user-labeled sections (Creditors, Loans, Transport, etc.)
 // - Labels are edited inline (no prompt dialogs)
-// - Drag & drop reordering (income + expense items; expenses can be moved between sections)
+// - Drag & drop reordering with true "insert anywhere" drop zones
+//   - Income: reorder by dropping between rows
+//   - Expenses: reorder within a section or move to another section; drop between rows or at end
+// - Paid checkboxes for expenses
+//   - "Remaining expenses" totals update as items are checked off
 // - Collapsible expense sections
 // - Print to PDF via browser Print
 // - Export/Import JSON backup
@@ -51,17 +55,6 @@ const toNumber = (v) => {
 };
 
 const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
-
-const arrayMove = (arr, fromIndex, toIndex) => {
-  const a = Array.isArray(arr) ? [...arr] : [];
-  if (!a.length) return a;
-  const from = clamp(fromIndex, 0, a.length - 1);
-  const to = clamp(toIndex, 0, a.length - 1);
-  if (from === to) return a;
-  const [item] = a.splice(from, 1);
-  a.splice(to, 0, item);
-  return a;
-};
 
 function SmallButton({ children, onClick, tone = "default", className = "", disabled, title, type = "button" }) {
   const cls =
@@ -145,6 +138,17 @@ function DragHandle({ title = "Drag to reorder" }) {
   );
 }
 
+function DropZone({ active }) {
+  return (
+    <div className="print:hidden px-2">
+      <div
+        className={`h-2 rounded-full transition ${active ? "bg-lime-300" : "bg-transparent"}`}
+        aria-hidden="true"
+      />
+    </div>
+  );
+}
+
 /** ToolStack — Help Pack v1 (shared modal) */
 function HelpModal({ open, onClose }) {
   if (!open) return null;
@@ -199,8 +203,16 @@ function HelpModal({ open, onClose }) {
           <div className="rounded-2xl border border-neutral-200 p-4">
             <div className="font-semibold text-neutral-900">Reordering (drag & drop)</div>
             <div className="text-sm text-neutral-700 mt-1">
-              Grab the <span className="font-semibold">⋮⋮</span> handle to reorder items. Expense items can also be
-              moved into a different section by dropping them there.
+              Grab the <span className="font-semibold">⋮⋮</span> handle and drop on the green line between rows.
+              Expense items can also be dropped into a different section.
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-neutral-200 p-4">
+            <div className="font-semibold text-neutral-900">Paid checkoffs</div>
+            <div className="text-sm text-neutral-700 mt-1">
+              Tick an expense as <span className="font-semibold">Paid</span> to reduce the “Remaining expenses” total.
+              (Totals in the summary show Remaining + Planned.)
             </div>
           </div>
 
@@ -230,10 +242,21 @@ function HelpModal({ open, onClose }) {
 // Migration:
 // - Legacy: { expenses: [] }
 // - New: { expenseGroups: [{ id, label, items: [] }] }
+// - Added: item.paid (default false)
 function normalizeMonthData(monthData) {
   const m = monthData || { incomes: [], expenses: [], notes: "" };
 
-  const incomes = Array.isArray(m.incomes) ? m.incomes : [];
+  const incomes = Array.isArray(m.incomes)
+    ? m.incomes.map((x) => ({ id: x.id || uid(), name: x.name ?? "", amount: x.amount ?? 0 }))
+    : [];
+
+  const normalizeItems = (items) =>
+    (Array.isArray(items) ? items : []).map((it) => ({
+      id: it.id || uid(),
+      name: it.name ?? "",
+      amount: it.amount ?? 0,
+      paid: !!it.paid,
+    }));
 
   if (Array.isArray(m.expenseGroups)) {
     const groups = m.expenseGroups
@@ -241,7 +264,7 @@ function normalizeMonthData(monthData) {
       .map((g) => ({
         id: g.id || uid(),
         label: typeof g.label === "string" ? g.label : "",
-        items: Array.isArray(g.items) ? g.items : [],
+        items: normalizeItems(g.items),
       }));
 
     return {
@@ -251,7 +274,7 @@ function normalizeMonthData(monthData) {
     };
   }
 
-  const legacyExpenses = Array.isArray(m.expenses) ? m.expenses : [];
+  const legacyExpenses = normalizeItems(m.expenses);
   return {
     incomes,
     expenseGroups: [{ id: uid(), label: "General", items: legacyExpenses }],
@@ -275,7 +298,6 @@ export default function BudgitApp() {
     data.activeMonth = m;
     data.months = data.months || {};
 
-    // normalize all months
     Object.keys(data.months).forEach((k) => {
       data.months[k] = normalizeMonthData(data.months[k]);
     });
@@ -298,6 +320,9 @@ export default function BudgitApp() {
 
   // Drag state (UI-only)
   const [drag, setDrag] = useState(null);
+  // dropHint shapes:
+  // { kind: 'income', index }
+  // { kind: 'expense', groupId, index }
   const [dropHint, setDropHint] = useState(null);
 
   const notify = (msg) => {
@@ -333,17 +358,27 @@ export default function BudgitApp() {
     [active.incomes]
   );
 
-  const expenseTotal = useMemo(() => {
+  const expenseTotalPlanned = useMemo(() => {
     const groups = active.expenseGroups || [];
     return groups.reduce((sum, g) => sum + (g.items || []).reduce((s2, it) => s2 + toNumber(it.amount), 0), 0);
   }, [active.expenseGroups]);
 
-  const net = useMemo(() => incomeTotal - expenseTotal, [incomeTotal, expenseTotal]);
+  const expenseTotalRemaining = useMemo(() => {
+    const groups = active.expenseGroups || [];
+    return groups.reduce(
+      (sum, g) =>
+        sum +
+        (g.items || []).reduce((s2, it) => s2 + (!it.paid ? toNumber(it.amount) : 0), 0),
+      0
+    );
+  }, [active.expenseGroups]);
 
-  const savingsRate = useMemo(() => {
+  const netRemaining = useMemo(() => incomeTotal - expenseTotalRemaining, [incomeTotal, expenseTotalRemaining]);
+
+  const savingsRateRemaining = useMemo(() => {
     if (!incomeTotal) return 0;
-    return (net / incomeTotal) * 100;
-  }, [net, incomeTotal]);
+    return (netRemaining / incomeTotal) * 100;
+  }, [netRemaining, incomeTotal]);
 
   const updateMonth = (updater) => {
     setApp((a) => {
@@ -431,15 +466,13 @@ export default function BudgitApp() {
   };
 
   const addExpenseItem = (groupId) => {
-    const item = { id: uid(), name: "Expense", amount: 0 };
+    const item = { id: uid(), name: "Expense", amount: 0, paid: false };
     updateMonth((cur) => ({
       ...cur,
       expenseGroups: (cur.expenseGroups || []).map((g) =>
         g.id === groupId ? { ...g, items: [item, ...(g.items || [])] } : g
       ),
     }));
-
-    // If collapsed, auto-open
     setCollapsed((c) => ({ ...c, [groupId]: false }));
   };
 
@@ -466,7 +499,12 @@ export default function BudgitApp() {
     }));
   };
 
-  const groupTotal = (group) => (group.items || []).reduce((s, it) => s + toNumber(it.amount), 0);
+  const groupTotals = (group) => {
+    const items = group?.items || [];
+    const planned = items.reduce((s, it) => s + toNumber(it.amount), 0);
+    const remaining = items.reduce((s, it) => s + (!it.paid ? toNumber(it.amount) : 0), 0);
+    return { planned, remaining };
+  };
 
   const clearMonth = () => {
     const ok = window.confirm("Clear all income and expenses for this month?");
@@ -552,42 +590,43 @@ export default function BudgitApp() {
     setDropHint(null);
   };
 
-  const moveIncomeItem = (fromId, toId) => {
+  // Income: move by insertion index
+  const moveIncomeToIndex = (itemId, toIndex) => {
     updateMonth((cur) => {
       const items = [...(cur.incomes || [])];
-      const fromIndex = items.findIndex((x) => x.id === fromId);
-      const toIndex = items.findIndex((x) => x.id === toId);
-      if (fromIndex < 0 || toIndex < 0) return cur;
-      return { ...cur, incomes: arrayMove(items, fromIndex, toIndex) };
+      const fromIndex = items.findIndex((x) => x.id === itemId);
+      if (fromIndex < 0) return cur;
+      const [moved] = items.splice(fromIndex, 1);
+      const to = clamp(toIndex, 0, items.length);
+      items.splice(to, 0, moved);
+      return { ...cur, incomes: items };
     });
   };
 
-  const moveExpenseItem = (fromGroupId, fromItemId, toGroupId, toItemId) => {
+  // Expenses: move by insertion index within target group
+  const moveExpenseToIndex = (fromGroupId, itemId, toGroupId, toIndex) => {
     updateMonth((cur) => {
       const groups = (cur.expenseGroups || []).map((g) => ({ ...g, items: [...(g.items || [])] }));
       const fromG = groups.find((g) => g.id === fromGroupId);
       const toG = groups.find((g) => g.id === toGroupId);
       if (!fromG || !toG) return cur;
 
-      const fromIndex = fromG.items.findIndex((x) => x.id === fromItemId);
+      const fromIndex = fromG.items.findIndex((x) => x.id === itemId);
       if (fromIndex < 0) return cur;
 
       const [moved] = fromG.items.splice(fromIndex, 1);
       if (!moved) return cur;
 
-      // If dropping onto empty list / group container, append
-      if (!toItemId) {
-        toG.items.push(moved);
-      } else {
-        const toIndex = toG.items.findIndex((x) => x.id === toItemId);
-        if (toIndex < 0) toG.items.push(moved);
-        else toG.items.splice(toIndex, 0, moved);
+      let to = clamp(toIndex, 0, toG.items.length);
+      if (fromGroupId === toGroupId) {
+        // If moving within same list and removing a prior index, insertion point shifts left.
+        if (fromIndex < to) to = Math.max(0, to - 1);
       }
 
+      toG.items.splice(to, 0, moved);
       return { ...cur, expenseGroups: groups };
     });
 
-    // ensure target group is visible
     setCollapsed((c) => ({ ...c, [toGroupId]: false }));
   };
 
@@ -608,10 +647,8 @@ export default function BudgitApp() {
         }
       `}</style>
 
-      {/* Help Pack v1 */}
       <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
 
-      {/* When preview is open, print only the preview sheet */}
       {previewOpen ? (
         <style>{`
           @media print {
@@ -622,7 +659,6 @@ export default function BudgitApp() {
         `}</style>
       ) : null}
 
-      {/* Print Preview Modal */}
       {previewOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8">
           <div className="absolute inset-0 bg-black/40" onClick={() => setPreviewOpen(false)} />
@@ -683,55 +719,67 @@ export default function BudgitApp() {
                   </div>
 
                   <div className="rounded-2xl border border-neutral-200">
-                    <div className="px-4 py-3 border-b border-neutral-100 font-semibold text-neutral-900">Expenses</div>
+                    <div className="px-4 py-3 border-b border-neutral-100 font-semibold text-neutral-900">
+                      Expenses
+                    </div>
                     <div className="p-4 space-y-4">
                       {previewGroups.length === 0 ? (
                         <div className="text-sm text-neutral-600">No expense sections.</div>
                       ) : (
-                        previewGroups.map((g) => (
-                          <div key={g.id} className="rounded-2xl border border-neutral-200">
-                            <div className="px-3 py-2 border-b border-neutral-100 flex items-center justify-between">
-                              <div className="font-semibold text-neutral-900">{(g.label || "General").trim()}</div>
-                              <div className="font-semibold text-neutral-900">
-                                <Money value={groupTotal(g)} />
+                        previewGroups.map((g) => {
+                          const gt = groupTotals(g);
+                          return (
+                            <div key={g.id} className="rounded-2xl border border-neutral-200">
+                              <div className="px-3 py-2 border-b border-neutral-100 flex items-center justify-between">
+                                <div className="font-semibold text-neutral-900">{(g.label || "General").trim()}</div>
+                                <div className="text-sm text-neutral-600">
+                                  Remaining: <span className="font-semibold text-neutral-900"><Money value={gt.remaining} /></span>
+                                  <span className="ml-2">Planned: <span className="font-medium text-neutral-900"><Money value={gt.planned} /></span></span>
+                                </div>
+                              </div>
+                              <div className="p-3 space-y-2">
+                                {(g.items || []).length === 0 ? (
+                                  <div className="text-sm text-neutral-600">No items.</div>
+                                ) : (
+                                  (g.items || []).map((e) => (
+                                    <div key={e.id} className="flex items-center justify-between gap-3">
+                                      <div className={`text-neutral-900 ${e.paid ? "line-through text-neutral-500" : ""}`}>
+                                        {e.paid ? "✓ " : ""}{e.name || "(unnamed)"}
+                                      </div>
+                                      <div className={`${e.paid ? "text-neutral-500" : "text-neutral-900"}`}>
+                                        <Money value={toNumber(e.amount)} />
+                                      </div>
+                                    </div>
+                                  ))
+                                )}
                               </div>
                             </div>
-                            <div className="p-3 space-y-2">
-                              {(g.items || []).length === 0 ? (
-                                <div className="text-sm text-neutral-600">No items.</div>
-                              ) : (
-                                (g.items || []).map((e) => (
-                                  <div key={e.id} className="flex items-center justify-between gap-3">
-                                    <div className="text-neutral-900">{e.name || "(unnamed)"}</div>
-                                    <div className="text-neutral-900">
-                                      <Money value={toNumber(e.amount)} />
-                                    </div>
-                                  </div>
-                                ))
-                              )}
-                            </div>
-                          </div>
-                        ))
+                          );
+                        })
                       )}
 
                       <div className="pt-3 mt-2 border-t border-neutral-100 flex items-center justify-between">
-                        <div className="font-semibold text-neutral-900">Total expenses</div>
+                        <div className="font-semibold text-neutral-900">Remaining expenses</div>
                         <div className="font-semibold text-neutral-900">
-                          <Money value={expenseTotal} />
+                          <Money value={expenseTotalRemaining} />
                         </div>
+                      </div>
+                      <div className="flex items-center justify-between text-sm text-neutral-600">
+                        <div>Planned expenses</div>
+                        <div className="font-medium text-neutral-900"><Money value={expenseTotalPlanned} /></div>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className={`rounded-2xl border p-4 ${net >= 0 ? "border-emerald-200" : "border-red-200"}`}>
-                    <div className="text-sm text-neutral-600">Net</div>
+                  <div className={`rounded-2xl border p-4 ${netRemaining >= 0 ? "border-emerald-200" : "border-red-200"}`}>
+                    <div className="text-sm text-neutral-600">Net (after remaining expenses)</div>
                     <div className="text-2xl font-semibold text-neutral-900 mt-1">
-                      <Money value={net} />
+                      <Money value={netRemaining} />
                     </div>
                     <div className="text-xs text-neutral-600 mt-2">
-                      Savings rate: <span className="font-medium">{savingsRate.toFixed(1)}%</span>
+                      Savings rate: <span className="font-medium">{savingsRateRemaining.toFixed(1)}%</span>
                     </div>
                   </div>
 
@@ -753,16 +801,14 @@ export default function BudgitApp() {
       ) : null}
 
       <div className="max-w-5xl mx-auto px-4 py-6">
-        {/* Header + normalized actions */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <div className="text-2xl font-semibold text-neutral-900">Budgit</div>
-            <div className="text-sm text-neutral-600">Simple monthly budget • reorder items • clear section totals</div>
+            <div className="text-sm text-neutral-600">Reorder items • check off paid expenses • track remaining totals</div>
             <div className="mt-3 h-[2px] w-80 rounded-full bg-gradient-to-r from-lime-400/0 via-lime-400 to-emerald-400/0" />
           </div>
 
           <div className="w-full sm:w-[520px] lg:w-[620px]">
-            {/* Top actions + pinned Help icon (standard) */}
             <div className="relative">
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 pr-12">
                 <ActionButton onClick={openPreview}>Preview</ActionButton>
@@ -813,63 +859,85 @@ export default function BudgitApp() {
                   </SmallButton>
                 </div>
 
-                <div className="p-4 space-y-2">
+                <div className="p-4">
                   {(active.incomes || []).length === 0 ? (
                     <div className="text-sm text-neutral-600">No income items yet.</div>
                   ) : (
-                    (active.incomes || []).map((i) => (
+                    <div className="space-y-1">
+                      {/* Drop before first */}
                       <div
-                        key={i.id}
-                        className={`grid grid-cols-12 gap-2 items-center rounded-2xl p-2 border ${
-                          dropHint?.type === "income" && dropHint?.overId === i.id
-                            ? "border-lime-300 bg-lime-50/30"
-                            : "border-transparent"
-                        }`}
                         onDragOver={(e) => {
                           const p = readDragPayload(e);
                           if (p?.type !== "income") return;
                           e.preventDefault();
-                          setDropHint({ type: "income", overId: i.id });
+                          setDropHint({ kind: "income", index: 0 });
                         }}
                         onDrop={(e) => {
                           const p = readDragPayload(e);
                           if (!p || p.type !== "income") return;
                           e.preventDefault();
-                          if (p.itemId && p.itemId !== i.id) moveIncomeItem(p.itemId, i.id);
+                          moveIncomeToIndex(p.itemId, 0);
                           clearDragState();
                         }}
                       >
-                        <div
-                          className="col-span-1"
-                          draggable
-                          onDragStart={(e) => setDragPayload({ type: "income", itemId: i.id }, e)}
-                          onDragEnd={() => clearDragState()}
-                        >
-                          <DragHandle title="Drag income item" />
-                        </div>
-
-                        <input
-                          className="col-span-6 rounded-xl border border-neutral-200 px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-lime-300"
-                          value={i.name || ""}
-                          onChange={(e) => updateIncome(i.id, { name: e.target.value })}
-                          placeholder="Income name"
-                        />
-                        <input
-                          className="col-span-4 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-lime-300"
-                          value={i.amount ?? 0}
-                          onChange={(e) => updateIncome(i.id, { amount: e.target.value })}
-                          inputMode="decimal"
-                          placeholder="0"
-                        />
-                        <button
-                          className="print:hidden col-span-1 h-10 rounded-xl border border-neutral-200 bg-neutral-50 hover:bg-neutral-100 px-3"
-                          title="Remove"
-                          onClick={() => deleteIncome(i.id)}
-                        >
-                          ×
-                        </button>
+                        <DropZone active={dropHint?.kind === "income" && dropHint?.index === 0} />
                       </div>
-                    ))
+
+                      {(active.incomes || []).map((i, idx) => (
+                        <div key={i.id}>
+                          <div className="grid grid-cols-12 gap-2 items-center rounded-2xl p-2 border border-transparent">
+                            <div
+                              className="col-span-1"
+                              draggable
+                              onDragStart={(e) => setDragPayload({ type: "income", itemId: i.id }, e)}
+                              onDragEnd={() => clearDragState()}
+                            >
+                              <DragHandle title="Drag income item" />
+                            </div>
+
+                            <input
+                              className="col-span-7 rounded-xl border border-neutral-200 px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-lime-300"
+                              value={i.name || ""}
+                              onChange={(e) => updateIncome(i.id, { name: e.target.value })}
+                              placeholder="Income name"
+                            />
+                            <input
+                              className="col-span-3 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-lime-300"
+                              value={i.amount ?? 0}
+                              onChange={(e) => updateIncome(i.id, { amount: e.target.value })}
+                              inputMode="decimal"
+                              placeholder="0"
+                            />
+                            <button
+                              className="print:hidden col-span-1 h-10 rounded-xl border border-neutral-200 bg-neutral-50 hover:bg-neutral-100 px-3"
+                              title="Remove"
+                              onClick={() => deleteIncome(i.id)}
+                            >
+                              ×
+                            </button>
+                          </div>
+
+                          {/* Drop after this row */}
+                          <div
+                            onDragOver={(e) => {
+                              const p = readDragPayload(e);
+                              if (p?.type !== "income") return;
+                              e.preventDefault();
+                              setDropHint({ kind: "income", index: idx + 1 });
+                            }}
+                            onDrop={(e) => {
+                              const p = readDragPayload(e);
+                              if (!p || p.type !== "income") return;
+                              e.preventDefault();
+                              moveIncomeToIndex(p.itemId, idx + 1);
+                              clearDragState();
+                            }}
+                          >
+                            <DropZone active={dropHint?.kind === "income" && dropHint?.index === idx + 1} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   )}
 
                   {(active.incomes || []).length ? (
@@ -895,30 +963,12 @@ export default function BudgitApp() {
                 <div className="p-4 space-y-3">
                   {(active.expenseGroups || []).map((g) => {
                     const isCollapsed = !!collapsed[g.id];
-                    const itemsCount = (g.items || []).length;
+                    const items = g.items || [];
+                    const gt = groupTotals(g);
+                    const itemsCount = items.length;
+
                     return (
-                      <div
-                        key={g.id}
-                        className={`rounded-2xl border border-neutral-200 overflow-hidden ${
-                          dropHint?.type === "expenseGroup" && dropHint?.overGroupId === g.id
-                            ? "ring-2 ring-lime-300"
-                            : ""
-                        }`}
-                        onDragOver={(e) => {
-                          const p = readDragPayload(e);
-                          if (p?.type !== "expense") return;
-                          e.preventDefault();
-                          setDropHint({ type: "expenseGroup", overGroupId: g.id });
-                        }}
-                        onDrop={(e) => {
-                          const p = readDragPayload(e);
-                          if (!p || p.type !== "expense") return;
-                          e.preventDefault();
-                          // Drop onto group container -> append into this group
-                          if (p.fromGroupId && p.itemId) moveExpenseItem(p.fromGroupId, p.itemId, g.id, null);
-                          clearDragState();
-                        }}
-                      >
+                      <div key={g.id} className="rounded-2xl border border-neutral-200 overflow-hidden">
                         <div className="px-3 py-2 border-b border-neutral-100 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                           <div className="flex items-center gap-2">
                             <button
@@ -940,19 +990,21 @@ export default function BudgitApp() {
                             />
 
                             <div className="text-sm text-neutral-600 hidden sm:block">
-                              {itemsCount} item{itemsCount === 1 ? "" : "s"} • Total:{" "}
+                              {itemsCount} item{itemsCount === 1 ? "" : "s"} • Remaining:{" "}
                               <span className="font-semibold text-neutral-900">
-                                <Money value={groupTotal(g)} />
+                                <Money value={gt.remaining} />
                               </span>
+                              <span className="ml-2">Planned: <span className="font-medium text-neutral-900"><Money value={gt.planned} /></span></span>
                             </div>
                           </div>
 
                           <div className="flex items-center gap-2">
                             <div className="text-sm text-neutral-600 sm:hidden">
-                              {itemsCount} item{itemsCount === 1 ? "" : "s"} •{" "}
+                              Rem:{" "}
                               <span className="font-semibold text-neutral-900">
-                                <Money value={groupTotal(g)} />
+                                <Money value={gt.remaining} />
                               </span>
+                              <span className="ml-2">Planned: <span className="font-medium text-neutral-900"><Money value={gt.planned} /></span></span>
                             </div>
                             <SmallButton tone="primary" onClick={() => addExpenseItem(g.id)}>
                               + Add item
@@ -963,78 +1015,130 @@ export default function BudgitApp() {
                           </div>
                         </div>
 
+                        {/* Group drop zone (append) */}
+                        <div
+                          className="print:hidden"
+                          onDragOver={(e) => {
+                            const p = readDragPayload(e);
+                            if (p?.type !== "expense") return;
+                            e.preventDefault();
+                            setDropHint({ kind: "expense", groupId: g.id, index: items.length });
+                            // If collapsed, keep showing hint and allow drop
+                          }}
+                          onDrop={(e) => {
+                            const p = readDragPayload(e);
+                            if (!p || p.type !== "expense") return;
+                            e.preventDefault();
+                            moveExpenseToIndex(p.fromGroupId, p.itemId, g.id, items.length);
+                            clearDragState();
+                          }}
+                        >
+                          <DropZone active={dropHint?.kind === "expense" && dropHint?.groupId === g.id && dropHint?.index === items.length && isCollapsed} />
+                        </div>
+
                         {!isCollapsed ? (
-                          <div className="p-3 space-y-2">
-                            {(g.items || []).length === 0 ? (
+                          <div className="p-3">
+                            {items.length === 0 ? (
                               <div className="text-sm text-neutral-600">No items in this section.</div>
                             ) : (
-                              (g.items || []).map((e) => (
+                              <div className="space-y-1">
+                                {/* Drop before first item */}
                                 <div
-                                  key={e.id}
-                                  className={`grid grid-cols-12 gap-2 items-center rounded-2xl p-2 border ${
-                                    dropHint?.type === "expense" &&
-                                    dropHint?.overGroupId === g.id &&
-                                    dropHint?.overItemId === e.id
-                                      ? "border-lime-300 bg-lime-50/30"
-                                      : "border-transparent"
-                                  }`}
-                                  onDragOver={(ev) => {
-                                    const p = readDragPayload(ev);
+                                  onDragOver={(e) => {
+                                    const p = readDragPayload(e);
                                     if (p?.type !== "expense") return;
-                                    ev.preventDefault();
-                                    setDropHint({ type: "expense", overGroupId: g.id, overItemId: e.id });
+                                    e.preventDefault();
+                                    setDropHint({ kind: "expense", groupId: g.id, index: 0 });
                                   }}
-                                  onDrop={(ev) => {
-                                    const p = readDragPayload(ev);
+                                  onDrop={(e) => {
+                                    const p = readDragPayload(e);
                                     if (!p || p.type !== "expense") return;
-                                    ev.preventDefault();
-                                    if (p.fromGroupId && p.itemId) {
-                                      // Drop onto a specific item -> insert before it
-                                      if (!(p.fromGroupId === g.id && p.itemId === e.id)) {
-                                        moveExpenseItem(p.fromGroupId, p.itemId, g.id, e.id);
-                                      }
-                                    }
+                                    e.preventDefault();
+                                    moveExpenseToIndex(p.fromGroupId, p.itemId, g.id, 0);
                                     clearDragState();
                                   }}
                                 >
-                                  <div
-                                    className="col-span-1"
-                                    draggable
-                                    onDragStart={(ev) =>
-                                      setDragPayload({ type: "expense", fromGroupId: g.id, itemId: e.id }, ev)
-                                    }
-                                    onDragEnd={() => clearDragState()}
-                                  >
-                                    <DragHandle title="Drag expense item" />
-                                  </div>
-
-                                  <input
-                                    className="col-span-6 rounded-xl border border-neutral-200 px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-lime-300"
-                                    value={e.name || ""}
-                                    onChange={(ev) => updateExpenseItem(g.id, e.id, { name: ev.target.value })}
-                                    placeholder="Expense name"
-                                  />
-                                  <input
-                                    className="col-span-4 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-lime-300"
-                                    value={e.amount ?? 0}
-                                    onChange={(ev) => updateExpenseItem(g.id, e.id, { amount: ev.target.value })}
-                                    inputMode="decimal"
-                                    placeholder="0"
-                                  />
-                                  <button
-                                    className="print:hidden col-span-1 h-10 rounded-xl border border-neutral-200 bg-neutral-50 hover:bg-neutral-100 px-3"
-                                    title="Remove"
-                                    onClick={() => deleteExpenseItem(g.id, e.id)}
-                                  >
-                                    ×
-                                  </button>
+                                  <DropZone active={dropHint?.kind === "expense" && dropHint?.groupId === g.id && dropHint?.index === 0} />
                                 </div>
-                              ))
+
+                                {items.map((e, idx) => (
+                                  <div key={e.id}>
+                                    <div className={`grid grid-cols-12 gap-2 items-center rounded-2xl p-2 border ${e.paid ? "bg-neutral-50/60" : "border-transparent"}`}>
+                                      <div
+                                        className="col-span-1"
+                                        draggable
+                                        onDragStart={(ev) => setDragPayload({ type: "expense", fromGroupId: g.id, itemId: e.id }, ev)}
+                                        onDragEnd={() => clearDragState()}
+                                      >
+                                        <DragHandle title="Drag expense item" />
+                                      </div>
+
+                                      <label className="print:hidden col-span-1 flex items-center justify-center">
+                                        <input
+                                          type="checkbox"
+                                          className="h-5 w-5 rounded border-neutral-300 text-neutral-900 focus:ring-lime-300"
+                                          checked={!!e.paid}
+                                          onChange={(ev) => updateExpenseItem(g.id, e.id, { paid: ev.target.checked })}
+                                          title="Mark as paid"
+                                        />
+                                      </label>
+
+                                      <input
+                                        className={`col-span-6 rounded-xl border border-neutral-200 px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-lime-300 ${e.paid ? "line-through text-neutral-500" : ""}`}
+                                        value={e.name || ""}
+                                        onChange={(ev) => updateExpenseItem(g.id, e.id, { name: ev.target.value })}
+                                        placeholder="Expense name"
+                                      />
+                                      <input
+                                        className={`col-span-3 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-lime-300 ${e.paid ? "text-neutral-500" : ""}`}
+                                        value={e.amount ?? 0}
+                                        onChange={(ev) => updateExpenseItem(g.id, e.id, { amount: ev.target.value })}
+                                        inputMode="decimal"
+                                        placeholder="0"
+                                      />
+                                      <button
+                                        className="print:hidden col-span-1 h-10 rounded-xl border border-neutral-200 bg-neutral-50 hover:bg-neutral-100 px-3"
+                                        title="Remove"
+                                        onClick={() => deleteExpenseItem(g.id, e.id)}
+                                      >
+                                        ×
+                                      </button>
+                                    </div>
+
+                                    {/* Drop after this item (insert at idx+1) */}
+                                    <div
+                                      onDragOver={(ev) => {
+                                        const p = readDragPayload(ev);
+                                        if (p?.type !== "expense") return;
+                                        ev.preventDefault();
+                                        setDropHint({ kind: "expense", groupId: g.id, index: idx + 1 });
+                                      }}
+                                      onDrop={(ev) => {
+                                        const p = readDragPayload(ev);
+                                        if (!p || p.type !== "expense") return;
+                                        ev.preventDefault();
+                                        moveExpenseToIndex(p.fromGroupId, p.itemId, g.id, idx + 1);
+                                        clearDragState();
+                                      }}
+                                    >
+                                      <DropZone active={dropHint?.kind === "expense" && dropHint?.groupId === g.id && dropHint?.index === idx + 1} />
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
                             )}
+
+                            {/* Friendly hint when dragging */}
+                            {drag?.type === "expense" ? (
+                              <div className="mt-2 text-xs text-neutral-500">Drop on the green line to insert. You can also drop into another section.</div>
+                            ) : null}
                           </div>
                         ) : (
                           <div className="p-3 text-sm text-neutral-600">
                             Collapsed. Drop an item here to move it into this section.
+                            <div className="mt-2">
+                              <DropZone active={dropHint?.kind === "expense" && dropHint?.groupId === g.id} />
+                            </div>
                           </div>
                         )}
                       </div>
@@ -1044,10 +1148,18 @@ export default function BudgitApp() {
                   {(active.expenseGroups || []).length === 0 ? (
                     <div className="text-sm text-neutral-600">No expense sections yet. Click “Add section”.</div>
                   ) : (
-                    <div className="pt-3 mt-2 border-t border-neutral-100 flex items-center justify-between">
-                      <div className="text-sm text-neutral-600">Total expenses</div>
-                      <div className="font-semibold text-neutral-900">
-                        <Money value={expenseTotal} />
+                    <div className="pt-3 mt-2 border-t border-neutral-100">
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm text-neutral-600">Remaining expenses</div>
+                        <div className="font-semibold text-neutral-900">
+                          <Money value={expenseTotalRemaining} />
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between text-sm text-neutral-600 mt-1">
+                        <div>Planned expenses</div>
+                        <div className="font-medium text-neutral-900">
+                          <Money value={expenseTotalPlanned} />
+                        </div>
                       </div>
                     </div>
                   )}
@@ -1083,19 +1195,24 @@ export default function BudgitApp() {
                   <Money value={incomeTotal} />
                 </div>
               </div>
+
               <div className="rounded-2xl border border-neutral-200 p-4">
-                <div className="text-sm text-neutral-600">Total expenses</div>
+                <div className="text-sm text-neutral-600">Remaining expenses</div>
                 <div className="text-2xl font-semibold text-neutral-900 mt-1">
-                  <Money value={expenseTotal} />
-                </div>
-              </div>
-              <div className={`rounded-2xl border p-4 ${net >= 0 ? "border-emerald-200" : "border-red-200"}`}>
-                <div className="text-sm text-neutral-600">Net</div>
-                <div className="text-2xl font-semibold text-neutral-900 mt-1">
-                  <Money value={net} />
+                  <Money value={expenseTotalRemaining} />
                 </div>
                 <div className="text-xs text-neutral-600 mt-2">
-                  Savings rate: <span className="font-medium">{savingsRate.toFixed(1)}%</span>
+                  Planned: <span className="font-medium text-neutral-900"><Money value={expenseTotalPlanned} /></span>
+                </div>
+              </div>
+
+              <div className={`rounded-2xl border p-4 ${netRemaining >= 0 ? "border-emerald-200" : "border-red-200"}`}>
+                <div className="text-sm text-neutral-600">Net (after remaining)</div>
+                <div className="text-2xl font-semibold text-neutral-900 mt-1">
+                  <Money value={netRemaining} />
+                </div>
+                <div className="text-xs text-neutral-600 mt-2">
+                  Savings rate: <span className="font-medium">{savingsRateRemaining.toFixed(1)}%</span>
                 </div>
               </div>
 
@@ -1112,11 +1229,17 @@ export default function BudgitApp() {
                       {(active.expenseGroups || []).reduce((s, g) => s + (g.items || []).length, 0)}
                     </span>
                   </div>
+                  <div className="flex items-center justify-between">
+                    <span>Paid items</span>
+                    <span className="font-medium text-neutral-900">
+                      {(active.expenseGroups || []).reduce((s, g) => s + (g.items || []).filter((it) => it.paid).length, 0)}
+                    </span>
+                  </div>
                 </div>
               </div>
 
               <div className="text-xs text-neutral-500">
-                Tip: Use “Preview” to check layout before saving to PDF. Drag items using the ⋮⋮ handle.
+                Tip: Tick paid expenses to keep “Remaining” accurate. Drag using ⋮⋮ and drop on the green line.
               </div>
             </div>
           </div>
