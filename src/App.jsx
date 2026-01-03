@@ -102,16 +102,16 @@ const lsSet = (key, value) => {
 };
 
 // ---------------------------
-// UI primitives
+// UI primitives (MASTER: Check-It)
 // ---------------------------
 
 function SmallButton({ children, onClick, tone = "default", className = "", disabled, title, type = "button" }) {
   const cls =
     tone === "primary"
-      ? "bg-neutral-900 hover:bg-neutral-800 text-white border-neutral-900 shadow-sm"
+      ? "bg-neutral-700 hover:bg-neutral-600 text-white border-neutral-700 shadow-sm"
       : tone === "danger"
         ? "bg-red-50 hover:bg-red-100 text-red-700 border-red-200 shadow-sm"
-        : "bg-white hover:bg-neutral-50 text-neutral-900 border-neutral-200 shadow-sm";
+        : "bg-white hover:bg-neutral-50 text-neutral-700 border-neutral-200 shadow-sm";
 
   return (
     <button
@@ -133,10 +133,10 @@ const ACTION_BASE =
 function ActionButton({ children, onClick, tone = "default", disabled, title }) {
   const cls =
     tone === "primary"
-      ? "bg-neutral-900 hover:bg-neutral-800 text-white border-neutral-900"
+      ? "bg-neutral-700 hover:bg-neutral-600 text-white border-neutral-700"
       : tone === "danger"
         ? "bg-red-50 hover:bg-red-100 text-red-700 border-red-200"
-        : "bg-white hover:bg-neutral-50 text-neutral-900 border-neutral-200";
+        : "bg-white hover:bg-neutral-50 text-neutral-700 border-neutral-200";
 
   return (
     <button type="button" onClick={onClick} disabled={disabled} title={title} className={`${ACTION_BASE} ${cls}`}>
@@ -148,8 +148,8 @@ function ActionButton({ children, onClick, tone = "default", disabled, title }) 
 function ActionFileButton({ children, onFile, accept = "application/json", tone = "primary", title }) {
   const cls =
     tone === "primary"
-      ? "bg-neutral-900 hover:bg-neutral-800 text-white border-neutral-900"
-      : "bg-white hover:bg-neutral-50 text-neutral-900 border-neutral-200";
+      ? "bg-neutral-700 hover:bg-neutral-600 text-white border-neutral-700"
+      : "bg-white hover:bg-neutral-50 text-neutral-700 border-neutral-200";
 
   return (
     <label title={title} className={`${ACTION_BASE} ${cls} cursor-pointer`}>
@@ -162,10 +162,10 @@ function ActionFileButton({ children, onFile, accept = "application/json", tone 
 function MiniActionButton({ children, onClick, tone = "default", disabled, title, className = "" }) {
   const cls =
     tone === "primary"
-      ? "bg-neutral-900 hover:bg-neutral-800 text-white border-neutral-900"
+      ? "bg-neutral-700 hover:bg-neutral-600 text-white border-neutral-700"
       : tone === "danger"
         ? "bg-red-50 hover:bg-red-100 text-red-700 border-red-200"
-        : "bg-white hover:bg-neutral-50 text-neutral-900 border-neutral-200";
+        : "bg-white hover:bg-neutral-50 text-neutral-700 border-neutral-200";
 
   return (
     <button
@@ -255,6 +255,7 @@ function InsertDropZone({ active, onDragOver, onDrop }) {
   );
 }
 
+// Selected state = dark grey + white (master)
 function TogglePill({ on, labelOn = "On", labelOff = "Off", onClick, title }) {
   return (
     <button
@@ -262,7 +263,9 @@ function TogglePill({ on, labelOn = "On", labelOff = "Off", onClick, title }) {
       title={title}
       onClick={onClick}
       className={`print:hidden h-10 w-full rounded-xl text-sm font-medium border shadow-sm transition active:translate-y-[1px] flex items-center justify-center ${
-        on ? "bg-lime-50 border-lime-200 text-lime-800" : "bg-white border-neutral-200 text-neutral-900 hover:bg-neutral-50"
+        on
+          ? "bg-neutral-700 border-neutral-700 text-white hover:bg-neutral-600"
+          : "bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-50"
       }`}
     >
       {on ? labelOn : labelOff}
@@ -280,13 +283,13 @@ function HelpModal({ open, onClose }) {
       <div className="relative w-full max-w-2xl rounded-2xl bg-white border border-neutral-200 shadow-xl overflow-hidden">
         <div className="p-4 border-b border-neutral-100 flex items-start justify-between gap-4">
           <div>
-            <div className="text-lg font-semibold text-neutral-900">Help</div>
-            <div className="text-sm text-neutral-600 mt-1">How your data is saved + how to keep continuity.</div>
+            <div className="text-lg font-semibold text-neutral-800">Help</div>
+            <div className="text-sm text-neutral-700 mt-1">How your data is saved + how to keep continuity.</div>
             <div className="mt-3 h-[2px] w-56 rounded-full bg-gradient-to-r from-lime-400/0 via-lime-400 to-emerald-400/0" />
           </div>
           <button
             type="button"
-            className="px-3 py-2 rounded-xl text-sm font-medium border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-900 transition"
+            className="px-3 py-2 rounded-xl text-sm font-medium border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-800 transition"
             onClick={onClose}
           >
             Close
@@ -295,18 +298,18 @@ function HelpModal({ open, onClose }) {
 
         <div className="p-4 space-y-4">
           <div className="rounded-2xl border border-neutral-200 p-4">
-            <div className="font-semibold text-neutral-900">Autosave (default)</div>
+            <div className="font-semibold text-neutral-800">Autosave (default)</div>
             <div className="text-sm text-neutral-700 mt-1">
               Budgit saves automatically in your browser (localStorage) under:
               <span className="ml-2 font-mono text-xs bg-neutral-50 border border-neutral-200 rounded-lg px-2 py-1">{LS_KEY}</span>
             </div>
-            <div className="text-xs text-neutral-500 mt-2">
+            <div className="text-xs text-neutral-600 mt-2">
               If you clear browser data or switch devices/browsers, your local data won’t follow automatically.
             </div>
           </div>
 
           <div className="rounded-2xl border border-neutral-200 p-4">
-            <div className="font-semibold text-neutral-900">Best practice (continuity)</div>
+            <div className="font-semibold text-neutral-800">Best practice (continuity)</div>
             <ul className="mt-2 space-y-2 text-sm text-neutral-700 list-disc pl-5">
               <li>
                 Use <span className="font-semibold">Export</span> once a week (or after big updates) to create a backup JSON file.
@@ -319,31 +322,31 @@ function HelpModal({ open, onClose }) {
           </div>
 
           <div className="rounded-2xl border border-neutral-200 p-4">
-            <div className="font-semibold text-neutral-900">Reordering</div>
+            <div className="font-semibold text-neutral-800">Reordering</div>
             <div className="text-sm text-neutral-700 mt-1">
               Drag using the <span className="font-semibold">⋮⋮</span> handle. Drop on the small lines between items to insert exactly where you want.
             </div>
           </div>
 
           <div className="rounded-2xl border border-neutral-200 p-4">
-            <div className="font-semibold text-neutral-900">Paid items</div>
+            <div className="font-semibold text-neutral-800">Paid items</div>
             <div className="text-sm text-neutral-700 mt-1">Tick the checkbox to mark an expense as paid. Paid items don’t count toward remaining totals.</div>
           </div>
 
           <div className="rounded-2xl border border-neutral-200 p-4">
-            <div className="font-semibold text-neutral-900">Printing / PDF</div>
+            <div className="font-semibold text-neutral-800">Printing / PDF</div>
             <div className="text-sm text-neutral-700 mt-1">
               Use <span className="font-semibold">Preview</span> to check the layout, then <span className="font-semibold">Print / Save PDF</span> and choose “Save as PDF”.
             </div>
           </div>
 
           <div className="rounded-2xl border border-neutral-200 p-4">
-            <div className="font-semibold text-neutral-900">Privacy</div>
+            <div className="font-semibold text-neutral-800">Privacy</div>
             <div className="text-sm text-neutral-700 mt-1">Budgit runs in your browser. There’s no account system here yet, and nothing is uploaded unless you choose to share your exported file.</div>
           </div>
         </div>
 
-        <div className="p-4 border-t border-neutral-100 text-xs text-neutral-500">ToolStack • Help Pack v1</div>
+        <div className="p-4 border-t border-neutral-100 text-xs text-neutral-600">ToolStack • Help Pack v1</div>
       </div>
     </div>
   );
@@ -893,7 +896,7 @@ export default function BudgitApp() {
   // ---------------------------
 
   return (
-    <div className="min-h-screen bg-neutral-50 text-neutral-900">
+    <div className="min-h-screen bg-neutral-50 text-neutral-800">
       <style>{`
         :root { color-scheme: light; }
         @media print {
@@ -944,32 +947,32 @@ export default function BudgitApp() {
               <div id="budgit-print-preview" className="p-6">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <div className="text-2xl font-semibold text-neutral-900">Budgit</div>
-                    <div className="text-sm text-neutral-600">{monthLabel(app.activeMonth)}</div>
+                    <div className="text-2xl font-semibold text-neutral-800">Budgit</div>
+                    <div className="text-sm text-neutral-700">{monthLabel(app.activeMonth)}</div>
                     <div className="mt-3 h-[2px] w-64 rounded-full bg-gradient-to-r from-lime-400/0 via-lime-400 to-emerald-400/0" />
                   </div>
-                  <div className="text-sm text-neutral-600">Generated: {new Date().toLocaleString()}</div>
+                  <div className="text-sm text-neutral-700">Generated: {new Date().toLocaleString()}</div>
                 </div>
 
                 <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="rounded-2xl border border-neutral-200">
-                    <div className="px-4 py-3 border-b border-neutral-100 font-semibold text-neutral-900">Income</div>
+                    <div className="px-4 py-3 border-b border-neutral-100 font-semibold text-neutral-800">Income</div>
                     <div className="p-4 space-y-2">
                       {previewIncomes.length === 0 ? (
-                        <div className="text-sm text-neutral-600">No income items.</div>
+                        <div className="text-sm text-neutral-700">No income items.</div>
                       ) : (
                         previewIncomes.map((i) => (
                           <div key={i.id} className="flex items-center justify-between gap-3">
-                            <div className="text-neutral-900">{i.name || "(unnamed)"}</div>
-                            <div className="font-semibold text-neutral-900">
+                            <div className="text-neutral-800">{i.name || "(unnamed)"}</div>
+                            <div className="font-semibold text-neutral-800">
                               <Money value={toNumber(i.amount)} />
                             </div>
                           </div>
                         ))
                       )}
                       <div className="pt-3 mt-3 border-t border-neutral-100 flex items-center justify-between">
-                        <div className="font-semibold text-neutral-900">Total income</div>
-                        <div className="font-semibold text-neutral-900">
+                        <div className="font-semibold text-neutral-800">Total income</div>
+                        <div className="font-semibold text-neutral-800">
                           <Money value={incomeTotal} />
                         </div>
                       </div>
@@ -977,34 +980,34 @@ export default function BudgitApp() {
                   </div>
 
                   <div className="rounded-2xl border border-neutral-200">
-                    <div className="px-4 py-3 border-b border-neutral-100 font-semibold text-neutral-900">Expenses</div>
+                    <div className="px-4 py-3 border-b border-neutral-100 font-semibold text-neutral-800">Expenses</div>
                     <div className="p-4 space-y-4">
                       {previewGroups.length === 0 ? (
-                        <div className="text-sm text-neutral-600">No expense sections.</div>
+                        <div className="text-sm text-neutral-700">No expense sections.</div>
                       ) : (
                         previewGroups.map((g) => (
                           <div key={g.id} className="rounded-2xl border border-neutral-200">
                             <div className="px-3 py-2 border-b border-neutral-100 flex items-center justify-between">
-                              <div className="font-semibold text-neutral-900">{(g.label || "General").trim()}</div>
+                              <div className="font-semibold text-neutral-800">{(g.label || "General").trim()}</div>
                               <div className="text-sm text-neutral-700">
                                 Remaining:{" "}
-                                <span className="font-semibold text-neutral-900">€{groupRemainingTotal(g).toFixed(2)}</span>
+                                <span className="font-semibold text-neutral-800">€{groupRemainingTotal(g).toFixed(2)}</span>
                                 <span className="text-neutral-400"> • </span>
                                 Planned: <span className="font-medium">€{groupPlannedTotal(g).toFixed(2)}</span>
                               </div>
                             </div>
                             <div className="p-3 space-y-2">
                               {(g.items || []).length === 0 ? (
-                                <div className="text-sm text-neutral-600">No items.</div>
+                                <div className="text-sm text-neutral-700">No items.</div>
                               ) : (
                                 (g.items || []).map((e) => (
                                   <div key={e.id} className="flex items-center justify-between gap-3">
-                                    <div className="text-neutral-900">
+                                    <div className="text-neutral-800">
                                       {e.paid ? "✓ " : ""}
                                       {e.name || "(unnamed)"}
-                                      {e.dueDay ? <span className="text-neutral-500"> (due {e.dueDay})</span> : null}
+                                      {e.dueDay ? <span className="text-neutral-600"> (due {e.dueDay})</span> : null}
                                     </div>
-                                    <div className="text-neutral-900">
+                                    <div className="text-neutral-800">
                                       <Money value={toNumber(e.amount)} />
                                     </div>
                                   </div>
@@ -1017,10 +1020,10 @@ export default function BudgitApp() {
 
                       <div className="pt-3 mt-2 border-t border-neutral-100 flex items-center justify-between">
                         <div>
-                          <div className="font-semibold text-neutral-900">Remaining expenses</div>
-                          <div className="text-xs text-neutral-500">Planned: €{expensePlannedTotal.toFixed(2)}</div>
+                          <div className="font-semibold text-neutral-800">Remaining expenses</div>
+                          <div className="text-xs text-neutral-600">Planned: €{expensePlannedTotal.toFixed(2)}</div>
                         </div>
-                        <div className="font-semibold text-neutral-900">
+                        <div className="font-semibold text-neutral-800">
                           <Money value={expenseRemainingTotal} />
                         </div>
                       </div>
@@ -1030,24 +1033,24 @@ export default function BudgitApp() {
 
                 <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className={`rounded-2xl border p-4 ${netRemaining >= 0 ? "border-emerald-200" : "border-red-200"}`}>
-                    <div className="text-sm text-neutral-600">Net (after remaining)</div>
-                    <div className="text-2xl font-semibold text-neutral-900 mt-1">
+                    <div className="text-sm text-neutral-700">Net (after remaining)</div>
+                    <div className="text-2xl font-semibold text-neutral-800 mt-1">
                       <Money value={netRemaining} />
                     </div>
-                    <div className="text-xs text-neutral-600 mt-2">
+                    <div className="text-xs text-neutral-700 mt-2">
                       Savings rate: <span className="font-medium">{savingsRate.toFixed(1)}%</span>
                     </div>
                   </div>
 
                   <div className="rounded-2xl border border-neutral-200 p-4">
-                    <div className="text-sm text-neutral-600">Notes</div>
-                    <div className="mt-2 whitespace-pre-wrap text-neutral-900 text-sm">
+                    <div className="text-sm text-neutral-700">Notes</div>
+                    <div className="mt-2 whitespace-pre-wrap text-neutral-800 text-sm">
                       {String(active.notes || "").trim() ? active.notes : "(none)"}
                     </div>
                   </div>
                 </div>
 
-                <div className="mt-4 text-xs text-neutral-500">
+                <div className="mt-4 text-xs text-neutral-600">
                   Tip: If the preview looks right, hit “Print / Save PDF” and choose “Save as PDF”.
                 </div>
               </div>
@@ -1059,8 +1062,12 @@ export default function BudgitApp() {
       <div className="max-w-5xl mx-auto px-4 py-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <div className="text-2xl font-semibold text-neutral-900">Budgit</div>
-            <div className="text-sm text-neutral-600">Monthly budget • drag to reorder • tick paid to reduce remaining</div>
+            {/* Master heading style */}
+            <div className="text-4xl sm:text-5xl font-black tracking-tight text-neutral-700">
+              <span>Budg</span>
+              <span className="text-lime-500">it</span>
+            </div>
+            <div className="text-sm text-neutral-700">Monthly budget • drag to reorder • tick paid to reduce remaining</div>
             <div className="mt-3 h-[2px] w-80 rounded-full bg-gradient-to-r from-lime-400/0 via-lime-400 to-emerald-400/0" />
           </div>
 
@@ -1079,7 +1086,7 @@ export default function BudgitApp() {
                 type="button"
                 title="Help"
                 onClick={() => setHelpOpen(true)}
-                className="print:hidden absolute right-0 top-0 h-10 w-10 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 shadow-sm flex items-center justify-center font-bold text-neutral-900"
+                className="print:hidden absolute right-0 top-0 h-10 w-10 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 shadow-sm flex items-center justify-center font-bold text-neutral-800"
                 aria-label="Help"
               >
                 ?
@@ -1092,7 +1099,7 @@ export default function BudgitApp() {
           <div className="md:col-span-2 rounded-2xl bg-white shadow-sm border border-neutral-200 print:shadow-none">
             <div className="px-4 py-3 border-b border-neutral-100">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="font-semibold text-neutral-900">Month</div>
+                <div className="font-semibold text-neutral-800">Month</div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 w-full sm:w-auto">
                   <MiniActionButton onClick={() => ensureMonth(addMonths(app.activeMonth, -1))} title="Previous month">
@@ -1105,7 +1112,7 @@ export default function BudgitApp() {
                   <select
                     value={activeYM.y || new Date().getFullYear()}
                     onChange={(e) => setActiveYear(Number(e.target.value))}
-                    className="print:hidden h-10 w-full rounded-xl text-sm font-medium border border-neutral-200 bg-white hover:bg-neutral-50 shadow-sm px-3"
+                    className="print:hidden h-10 w-full rounded-xl text-sm font-medium border border-neutral-200 bg-white hover:bg-neutral-50 shadow-sm px-3 text-neutral-700"
                     title="Year"
                   >
                     {years.map((y) => (
@@ -1118,7 +1125,7 @@ export default function BudgitApp() {
                   <select
                     value={activeYM.m || 1}
                     onChange={(e) => setActiveMonthNum(Number(e.target.value))}
-                    className="print:hidden h-10 w-full rounded-xl text-sm font-medium border border-neutral-200 bg-white hover:bg-neutral-50 shadow-sm px-3"
+                    className="print:hidden h-10 w-full rounded-xl text-sm font-medium border border-neutral-200 bg-white hover:bg-neutral-50 shadow-sm px-3 text-neutral-700"
                     title="Month"
                   >
                     {Array.from({ length: 12 }).map((_, i) => (
@@ -1146,7 +1153,7 @@ export default function BudgitApp() {
                             Cancel
                           </MiniActionButton>
                         </div>
-                        <div className="mt-2 text-xs text-neutral-500">
+                        <div className="mt-2 text-xs text-neutral-600">
                           Note: copied items are set to unpaid in the new month.
                         </div>
                       </div>
@@ -1159,14 +1166,14 @@ export default function BudgitApp() {
                 </div>
               </div>
 
-              <div className="mt-2 text-sm text-neutral-600">{monthLabel(app.activeMonth)}</div>
+              <div className="mt-2 text-sm text-neutral-700">{monthLabel(app.activeMonth)}</div>
             </div>
 
             <div className="p-4 space-y-4">
               {/* Income */}
               <div className="rounded-2xl border border-neutral-200 bg-white">
                 <div className="px-4 py-3 border-b border-neutral-100 flex items-center justify-between">
-                  <div className="font-semibold text-neutral-900">Income</div>
+                  <div className="font-semibold text-neutral-800">Income</div>
                   <SmallButton tone="primary" onClick={addIncome}>
                     + Add income
                   </SmallButton>
@@ -1191,7 +1198,7 @@ export default function BudgitApp() {
                   />
 
                   {(active.incomes || []).length === 0 ? (
-                    <div className="text-sm text-neutral-600">No income items yet.</div>
+                    <div className="text-sm text-neutral-700">No income items yet.</div>
                   ) : (
                     (active.incomes || []).map((i, idx) => (
                       <div key={i.id}>
@@ -1206,14 +1213,14 @@ export default function BudgitApp() {
                           </div>
 
                           <input
-                            className="col-span-6 rounded-xl border border-neutral-200 px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-lime-300"
+                            className="col-span-6 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300"
                             value={i.name || ""}
                             onChange={(e) => updateIncome(i.id, { name: e.target.value })}
                             placeholder="Income name"
                           />
 
                           <SelectAllNumberInput
-                            className="col-span-4 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-lime-300"
+                            className="col-span-4 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-right text-neutral-800 tabular-nums focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300"
                             value={i.amount ?? "0"}
                             onChange={(e) => updateIncome(i.id, { amount: e.target.value })}
                             inputMode="decimal"
@@ -1222,7 +1229,7 @@ export default function BudgitApp() {
                           />
 
                           <button
-                            className="print:hidden col-span-1 h-10 rounded-xl border border-neutral-200 bg-neutral-50 hover:bg-neutral-100 px-3"
+                            className="print:hidden col-span-1 h-10 rounded-xl border border-neutral-200 bg-neutral-50 hover:bg-neutral-100 px-3 text-neutral-700"
                             title="Remove"
                             onClick={() => deleteIncome(i.id)}
                           >
@@ -1252,8 +1259,8 @@ export default function BudgitApp() {
 
                   {(active.incomes || []).length ? (
                     <div className="pt-3 mt-2 border-t border-neutral-100 flex items-center justify-between">
-                      <div className="text-sm text-neutral-600">Total income</div>
-                      <div className="font-semibold text-neutral-900">
+                      <div className="text-sm text-neutral-700">Total income</div>
+                      <div className="font-semibold text-neutral-800">
                         <Money value={incomeTotal} />
                       </div>
                     </div>
@@ -1264,7 +1271,7 @@ export default function BudgitApp() {
               {/* Expenses */}
               <div className="rounded-2xl border border-neutral-200 bg-white">
                 <div className="px-4 py-3 border-b border-neutral-100 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="font-semibold text-neutral-900">Expenses</div>
+                  <div className="font-semibold text-neutral-800">Expenses</div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 w-full sm:w-auto">
                     <MiniActionButton tone="primary" onClick={addExpenseGroup}>
                       + Add section
@@ -1297,7 +1304,7 @@ export default function BudgitApp() {
                               <div className="flex items-center gap-2">
                                 <button
                                   type="button"
-                                  className="print:hidden h-10 w-10 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 shadow-sm flex items-center justify-center"
+                                  className="print:hidden h-10 w-10 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 shadow-sm flex items-center justify-center text-neutral-700"
                                   title={isCollapsed ? "Expand" : "Collapse"}
                                   onClick={() => setCollapsed((c) => ({ ...c, [g.id]: !c?.[g.id] }))}
                                 >
@@ -1305,16 +1312,16 @@ export default function BudgitApp() {
                                 </button>
 
                                 <input
-                                  className="w-[240px] max-w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 font-semibold text-neutral-900 focus:outline-none focus:ring-2 focus:ring-lime-300"
+                                  className="w-[240px] max-w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 font-semibold text-neutral-800 focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300"
                                   value={g.label ?? ""}
                                   onChange={(e) => updateExpenseGroupLabel(g.id, e.target.value)}
                                   onBlur={() => normalizeExpenseGroupLabel(g.id)}
                                   placeholder="Section label (e.g., Loans)"
                                 />
 
-                                <div className="hidden md:block text-sm text-neutral-600">
+                                <div className="hidden md:block text-sm text-neutral-700">
                                   {itemsCount} item{itemsCount === 1 ? "" : "s"} • Remaining:{" "}
-                                  <span className="font-semibold text-neutral-900">€{groupRemainingTotal(g).toFixed(2)}</span>
+                                  <span className="font-semibold text-neutral-800">€{groupRemainingTotal(g).toFixed(2)}</span>
                                   <span className="text-neutral-400"> • </span>
                                   Planned: <span className="font-medium">€{groupPlannedTotal(g).toFixed(2)}</span>
                                 </div>
@@ -1343,27 +1350,18 @@ export default function BudgitApp() {
                                 Clear paid
                               </MiniActionButton>
 
-                              <MiniActionButton
-                                tone="danger"
-                                title="Clear ALL items in this section"
-                                onClick={() => clearGroupItems(g.id)}
-                              >
+                              <MiniActionButton tone="danger" title="Clear ALL items in this section" onClick={() => clearGroupItems(g.id)}>
                                 Clear items
                               </MiniActionButton>
 
-                              {/* ✅ FIX: no col-span, same size as others */}
-                              <MiniActionButton
-                                tone="danger"
-                                title="Delete this section and all its items"
-                                onClick={() => deleteExpenseGroup(g.id)}
-                              >
+                              <MiniActionButton tone="danger" title="Delete this section and all its items" onClick={() => deleteExpenseGroup(g.id)}>
                                 Delete section
                               </MiniActionButton>
                             </div>
 
-                            <div className="md:hidden text-sm text-neutral-600">
+                            <div className="md:hidden text-sm text-neutral-700">
                               {itemsCount} item{itemsCount === 1 ? "" : "s"} • Remaining:{" "}
-                              <span className="font-semibold text-neutral-900">€{groupRemainingTotal(g).toFixed(2)}</span>
+                              <span className="font-semibold text-neutral-800">€{groupRemainingTotal(g).toFixed(2)}</span>
                               <span className="text-neutral-400"> • </span>
                               Planned: <span className="font-medium">€{groupPlannedTotal(g).toFixed(2)}</span>
                             </div>
@@ -1390,7 +1388,7 @@ export default function BudgitApp() {
                             />
 
                             {itemsVisible.length === 0 ? (
-                              <div className="text-sm text-neutral-600">No items in this section.</div>
+                              <div className="text-sm text-neutral-700">No items in this section.</div>
                             ) : (
                               itemsVisible.map((e, idx) => (
                                 <div key={e.id}>
@@ -1398,24 +1396,19 @@ export default function BudgitApp() {
                                     <div
                                       className="col-span-1"
                                       draggable
-                                      onDragStart={(ev) =>
-                                        setDragPayload({ type: "expense", fromGroupId: g.id, itemId: e.id }, ev)
-                                      }
+                                      onDragStart={(ev) => setDragPayload({ type: "expense", fromGroupId: g.id, itemId: e.id }, ev)}
                                       onDragEnd={clearDragState}
                                     >
                                       <DragHandle title="Drag expense item" />
                                     </div>
 
                                     <div className="col-span-1">
-                                      <PaidCheck
-                                        checked={!!e.paid}
-                                        onChange={(v) => updateExpenseItem(g.id, e.id, { paid: !!v })}
-                                      />
+                                      <PaidCheck checked={!!e.paid} onChange={(v) => updateExpenseItem(g.id, e.id, { paid: !!v })} />
                                     </div>
 
                                     <input
-                                      className={`col-span-5 rounded-xl border border-neutral-200 px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-lime-300 ${
-                                        e.paid ? "line-through text-neutral-500" : ""
+                                      className={`col-span-5 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300 ${
+                                        e.paid ? "line-through text-neutral-600" : ""
                                       }`}
                                       value={e.name || ""}
                                       onChange={(ev) => updateExpenseItem(g.id, e.id, { name: ev.target.value })}
@@ -1423,7 +1416,7 @@ export default function BudgitApp() {
                                     />
 
                                     <SelectAllNumberInput
-                                      className="col-span-3 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-lime-300"
+                                      className="col-span-3 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-right text-neutral-800 tabular-nums focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300"
                                       value={e.amount ?? "0"}
                                       onChange={(ev) => updateExpenseItem(g.id, e.id, { amount: ev.target.value })}
                                       inputMode="decimal"
@@ -1432,7 +1425,7 @@ export default function BudgitApp() {
                                     />
 
                                     <SelectAllNumberInput
-                                      className="col-span-1 rounded-xl border border-neutral-200 px-2 py-2 bg-white text-center tabular-nums focus:outline-none focus:ring-2 focus:ring-lime-300"
+                                      className="col-span-1 rounded-xl border border-neutral-200 px-2 py-2 bg-white text-center text-neutral-800 tabular-nums focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300"
                                       value={e.dueDay ?? ""}
                                       onChange={(ev) => {
                                         const raw = ev.target.value;
@@ -1446,7 +1439,7 @@ export default function BudgitApp() {
                                     />
 
                                     <button
-                                      className="print:hidden col-span-1 h-10 rounded-xl border border-neutral-200 bg-neutral-50 hover:bg-neutral-100 px-3"
+                                      className="print:hidden col-span-1 h-10 rounded-xl border border-neutral-200 bg-neutral-50 hover:bg-neutral-100 px-3 text-neutral-700"
                                       title="Remove"
                                       onClick={() => deleteExpenseItem(g.id, e.id)}
                                     >
@@ -1455,11 +1448,7 @@ export default function BudgitApp() {
                                   </div>
 
                                   <InsertDropZone
-                                    active={
-                                      dropHint?.type === "expenseInsert" &&
-                                      dropHint?.groupId === g.id &&
-                                      dropHint?.index === idx + 1
-                                    }
+                                    active={dropHint?.type === "expenseInsert" && dropHint?.groupId === g.id && dropHint?.index === idx + 1}
                                     onDragOver={(ev) => {
                                       const p = readDragPayload(ev);
                                       if (p?.type !== "expense") return;
@@ -1480,7 +1469,7 @@ export default function BudgitApp() {
                           </div>
                         ) : (
                           <div
-                            className="p-3 text-sm text-neutral-600"
+                            className="p-3 text-sm text-neutral-700"
                             onDragOver={(e) => {
                               const p = readDragPayload(e);
                               if (p?.type !== "expense") return;
@@ -1503,14 +1492,14 @@ export default function BudgitApp() {
                   })}
 
                   {(active.expenseGroups || []).length === 0 ? (
-                    <div className="text-sm text-neutral-600">No expense sections yet. Click “Add section”.</div>
+                    <div className="text-sm text-neutral-700">No expense sections yet. Click “Add section”.</div>
                   ) : (
                     <div className="pt-3 mt-2 border-t border-neutral-100 flex items-center justify-between">
                       <div>
-                        <div className="text-sm text-neutral-600">Remaining expenses</div>
-                        <div className="text-xs text-neutral-500">Planned: €{expensePlannedTotal.toFixed(2)}</div>
+                        <div className="text-sm text-neutral-700">Remaining expenses</div>
+                        <div className="text-xs text-neutral-600">Planned: €{expensePlannedTotal.toFixed(2)}</div>
                       </div>
-                      <div className="font-semibold text-neutral-900">
+                      <div className="font-semibold text-neutral-800">
                         <Money value={expenseRemainingTotal} />
                       </div>
                     </div>
@@ -1521,11 +1510,11 @@ export default function BudgitApp() {
               {/* Notes */}
               <div className="rounded-2xl border border-neutral-200 bg-white">
                 <div className="px-4 py-3 border-b border-neutral-100">
-                  <div className="font-semibold text-neutral-900">Notes</div>
+                  <div className="font-semibold text-neutral-800">Notes</div>
                 </div>
                 <div className="p-4">
                   <textarea
-                    className="w-full rounded-xl border border-neutral-200 px-3 py-2 bg-white min-h-[90px] focus:outline-none focus:ring-2 focus:ring-lime-300"
+                    className="w-full rounded-xl border border-neutral-200 px-3 py-2 bg-white min-h-[90px] text-neutral-800 focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300"
                     value={active.notes || ""}
                     onChange={(e) => updateNotes(e.target.value)}
                     placeholder="Optional notes for this month…"
@@ -1538,63 +1527,63 @@ export default function BudgitApp() {
           {/* Summary */}
           <div className="rounded-2xl bg-white shadow-sm border border-neutral-200 print:shadow-none">
             <div className="px-4 py-3 border-b border-neutral-100">
-              <div className="font-semibold text-neutral-900">Summary</div>
+              <div className="font-semibold text-neutral-800">Summary</div>
             </div>
             <div className="p-4 space-y-4">
               <div className="rounded-2xl border border-neutral-200 p-4">
-                <div className="text-sm text-neutral-600">Total income</div>
-                <div className="text-2xl font-semibold text-neutral-900 mt-1">
+                <div className="text-sm text-neutral-700">Total income</div>
+                <div className="text-2xl font-semibold text-neutral-800 mt-1">
                   <Money value={incomeTotal} />
                 </div>
               </div>
 
               <div className="rounded-2xl border border-neutral-200 p-4">
-                <div className="text-sm text-neutral-600">Remaining expenses</div>
-                <div className="text-2xl font-semibold text-neutral-900 mt-1">
+                <div className="text-sm text-neutral-700">Remaining expenses</div>
+                <div className="text-2xl font-semibold text-neutral-800 mt-1">
                   <Money value={expenseRemainingTotal} />
                 </div>
-                <div className="text-xs text-neutral-500 mt-2">Planned expenses: €{expensePlannedTotal.toFixed(2)}</div>
+                <div className="text-xs text-neutral-600 mt-2">Planned expenses: €{expensePlannedTotal.toFixed(2)}</div>
               </div>
 
               <div className={`rounded-2xl border p-4 ${netRemaining >= 0 ? "border-emerald-200" : "border-red-200"}`}>
-                <div className="text-sm text-neutral-600">Net (after remaining)</div>
-                <div className="text-2xl font-semibold text-neutral-900 mt-1">
+                <div className="text-sm text-neutral-700">Net (after remaining)</div>
+                <div className="text-2xl font-semibold text-neutral-800 mt-1">
                   <Money value={netRemaining} />
                 </div>
-                <div className="text-xs text-neutral-600 mt-2">
+                <div className="text-xs text-neutral-700 mt-2">
                   Savings rate: <span className="font-medium">{savingsRate.toFixed(1)}%</span>
                 </div>
               </div>
 
               <div className="rounded-2xl border border-neutral-200 p-4">
-                <div className="text-sm text-neutral-600">Quick view</div>
+                <div className="text-sm text-neutral-700">Quick view</div>
                 <div className="mt-2 text-sm text-neutral-700 space-y-1">
                   <div className="flex items-center justify-between">
                     <span>Sections</span>
-                    <span className="font-medium text-neutral-900">{(active.expenseGroups || []).length}</span>
+                    <span className="font-medium text-neutral-800">{(active.expenseGroups || []).length}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span>Expense items</span>
-                    <span className="font-medium text-neutral-900">
+                    <span className="font-medium text-neutral-800">
                       {(active.expenseGroups || []).reduce((s, g) => s + (g.items || []).length, 0)}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span>Unpaid items</span>
-                    <span className="font-medium text-neutral-900">
+                    <span className="font-medium text-neutral-800">
                       {(active.expenseGroups || []).reduce((s, g) => s + (g.items || []).filter((it) => !it.paid).length, 0)}
                     </span>
                   </div>
                 </div>
               </div>
 
-              <div className="text-xs text-neutral-500">Tip: Paid items don’t count toward remaining expenses. Use “Hide paid” to keep lists clean.</div>
+              <div className="text-xs text-neutral-600">Tip: Paid items don’t count toward remaining expenses. Use “Hide paid” to keep lists clean.</div>
             </div>
           </div>
         </div>
 
         {toast ? (
-          <div className="fixed bottom-6 right-6 rounded-2xl bg-neutral-900 text-white px-4 py-3 shadow-lg print:hidden">
+          <div className="fixed bottom-6 right-6 rounded-2xl bg-neutral-800 text-white px-4 py-3 shadow-xl print:hidden">
             <div className="text-sm">{toast}</div>
           </div>
         ) : null}
