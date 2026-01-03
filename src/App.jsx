@@ -6,12 +6,11 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 // - Tracks Income + Expenses for each month
 // - Expenses support user-labeled sections (Creditors, Loans, Transport, etc.)
 // - Labels are edited inline (no prompt dialogs)
-// - Drag & drop reordering with true "insert anywhere" drop zones
-//   - Income: reorder by dropping between rows
-//   - Expenses: reorder within a section or move to another section; drop between rows or at end
-// - Paid checkboxes for expenses
-//   - "Remaining expenses" totals update as items are checked off
+// - Drag & drop reordering with TRUE insert positions (within a section + between sections)
+// - Check off expenses as paid → Remaining totals update
 // - Collapsible expense sections
+// - Due day per expense + sort helper
+// - Copy this month → next month (all or unpaid only)
 // - Print to PDF via browser Print
 // - Export/Import JSON backup
 // - Print Preview (in-app)
@@ -31,6 +30,19 @@ const monthKey = (d = new Date()) => {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   return `${y}-${m}`; // YYYY-MM
+};
+
+const parseYM = (ym) => {
+  const [y, m] = String(ym || "").split("-");
+  return { y: Number(y), m: Number(m) };
+};
+
+const nextMonthKey = (ym) => {
+  const { y, m } = parseYM(ym);
+  if (!y || !m) return monthKey();
+  const d = new Date(y, m - 1, 1);
+  d.setMonth(d.getMonth() + 1);
+  return monthKey(d);
 };
 
 const monthLabel = (ym) => {
@@ -105,12 +117,7 @@ function ActionFileButton({ children, onFile, accept = "application/json", tone 
   return (
     <label title={title} className={`${ACTION_BASE} ${cls} cursor-pointer`}>
       <span>{children}</span>
-      <input
-        type="file"
-        accept={accept}
-        className="hidden"
-        onChange={(e) => onFile?.(e.target.files?.[0] || null)}
-      />
+      <input type="file" accept={accept} className="hidden" onChange={(e) => onFile?.(e.target.files?.[0] || null)} />
     </label>
   );
 }
@@ -138,14 +145,84 @@ function DragHandle({ title = "Drag to reorder" }) {
   );
 }
 
-function DropZone({ active }) {
+function PaidCheck({ checked, onChange }) {
   return (
-    <div className="print:hidden px-2">
+    <button
+      type="button"
+      className={`print:hidden h-10 w-10 rounded-xl border shadow-sm flex items-center justify-center transition active:translate-y-[1px] ${
+        checked
+          ? "bg-lime-50 border-lime-200 text-lime-800"
+          : "bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-50"
+      }`}
+      title={checked ? "Paid" : "Unpaid"}
+      onClick={() => onChange?.(!checked)}
+      aria-label={checked ? "Paid" : "Unpaid"}
+    >
+      <span className="text-lg leading-none">{checked ? "✓" : "○"}</span>
+    </button>
+  );
+}
+
+function InsertDropZone({ active, onDragOver, onDrop }) {
+  return (
+    <div
+      className="print:hidden relative"
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      style={{ height: 12 }}
+    >
       <div
-        className={`h-2 rounded-full transition ${active ? "bg-lime-300" : "bg-transparent"}`}
-        aria-hidden="true"
+        className={`absolute left-0 right-0 top-1/2 -translate-y-1/2 h-[2px] rounded-full transition ${
+          active ? "bg-lime-400" : "bg-transparent"
+        }`}
       />
     </div>
+  );
+}
+
+function SelectAllNumberInput({ className = "", value, onChange, placeholder, inputMode = "decimal", title }) {
+  return (
+    <input
+      className={className}
+      value={value}
+      onChange={onChange}
+      inputMode={inputMode}
+      placeholder={placeholder}
+      title={title}
+      onFocus={(e) => {
+        try {
+          e.target.select();
+        } catch {
+          // ignore
+        }
+      }}
+      onMouseUp={(e) => {
+        // prevent mouseup from deselecting
+        try {
+          e.preventDefault();
+        } catch {
+          // ignore
+        }
+      }}
+    />
+  );
+}
+
+function TogglePill({ on, onToggle, labelOn = "On", labelOff = "Off", title }) {
+  return (
+    <button
+      type="button"
+      title={title}
+      className={`print:hidden h-10 px-3 rounded-xl border shadow-sm flex items-center gap-2 text-sm font-medium transition active:translate-y-[1px] ${
+        on ? "bg-lime-50 border-lime-200 text-neutral-900" : "bg-white border-neutral-200 text-neutral-900 hover:bg-neutral-50"
+      }`}
+      onClick={() => onToggle?.(!on)}
+    >
+      <span className={`inline-block h-5 w-9 rounded-full border transition ${on ? "bg-lime-200 border-lime-300" : "bg-neutral-100 border-neutral-200"}`}>
+        <span className={`block h-4 w-4 rounded-full bg-white shadow-sm transition translate-y-[2px] ${on ? "translate-x-[18px]" : "translate-x-[2px]"}`} />
+      </span>
+      <span>{on ? labelOn : labelOff}</span>
+    </button>
   );
 }
 
@@ -177,9 +254,7 @@ function HelpModal({ open, onClose }) {
             <div className="font-semibold text-neutral-900">Autosave (default)</div>
             <div className="text-sm text-neutral-700 mt-1">
               Budgit saves automatically in your browser (localStorage) under:
-              <span className="ml-2 font-mono text-xs bg-neutral-50 border border-neutral-200 rounded-lg px-2 py-1">
-                {LS_KEY}
-              </span>
+              <span className="ml-2 font-mono text-xs bg-neutral-50 border border-neutral-200 rounded-lg px-2 py-1">{LS_KEY}</span>
             </div>
             <div className="text-xs text-neutral-500 mt-2">
               If you clear browser data or switch devices/browsers, your local data won’t follow automatically.
@@ -190,8 +265,7 @@ function HelpModal({ open, onClose }) {
             <div className="font-semibold text-neutral-900">Best practice (continuity)</div>
             <ul className="mt-2 space-y-2 text-sm text-neutral-700 list-disc pl-5">
               <li>
-                Use <span className="font-semibold">Export</span> once a week (or after big updates) to create a backup
-                JSON file.
+                Use <span className="font-semibold">Export</span> once a week (or after big updates) to create a backup JSON file.
               </li>
               <li>Store that JSON in a safe place (Google Drive / iCloud / email to yourself / USB).</li>
               <li>
@@ -203,32 +277,28 @@ function HelpModal({ open, onClose }) {
           <div className="rounded-2xl border border-neutral-200 p-4">
             <div className="font-semibold text-neutral-900">Reordering (drag & drop)</div>
             <div className="text-sm text-neutral-700 mt-1">
-              Grab the <span className="font-semibold">⋮⋮</span> handle and drop on the green line between rows.
-              Expense items can also be dropped into a different section.
+              Grab the <span className="font-semibold">⋮⋮</span> handle. Drop on the <span className="font-semibold">green line</span> to insert at that exact position.
             </div>
           </div>
 
           <div className="rounded-2xl border border-neutral-200 p-4">
             <div className="font-semibold text-neutral-900">Paid checkoffs</div>
             <div className="text-sm text-neutral-700 mt-1">
-              Tick an expense as <span className="font-semibold">Paid</span> to reduce the “Remaining expenses” total.
-              (Totals in the summary show Remaining + Planned.)
+              Click the <span className="font-semibold">○ / ✓</span> button to mark an expense as paid. Remaining totals update automatically.
             </div>
           </div>
 
           <div className="rounded-2xl border border-neutral-200 p-4">
             <div className="font-semibold text-neutral-900">Printing / PDF</div>
             <div className="text-sm text-neutral-700 mt-1">
-              Use <span className="font-semibold">Preview</span> to check the layout, then{" "}
-              <span className="font-semibold">Print / Save PDF</span> and choose “Save as PDF”.
+              Use <span className="font-semibold">Preview</span> to check the layout, then <span className="font-semibold">Print / Save PDF</span> and choose “Save as PDF”.
             </div>
           </div>
 
           <div className="rounded-2xl border border-neutral-200 p-4">
             <div className="font-semibold text-neutral-900">Privacy</div>
             <div className="text-sm text-neutral-700 mt-1">
-              Budgit runs in your browser. There’s no account system here yet, and nothing is uploaded unless you choose
-              to share your exported file.
+              Budgit runs in your browser. There’s no account system here yet, and nothing is uploaded unless you choose to share your exported file.
             </div>
           </div>
         </div>
@@ -239,33 +309,51 @@ function HelpModal({ open, onClose }) {
   );
 }
 
+// ---------------------------
+// Data normalization
+// ---------------------------
+
+function normalizeIncomeItem(i) {
+  const it = i || {};
+  return {
+    id: it.id || uid(),
+    name: typeof it.name === "string" ? it.name : "",
+    amount: it.amount ?? 0,
+  };
+}
+
+function normalizeExpenseItem(e) {
+  const it = e || {};
+  const dueRaw = it.dueDay;
+  const due = Number.isFinite(Number(dueRaw)) ? Number(dueRaw) : null;
+  return {
+    id: it.id || uid(),
+    name: typeof it.name === "string" ? it.name : "",
+    amount: it.amount ?? 0,
+    paid: !!it.paid,
+    dueDay: due && due >= 1 && due <= 31 ? due : null,
+  };
+}
+
+function normalizeExpenseGroup(g) {
+  const gr = g || {};
+  return {
+    id: gr.id || uid(),
+    label: typeof gr.label === "string" ? gr.label : "",
+    items: Array.isArray(gr.items) ? gr.items.map(normalizeExpenseItem) : [],
+  };
+}
+
 // Migration:
 // - Legacy: { expenses: [] }
 // - New: { expenseGroups: [{ id, label, items: [] }] }
-// - Added: item.paid (default false)
 function normalizeMonthData(monthData) {
   const m = monthData || { incomes: [], expenses: [], notes: "" };
 
-  const incomes = Array.isArray(m.incomes)
-    ? m.incomes.map((x) => ({ id: x.id || uid(), name: x.name ?? "", amount: x.amount ?? 0 }))
-    : [];
-
-  const normalizeItems = (items) =>
-    (Array.isArray(items) ? items : []).map((it) => ({
-      id: it.id || uid(),
-      name: it.name ?? "",
-      amount: it.amount ?? 0,
-      paid: !!it.paid,
-    }));
+  const incomes = Array.isArray(m.incomes) ? m.incomes.map(normalizeIncomeItem) : [];
 
   if (Array.isArray(m.expenseGroups)) {
-    const groups = m.expenseGroups
-      .filter(Boolean)
-      .map((g) => ({
-        id: g.id || uid(),
-        label: typeof g.label === "string" ? g.label : "",
-        items: normalizeItems(g.items),
-      }));
+    const groups = m.expenseGroups.filter(Boolean).map(normalizeExpenseGroup);
 
     return {
       incomes,
@@ -274,13 +362,17 @@ function normalizeMonthData(monthData) {
     };
   }
 
-  const legacyExpenses = normalizeItems(m.expenses);
+  const legacyExpenses = Array.isArray(m.expenses) ? m.expenses.map(normalizeExpenseItem) : [];
   return {
     incomes,
     expenseGroups: [{ id: uid(), label: "General", items: legacyExpenses }],
     notes: typeof m.notes === "string" ? m.notes : "",
   };
 }
+
+// ---------------------------
+// App
+// ---------------------------
 
 export default function BudgitApp() {
   const [app, setApp] = useState(() => {
@@ -289,10 +381,16 @@ export default function BudgitApp() {
       months: {
         // "YYYY-MM": { incomes: [...], expenseGroups: [{id,label,items:[...]}], notes: "" }
       },
+      settings: {
+        showPaid: true,
+      },
     };
 
     const saved = typeof window !== "undefined" ? localStorage.getItem(LS_KEY) : null;
     const data = saved ? safeParse(saved, base) : base;
+
+    data.settings = data.settings || { showPaid: true };
+    if (typeof data.settings.showPaid !== "boolean") data.settings.showPaid = true;
 
     const m = data.activeMonth || monthKey();
     data.activeMonth = m;
@@ -320,10 +418,10 @@ export default function BudgitApp() {
 
   // Drag state (UI-only)
   const [drag, setDrag] = useState(null);
-  // dropHint shapes:
-  // { kind: 'income', index }
-  // { kind: 'expense', groupId, index }
   const [dropHint, setDropHint] = useState(null);
+
+  // Copy modal
+  const [copyOpen, setCopyOpen] = useState(false);
 
   const notify = (msg) => {
     setToast(msg);
@@ -353,29 +451,30 @@ export default function BudgitApp() {
     return () => clearTimeout(t);
   }, [focusGroupId]);
 
-  const incomeTotal = useMemo(
-    () => (active.incomes || []).reduce((sum, i) => sum + toNumber(i.amount), 0),
-    [active.incomes]
-  );
+  const showPaid = !!app.settings?.showPaid;
 
-  const expenseTotalPlanned = useMemo(() => {
+  const incomeTotal = useMemo(() => (active.incomes || []).reduce((sum, i) => sum + toNumber(i.amount), 0), [active.incomes]);
+
+  const expensePlannedTotal = useMemo(() => {
     const groups = active.expenseGroups || [];
     return groups.reduce((sum, g) => sum + (g.items || []).reduce((s2, it) => s2 + toNumber(it.amount), 0), 0);
   }, [active.expenseGroups]);
 
-  const expenseTotalRemaining = useMemo(() => {
+  const expenseRemainingTotal = useMemo(() => {
     const groups = active.expenseGroups || [];
     return groups.reduce(
       (sum, g) =>
         sum +
-        (g.items || []).reduce((s2, it) => s2 + (!it.paid ? toNumber(it.amount) : 0), 0),
+        (g.items || []).reduce((s2, it) => {
+          const amt = toNumber(it.amount);
+          return it.paid ? s2 : s2 + amt;
+        }, 0),
       0
     );
   }, [active.expenseGroups]);
 
-  const netRemaining = useMemo(() => incomeTotal - expenseTotalRemaining, [incomeTotal, expenseTotalRemaining]);
-
-  const savingsRateRemaining = useMemo(() => {
+  const netRemaining = useMemo(() => incomeTotal - expenseRemainingTotal, [incomeTotal, expenseRemainingTotal]);
+  const savingsRate = useMemo(() => {
     if (!incomeTotal) return 0;
     return (netRemaining / incomeTotal) * 100;
   }, [netRemaining, incomeTotal]);
@@ -398,7 +497,62 @@ export default function BudgitApp() {
     });
   };
 
+  const setSetting = (patch) => {
+    setApp((a) => ({ ...a, settings: { ...(a.settings || {}), ...(patch || {}) } }));
+  };
+
+  // ---------------------------
+  // Better month picker (month + year)
+  // ---------------------------
+
+  const monthNames = useMemo(() => {
+    const base = new Date(2020, 0, 1);
+    return Array.from({ length: 12 }, (_, idx) => {
+      const d = new Date(base);
+      d.setMonth(idx);
+      return d.toLocaleDateString(undefined, { month: "long" });
+    });
+  }, []);
+
+  const monthOptions = useMemo(() => monthNames.map((label, idx) => ({ value: String(idx + 1).padStart(2, "0"), label })), [monthNames]);
+
+  const years = useMemo(() => {
+    const keys = Object.keys(app.months || {});
+    const present = new Set(keys.map((k) => String(k).split("-")[0]).filter(Boolean));
+    const curY = new Date().getFullYear();
+    for (let y = curY - 3; y <= curY + 3; y++) present.add(String(y));
+    return Array.from(present).map((s) => Number(s)).filter(Boolean).sort((a, b) => a - b);
+  }, [app.months]);
+
+  const activeYM = useMemo(() => {
+    const { y, m } = parseYM(app.activeMonth);
+    return { y: String(y || new Date().getFullYear()), m: String(m || new Date().getMonth() + 1).padStart(2, "0") };
+  }, [app.activeMonth]);
+
+  const setMonthParts = (yStr, mStr) => {
+    const y = String(yStr);
+    const m = String(mStr).padStart(2, "0");
+    ensureMonth(`${y}-${m}`);
+  };
+
+  const prevMonth = () => {
+    const { y, m } = parseYM(app.activeMonth);
+    const d = new Date(y, m - 1, 1);
+    d.setMonth(d.getMonth() - 1);
+    ensureMonth(monthKey(d));
+  };
+
+  const nextMonth = () => {
+    const { y, m } = parseYM(app.activeMonth);
+    const d = new Date(y, m - 1, 1);
+    d.setMonth(d.getMonth() + 1);
+    ensureMonth(monthKey(d));
+  };
+
+  // ---------------------------
   // Income actions
+  // ---------------------------
+
   const addIncome = () => {
     const item = { id: uid(), name: "Salary", amount: 0 };
     updateMonth((cur) => ({ ...cur, incomes: [item, ...(cur.incomes || [])] }));
@@ -418,7 +572,10 @@ export default function BudgitApp() {
     }));
   };
 
+  // ---------------------------
   // Expense sections
+  // ---------------------------
+
   const addExpenseGroup = () => {
     const newId = uid();
     const group = { id: newId, label: "New section", items: [] };
@@ -466,13 +623,12 @@ export default function BudgitApp() {
   };
 
   const addExpenseItem = (groupId) => {
-    const item = { id: uid(), name: "Expense", amount: 0, paid: false };
+    const item = { id: uid(), name: "Expense", amount: 0, paid: false, dueDay: null };
     updateMonth((cur) => ({
       ...cur,
-      expenseGroups: (cur.expenseGroups || []).map((g) =>
-        g.id === groupId ? { ...g, items: [item, ...(g.items || [])] } : g
-      ),
+      expenseGroups: (cur.expenseGroups || []).map((g) => (g.id === groupId ? { ...g, items: [item, ...(g.items || [])] } : g)),
     }));
+
     setCollapsed((c) => ({ ...c, [groupId]: false }));
   };
 
@@ -499,12 +655,47 @@ export default function BudgitApp() {
     }));
   };
 
-  const groupTotals = (group) => {
-    const items = group?.items || [];
-    const planned = items.reduce((s, it) => s + toNumber(it.amount), 0);
-    const remaining = items.reduce((s, it) => s + (!it.paid ? toNumber(it.amount) : 0), 0);
-    return { planned, remaining };
+  const markAllPaid = (groupId, paid) => {
+    updateMonth((cur) => ({
+      ...cur,
+      expenseGroups: (cur.expenseGroups || []).map((g) => {
+        if (g.id !== groupId) return g;
+        return { ...g, items: (g.items || []).map((it) => ({ ...it, paid: !!paid })) };
+      }),
+    }));
   };
+
+  const clearPaidInGroup = (groupId) => {
+    const ok = window.confirm("Remove all PAID items in this section? This cannot be undone.");
+    if (!ok) return;
+    updateMonth((cur) => ({
+      ...cur,
+      expenseGroups: (cur.expenseGroups || []).map((g) => {
+        if (g.id !== groupId) return g;
+        return { ...g, items: (g.items || []).filter((it) => !it.paid) };
+      }),
+    }));
+  };
+
+  const sortGroupByDue = (groupId) => {
+    updateMonth((cur) => ({
+      ...cur,
+      expenseGroups: (cur.expenseGroups || []).map((g) => {
+        if (g.id !== groupId) return g;
+        const items = [...(g.items || [])];
+        items.sort((a, b) => {
+          const da = a.dueDay == null ? 999 : a.dueDay;
+          const db = b.dueDay == null ? 999 : b.dueDay;
+          if (da !== db) return da - db;
+          return String(a.name || "").localeCompare(String(b.name || ""));
+        });
+        return { ...g, items };
+      }),
+    }));
+  };
+
+  const groupPlannedTotal = (group) => (group.items || []).reduce((s, it) => s + toNumber(it.amount), 0);
+  const groupRemainingTotal = (group) => (group.items || []).reduce((s, it) => (it.paid ? s : s + toNumber(it.amount)), 0);
 
   const clearMonth = () => {
     const ok = window.confirm("Clear all income and expenses for this month?");
@@ -522,6 +713,10 @@ export default function BudgitApp() {
     setCollapsed({});
     notify("Month cleared");
   };
+
+  // ---------------------------
+  // Export / Import
+  // ---------------------------
 
   const exportJSON = () => {
     const blob = new Blob([JSON.stringify(app, null, 2)], { type: "application/json" });
@@ -552,6 +747,9 @@ export default function BudgitApp() {
     const next = {
       activeMonth: parsed.activeMonth || monthKey(),
       months,
+      settings: {
+        showPaid: typeof parsed.settings?.showPaid === "boolean" ? parsed.settings.showPaid : true,
+      },
     };
     next.months[next.activeMonth] = normalizeMonthData(next.months[next.activeMonth]);
 
@@ -562,7 +760,10 @@ export default function BudgitApp() {
 
   const openPreview = () => setPreviewOpen(true);
 
-  // Drag & drop helpers
+  // ---------------------------
+  // Drag & drop helpers (insert positions)
+  // ---------------------------
+
   const setDragPayload = (payload, e) => {
     try {
       e.dataTransfer.effectAllowed = "move";
@@ -590,21 +791,20 @@ export default function BudgitApp() {
     setDropHint(null);
   };
 
-  // Income: move by insertion index
-  const moveIncomeToIndex = (itemId, toIndex) => {
+  const moveIncomeInsert = (itemId, toIndex) => {
     updateMonth((cur) => {
       const items = [...(cur.incomes || [])];
       const fromIndex = items.findIndex((x) => x.id === itemId);
       if (fromIndex < 0) return cur;
-      const [moved] = items.splice(fromIndex, 1);
       const to = clamp(toIndex, 0, items.length);
-      items.splice(to, 0, moved);
+      const [moved] = items.splice(fromIndex, 1);
+      const adj = fromIndex < to ? to - 1 : to;
+      items.splice(clamp(adj, 0, items.length), 0, moved);
       return { ...cur, incomes: items };
     });
   };
 
-  // Expenses: move by insertion index within target group
-  const moveExpenseToIndex = (fromGroupId, itemId, toGroupId, toIndex) => {
+  const moveExpenseInsert = (fromGroupId, itemId, toGroupId, toIndex) => {
     updateMonth((cur) => {
       const groups = (cur.expenseGroups || []).map((g) => ({ ...g, items: [...(g.items || [])] }));
       const fromG = groups.find((g) => g.id === fromGroupId);
@@ -617,22 +817,74 @@ export default function BudgitApp() {
       const [moved] = fromG.items.splice(fromIndex, 1);
       if (!moved) return cur;
 
-      let to = clamp(toIndex, 0, toG.items.length);
-      if (fromGroupId === toGroupId) {
-        // If moving within same list and removing a prior index, insertion point shifts left.
-        if (fromIndex < to) to = Math.max(0, to - 1);
-      }
+      const to = clamp(toIndex, 0, toG.items.length);
+      let adj = to;
+      if (fromGroupId === toGroupId && fromIndex < to) adj = to - 1;
+      toG.items.splice(clamp(adj, 0, toG.items.length), 0, moved);
 
-      toG.items.splice(to, 0, moved);
       return { ...cur, expenseGroups: groups };
     });
 
     setCollapsed((c) => ({ ...c, [toGroupId]: false }));
   };
 
-  // Preview-only computed structures
+  // ---------------------------
+  // Copy month → next month
+  // ---------------------------
+
+  const copyToNextMonth = (mode) => {
+    const srcKey = app.activeMonth;
+    const dstKey = nextMonthKey(srcKey);
+
+    const dstExists = !!app.months?.[dstKey];
+    if (dstExists) {
+      const ok = window.confirm(`Next month (${monthLabel(dstKey)}) already has data. Overwrite it?`);
+      if (!ok) return;
+    }
+
+    const src = normalizeMonthData(app.months?.[srcKey]);
+
+    const clone = {
+      incomes: (src.incomes || []).map((i) => ({ ...i })),
+      expenseGroups: (src.expenseGroups || []).map((g) => ({
+        id: uid(),
+        label: g.label,
+        items: (g.items || [])
+          .filter((it) => (mode === "unpaid" ? !it.paid : true))
+          .map((it) => ({
+            id: uid(),
+            name: it.name,
+            amount: it.amount ?? 0,
+            paid: false,
+            dueDay: it.dueDay ?? null,
+          })),
+      })),
+      notes: "",
+    };
+
+    // Ensure at least one group
+    if (!clone.expenseGroups.length) clone.expenseGroups = [{ id: uid(), label: "General", items: [] }];
+
+    setApp((a) => {
+      const months = { ...(a.months || {}) };
+      months[dstKey] = normalizeMonthData(clone);
+      return { ...a, months };
+    });
+
+    setCopyOpen(false);
+    notify(mode === "unpaid" ? `Copied unpaid → ${monthLabel(dstKey)}` : `Copied month → ${monthLabel(dstKey)}`);
+  };
+
+  // ---------------------------
+  // Preview computed structures
+  // ---------------------------
+
   const previewIncomes = active.incomes || [];
   const previewGroups = active.expenseGroups || [];
+
+  // ---------------------------
+  // UI
+  // ---------------------------
 
   return (
     <div className="min-h-screen bg-neutral-50 text-neutral-900">
@@ -647,8 +899,59 @@ export default function BudgitApp() {
         }
       `}</style>
 
+      {/* Help Pack v1 */}
       <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
 
+      {/* Copy modal */}
+      {copyOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8 print:hidden">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setCopyOpen(false)} />
+          <div className="relative w-full max-w-lg rounded-2xl bg-white border border-neutral-200 shadow-xl overflow-hidden">
+            <div className="p-4 border-b border-neutral-100 flex items-start justify-between gap-4">
+              <div>
+                <div className="text-lg font-semibold text-neutral-900">Copy to next month</div>
+                <div className="text-sm text-neutral-600 mt-1">Choose what to carry forward.</div>
+                <div className="mt-3 h-[2px] w-56 rounded-full bg-gradient-to-r from-lime-400/0 via-lime-400 to-emerald-400/0" />
+              </div>
+              <button
+                type="button"
+                className="px-3 py-2 rounded-xl text-sm font-medium border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-900 transition"
+                onClick={() => setCopyOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+            <div className="p-4 space-y-3">
+              <div className="rounded-2xl border border-neutral-200 p-4">
+                <div className="font-semibold text-neutral-900">Copy everything</div>
+                <div className="text-sm text-neutral-700 mt-1">
+                  Copies incomes + all expenses into next month. All expenses are set to unpaid.
+                </div>
+                <div className="mt-3">
+                  <SmallButton tone="primary" onClick={() => copyToNextMonth("all")}>Copy everything</SmallButton>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-neutral-200 p-4">
+                <div className="font-semibold text-neutral-900">Copy unpaid only</div>
+                <div className="text-sm text-neutral-700 mt-1">
+                  Copies incomes + only unpaid expenses into next month. Unpaid stays unpaid.
+                </div>
+                <div className="mt-3">
+                  <SmallButton tone="primary" onClick={() => copyToNextMonth("unpaid")}>Copy unpaid only</SmallButton>
+                </div>
+              </div>
+
+              <div className="text-xs text-neutral-500">
+                Note: If next month already has data, Budgit will ask before overwriting.
+              </div>
+            </div>
+            <div className="p-4 border-t border-neutral-100 text-xs text-neutral-500">ToolStack • Budgit</div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* When preview is open, print only the preview sheet */}
       {previewOpen ? (
         <style>{`
           @media print {
@@ -659,6 +962,7 @@ export default function BudgitApp() {
         `}</style>
       ) : null}
 
+      {/* Print Preview Modal */}
       {previewOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8">
           <div className="absolute inset-0 bg-black/40" onClick={() => setPreviewOpen(false)} />
@@ -719,54 +1023,55 @@ export default function BudgitApp() {
                   </div>
 
                   <div className="rounded-2xl border border-neutral-200">
-                    <div className="px-4 py-3 border-b border-neutral-100 font-semibold text-neutral-900">
-                      Expenses
-                    </div>
+                    <div className="px-4 py-3 border-b border-neutral-100 font-semibold text-neutral-900">Expenses</div>
                     <div className="p-4 space-y-4">
                       {previewGroups.length === 0 ? (
                         <div className="text-sm text-neutral-600">No expense sections.</div>
                       ) : (
-                        previewGroups.map((g) => {
-                          const gt = groupTotals(g);
-                          return (
-                            <div key={g.id} className="rounded-2xl border border-neutral-200">
-                              <div className="px-3 py-2 border-b border-neutral-100 flex items-center justify-between">
+                        previewGroups.map((g) => (
+                          <div key={g.id} className="rounded-2xl border border-neutral-200">
+                            <div className="px-3 py-2 border-b border-neutral-100">
+                              <div className="flex items-center justify-between gap-3">
                                 <div className="font-semibold text-neutral-900">{(g.label || "General").trim()}</div>
-                                <div className="text-sm text-neutral-600">
-                                  Remaining: <span className="font-semibold text-neutral-900"><Money value={gt.remaining} /></span>
-                                  <span className="ml-2">Planned: <span className="font-medium text-neutral-900"><Money value={gt.planned} /></span></span>
+                                <div className="text-right">
+                                  <div className="text-sm text-neutral-600">Remaining</div>
+                                  <div className="font-semibold text-neutral-900">
+                                    <Money value={groupRemainingTotal(g)} />
+                                  </div>
                                 </div>
                               </div>
-                              <div className="p-3 space-y-2">
-                                {(g.items || []).length === 0 ? (
-                                  <div className="text-sm text-neutral-600">No items.</div>
-                                ) : (
-                                  (g.items || []).map((e) => (
-                                    <div key={e.id} className="flex items-center justify-between gap-3">
-                                      <div className={`text-neutral-900 ${e.paid ? "line-through text-neutral-500" : ""}`}>
-                                        {e.paid ? "✓ " : ""}{e.name || "(unnamed)"}
-                                      </div>
-                                      <div className={`${e.paid ? "text-neutral-500" : "text-neutral-900"}`}>
-                                        <Money value={toNumber(e.amount)} />
-                                      </div>
-                                    </div>
-                                  ))
-                                )}
-                              </div>
+                              <div className="text-xs text-neutral-500 mt-1">Planned: €{groupPlannedTotal(g).toFixed(2)}</div>
                             </div>
-                          );
-                        })
+                            <div className="p-3 space-y-2">
+                              {(g.items || []).length === 0 ? (
+                                <div className="text-sm text-neutral-600">No items.</div>
+                              ) : (
+                                (g.items || []).map((e) => (
+                                  <div key={e.id} className="flex items-center justify-between gap-3">
+                                    <div className={`text-neutral-900 ${e.paid ? "line-through text-neutral-500" : ""}`}>
+                                      {e.paid ? "✓ " : ""}
+                                      {e.name || "(unnamed)"}
+                                      {e.dueDay ? <span className="text-xs text-neutral-500 ml-2">(Due {e.dueDay})</span> : null}
+                                    </div>
+                                    <div className={`text-neutral-900 ${e.paid ? "text-neutral-500" : ""}`}>
+                                      <Money value={toNumber(e.amount)} />
+                                    </div>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          </div>
+                        ))
                       )}
 
                       <div className="pt-3 mt-2 border-t border-neutral-100 flex items-center justify-between">
-                        <div className="font-semibold text-neutral-900">Remaining expenses</div>
-                        <div className="font-semibold text-neutral-900">
-                          <Money value={expenseTotalRemaining} />
+                        <div>
+                          <div className="font-semibold text-neutral-900">Remaining expenses</div>
+                          <div className="text-xs text-neutral-500">Planned: €{expensePlannedTotal.toFixed(2)}</div>
                         </div>
-                      </div>
-                      <div className="flex items-center justify-between text-sm text-neutral-600">
-                        <div>Planned expenses</div>
-                        <div className="font-medium text-neutral-900"><Money value={expenseTotalPlanned} /></div>
+                        <div className="font-semibold text-neutral-900">
+                          <Money value={expenseRemainingTotal} />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -774,12 +1079,12 @@ export default function BudgitApp() {
 
                 <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className={`rounded-2xl border p-4 ${netRemaining >= 0 ? "border-emerald-200" : "border-red-200"}`}>
-                    <div className="text-sm text-neutral-600">Net (after remaining expenses)</div>
+                    <div className="text-sm text-neutral-600">Net (after remaining)</div>
                     <div className="text-2xl font-semibold text-neutral-900 mt-1">
                       <Money value={netRemaining} />
                     </div>
                     <div className="text-xs text-neutral-600 mt-2">
-                      Savings rate: <span className="font-medium">{savingsRateRemaining.toFixed(1)}%</span>
+                      Savings rate: <span className="font-medium">{savingsRate.toFixed(1)}%</span>
                     </div>
                   </div>
 
@@ -791,9 +1096,7 @@ export default function BudgitApp() {
                   </div>
                 </div>
 
-                <div className="mt-4 text-xs text-neutral-500">
-                  Tip: If the preview looks right, hit “Print / Save PDF” and choose “Save as PDF”.
-                </div>
+                <div className="mt-4 text-xs text-neutral-500">Tip: If the preview looks right, hit “Print / Save PDF” and choose “Save as PDF”.</div>
               </div>
             </div>
           </div>
@@ -801,10 +1104,11 @@ export default function BudgitApp() {
       ) : null}
 
       <div className="max-w-5xl mx-auto px-4 py-6">
+        {/* Header + normalized actions */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <div className="text-2xl font-semibold text-neutral-900">Budgit</div>
-            <div className="text-sm text-neutral-600">Reorder items • check off paid expenses • track remaining totals</div>
+            <div className="text-sm text-neutral-600">Simple monthly budget • mark paid • remaining totals update</div>
             <div className="mt-3 h-[2px] w-80 rounded-full bg-gradient-to-r from-lime-400/0 via-lime-400 to-emerald-400/0" />
           </div>
 
@@ -837,12 +1141,54 @@ export default function BudgitApp() {
             <div className="px-4 py-3 border-b border-neutral-100 flex items-center justify-between gap-3">
               <div className="font-semibold text-neutral-900">Month</div>
               <div className="flex items-center gap-2">
-                <input
-                  type="month"
-                  value={app.activeMonth}
-                  onChange={(e) => ensureMonth(e.target.value)}
-                  className="print:hidden rounded-xl border border-neutral-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-lime-300"
-                />
+                <button
+                  type="button"
+                  className="print:hidden h-10 w-10 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 shadow-sm flex items-center justify-center"
+                  title="Previous month"
+                  onClick={prevMonth}
+                >
+                  ‹
+                </button>
+
+                <div className="print:hidden flex items-center gap-2">
+                  <select
+                    className="h-10 rounded-xl border border-neutral-200 px-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-lime-300"
+                    value={activeYM.m}
+                    onChange={(e) => setMonthParts(activeYM.y, e.target.value)}
+                  >
+                    {monthOptions.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+
+                  <select
+                    className="h-10 rounded-xl border border-neutral-200 px-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-lime-300"
+                    value={activeYM.y}
+                    onChange={(e) => setMonthParts(e.target.value, activeYM.m)}
+                  >
+                    {years.map((y) => (
+                      <option key={y} value={y}>
+                        {y}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <button
+                  type="button"
+                  className="print:hidden h-10 w-10 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 shadow-sm flex items-center justify-center"
+                  title="Next month"
+                  onClick={nextMonth}
+                >
+                  ›
+                </button>
+
+                <SmallButton onClick={() => setCopyOpen(true)} title="Copy this month into next month">
+                  Copy → next
+                </SmallButton>
+
                 <SmallButton tone="danger" onClick={clearMonth}>
                   Clear
                 </SmallButton>
@@ -863,25 +1209,24 @@ export default function BudgitApp() {
                   {(active.incomes || []).length === 0 ? (
                     <div className="text-sm text-neutral-600">No income items yet.</div>
                   ) : (
-                    <div className="space-y-1">
-                      {/* Drop before first */}
-                      <div
+                    <div className="space-y-2">
+                      {/* Dropzone at top */}
+                      <InsertDropZone
+                        active={dropHint?.type === "incomeInsert" && dropHint?.index === 0}
                         onDragOver={(e) => {
                           const p = readDragPayload(e);
                           if (p?.type !== "income") return;
                           e.preventDefault();
-                          setDropHint({ kind: "income", index: 0 });
+                          setDropHint({ type: "incomeInsert", index: 0 });
                         }}
                         onDrop={(e) => {
                           const p = readDragPayload(e);
                           if (!p || p.type !== "income") return;
                           e.preventDefault();
-                          moveIncomeToIndex(p.itemId, 0);
+                          moveIncomeInsert(p.itemId, 0);
                           clearDragState();
                         }}
-                      >
-                        <DropZone active={dropHint?.kind === "income" && dropHint?.index === 0} />
-                      </div>
+                      />
 
                       {(active.incomes || []).map((i, idx) => (
                         <div key={i.id}>
@@ -890,24 +1235,27 @@ export default function BudgitApp() {
                               className="col-span-1"
                               draggable
                               onDragStart={(e) => setDragPayload({ type: "income", itemId: i.id }, e)}
-                              onDragEnd={() => clearDragState()}
+                              onDragEnd={clearDragState}
                             >
                               <DragHandle title="Drag income item" />
                             </div>
 
                             <input
-                              className="col-span-7 rounded-xl border border-neutral-200 px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-lime-300"
+                              className="col-span-6 rounded-xl border border-neutral-200 px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-lime-300"
                               value={i.name || ""}
                               onChange={(e) => updateIncome(i.id, { name: e.target.value })}
                               placeholder="Income name"
                             />
-                            <input
-                              className="col-span-3 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-lime-300"
+
+                            <SelectAllNumberInput
+                              className="col-span-4 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-lime-300"
                               value={i.amount ?? 0}
                               onChange={(e) => updateIncome(i.id, { amount: e.target.value })}
                               inputMode="decimal"
                               placeholder="0"
+                              title="Amount"
                             />
+
                             <button
                               className="print:hidden col-span-1 h-10 rounded-xl border border-neutral-200 bg-neutral-50 hover:bg-neutral-100 px-3"
                               title="Remove"
@@ -917,55 +1265,64 @@ export default function BudgitApp() {
                             </button>
                           </div>
 
-                          {/* Drop after this row */}
-                          <div
+                          {/* Dropzone after each item */}
+                          <InsertDropZone
+                            active={dropHint?.type === "incomeInsert" && dropHint?.index === idx + 1}
                             onDragOver={(e) => {
                               const p = readDragPayload(e);
                               if (p?.type !== "income") return;
                               e.preventDefault();
-                              setDropHint({ kind: "income", index: idx + 1 });
+                              setDropHint({ type: "incomeInsert", index: idx + 1 });
                             }}
                             onDrop={(e) => {
                               const p = readDragPayload(e);
                               if (!p || p.type !== "income") return;
                               e.preventDefault();
-                              moveIncomeToIndex(p.itemId, idx + 1);
+                              moveIncomeInsert(p.itemId, idx + 1);
                               clearDragState();
                             }}
-                          >
-                            <DropZone active={dropHint?.kind === "income" && dropHint?.index === idx + 1} />
-                          </div>
+                          />
                         </div>
                       ))}
-                    </div>
-                  )}
 
-                  {(active.incomes || []).length ? (
-                    <div className="pt-3 mt-2 border-t border-neutral-100 flex items-center justify-between">
-                      <div className="text-sm text-neutral-600">Total income</div>
-                      <div className="font-semibold text-neutral-900">
-                        <Money value={incomeTotal} />
+                      <div className="pt-3 mt-2 border-t border-neutral-100 flex items-center justify-between">
+                        <div className="text-sm text-neutral-600">Total income</div>
+                        <div className="font-semibold text-neutral-900">
+                          <Money value={incomeTotal} />
+                        </div>
                       </div>
                     </div>
-                  ) : null}
+                  )}
                 </div>
               </div>
 
               {/* Expenses */}
               <div className="rounded-2xl border border-neutral-200 bg-white">
-                <div className="px-4 py-3 border-b border-neutral-100 flex items-center justify-between">
+                <div className="px-4 py-3 border-b border-neutral-100 flex items-center justify-between gap-2">
                   <div className="font-semibold text-neutral-900">Expenses</div>
-                  <SmallButton tone="primary" onClick={addExpenseGroup}>
-                    + Add section
-                  </SmallButton>
+                  <div className="flex items-center gap-2">
+                    <TogglePill
+                      on={showPaid}
+                      onToggle={(v) => setSetting({ showPaid: v })}
+                      labelOn="Show paid"
+                      labelOff="Hide paid"
+                      title="Show/hide paid items"
+                    />
+                    <SmallButton tone="primary" onClick={addExpenseGroup}>
+                      + Add section
+                    </SmallButton>
+                  </div>
                 </div>
 
                 <div className="p-4 space-y-3">
                   {(active.expenseGroups || []).map((g) => {
                     const isCollapsed = !!collapsed[g.id];
-                    const items = g.items || [];
-                    const gt = groupTotals(g);
-                    const itemsCount = items.length;
+                    const planned = groupPlannedTotal(g);
+                    const remaining = groupRemainingTotal(g);
+                    const totalItems = (g.items || []).length;
+                    const unpaidItems = (g.items || []).filter((it) => !it.paid).length;
+
+                    const visibleItems = showPaid ? (g.items || []) : (g.items || []).filter((it) => !it.paid);
 
                     return (
                       <div key={g.id} className="rounded-2xl border border-neutral-200 overflow-hidden">
@@ -989,23 +1346,30 @@ export default function BudgitApp() {
                               placeholder="Section label (e.g., Loans)"
                             />
 
-                            <div className="text-sm text-neutral-600 hidden sm:block">
-                              {itemsCount} item{itemsCount === 1 ? "" : "s"} • Remaining:{" "}
-                              <span className="font-semibold text-neutral-900">
-                                <Money value={gt.remaining} />
-                              </span>
-                              <span className="ml-2">Planned: <span className="font-medium text-neutral-900"><Money value={gt.planned} /></span></span>
+                            <div className="text-sm text-neutral-600 hidden lg:block">
+                              {unpaidItems}/{totalItems} unpaid • Remaining: <span className="font-semibold text-neutral-900">€{remaining.toFixed(2)}</span>
+                              <span className="text-neutral-500"> • Planned: €{planned.toFixed(2)}</span>
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-2">
-                            <div className="text-sm text-neutral-600 sm:hidden">
-                              Rem:{" "}
-                              <span className="font-semibold text-neutral-900">
-                                <Money value={gt.remaining} />
-                              </span>
-                              <span className="ml-2">Planned: <span className="font-medium text-neutral-900"><Money value={gt.planned} /></span></span>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <div className="text-sm text-neutral-600 lg:hidden">
+                              Remaining: <span className="font-semibold text-neutral-900">€{remaining.toFixed(2)}</span>
+                              <span className="text-neutral-500"> • Planned: €{planned.toFixed(2)}</span>
                             </div>
+
+                            <SmallButton onClick={() => sortGroupByDue(g.id)} title="Sort items by due day (1–31)">
+                              Sort by due
+                            </SmallButton>
+                            <SmallButton onClick={() => markAllPaid(g.id, true)} title="Mark all paid">
+                              All paid
+                            </SmallButton>
+                            <SmallButton onClick={() => markAllPaid(g.id, false)} title="Mark all unpaid">
+                              All unpaid
+                            </SmallButton>
+                            <SmallButton tone="danger" onClick={() => clearPaidInGroup(g.id)} title="Remove paid items">
+                              Clear paid
+                            </SmallButton>
                             <SmallButton tone="primary" onClick={() => addExpenseItem(g.id)}>
                               + Add item
                             </SmallButton>
@@ -1015,87 +1379,99 @@ export default function BudgitApp() {
                           </div>
                         </div>
 
-                        {/* Group drop zone (append) */}
+                        {/* Drop onto group (append) */}
                         <div
                           className="print:hidden"
                           onDragOver={(e) => {
                             const p = readDragPayload(e);
                             if (p?.type !== "expense") return;
                             e.preventDefault();
-                            setDropHint({ kind: "expense", groupId: g.id, index: items.length });
-                            // If collapsed, keep showing hint and allow drop
+                            setDropHint({ type: "expenseAppend", groupId: g.id });
                           }}
                           onDrop={(e) => {
                             const p = readDragPayload(e);
                             if (!p || p.type !== "expense") return;
                             e.preventDefault();
-                            moveExpenseToIndex(p.fromGroupId, p.itemId, g.id, items.length);
+                            moveExpenseInsert(p.fromGroupId, p.itemId, g.id, (g.items || []).length);
                             clearDragState();
                           }}
-                        >
-                          <DropZone active={dropHint?.kind === "expense" && dropHint?.groupId === g.id && dropHint?.index === items.length && isCollapsed} />
-                        </div>
+                        />
 
                         {!isCollapsed ? (
                           <div className="p-3">
-                            {items.length === 0 ? (
+                            {visibleItems.length === 0 ? (
                               <div className="text-sm text-neutral-600">No items in this section.</div>
                             ) : (
-                              <div className="space-y-1">
-                                {/* Drop before first item */}
-                                <div
+                              <div className="space-y-2">
+                                {/* Top dropzone */}
+                                <InsertDropZone
+                                  active={dropHint?.type === "expenseInsert" && dropHint?.groupId === g.id && dropHint?.index === 0}
                                   onDragOver={(e) => {
                                     const p = readDragPayload(e);
                                     if (p?.type !== "expense") return;
                                     e.preventDefault();
-                                    setDropHint({ kind: "expense", groupId: g.id, index: 0 });
+                                    setDropHint({ type: "expenseInsert", groupId: g.id, index: 0 });
                                   }}
                                   onDrop={(e) => {
                                     const p = readDragPayload(e);
                                     if (!p || p.type !== "expense") return;
                                     e.preventDefault();
-                                    moveExpenseToIndex(p.fromGroupId, p.itemId, g.id, 0);
+                                    moveExpenseInsert(p.fromGroupId, p.itemId, g.id, 0);
                                     clearDragState();
                                   }}
-                                >
-                                  <DropZone active={dropHint?.kind === "expense" && dropHint?.groupId === g.id && dropHint?.index === 0} />
-                                </div>
+                                />
 
-                                {items.map((e, idx) => (
+                                {visibleItems.map((e, idx) => (
                                   <div key={e.id}>
-                                    <div className={`grid grid-cols-12 gap-2 items-center rounded-2xl p-2 border ${e.paid ? "bg-neutral-50/60" : "border-transparent"}`}>
+                                    <div className={`grid grid-cols-12 gap-2 items-center rounded-2xl p-2 border ${e.paid ? "bg-neutral-50/40" : "border-transparent"}`}>
                                       <div
                                         className="col-span-1"
                                         draggable
                                         onDragStart={(ev) => setDragPayload({ type: "expense", fromGroupId: g.id, itemId: e.id }, ev)}
-                                        onDragEnd={() => clearDragState()}
+                                        onDragEnd={clearDragState}
                                       >
                                         <DragHandle title="Drag expense item" />
                                       </div>
 
-                                      <label className="print:hidden col-span-1 flex items-center justify-center">
-                                        <input
-                                          type="checkbox"
-                                          className="h-5 w-5 rounded border-neutral-300 text-neutral-900 focus:ring-lime-300"
+                                      <div className="col-span-1">
+                                        <PaidCheck
                                           checked={!!e.paid}
-                                          onChange={(ev) => updateExpenseItem(g.id, e.id, { paid: ev.target.checked })}
-                                          title="Mark as paid"
+                                          onChange={(v) => updateExpenseItem(g.id, e.id, { paid: v })}
                                         />
-                                      </label>
+                                      </div>
 
                                       <input
-                                        className={`col-span-6 rounded-xl border border-neutral-200 px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-lime-300 ${e.paid ? "line-through text-neutral-500" : ""}`}
+                                        className={`col-span-5 rounded-xl border border-neutral-200 px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-lime-300 ${
+                                          e.paid ? "text-neutral-500 line-through" : ""
+                                        }`}
                                         value={e.name || ""}
                                         onChange={(ev) => updateExpenseItem(g.id, e.id, { name: ev.target.value })}
                                         placeholder="Expense name"
                                       />
-                                      <input
-                                        className={`col-span-3 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-lime-300 ${e.paid ? "text-neutral-500" : ""}`}
+
+                                      <SelectAllNumberInput
+                                        className="col-span-1 rounded-xl border border-neutral-200 px-2 py-2 bg-white text-center tabular-nums focus:outline-none focus:ring-2 focus:ring-lime-300"
+                                        value={e.dueDay ?? ""}
+                                        onChange={(ev) => {
+                                          const raw = ev.target.value;
+                                          if (raw === "") return updateExpenseItem(g.id, e.id, { dueDay: null });
+                                          const n = Number(raw);
+                                          updateExpenseItem(g.id, e.id, { dueDay: Number.isFinite(n) ? clamp(n, 1, 31) : null });
+                                        }}
+                                        inputMode="numeric"
+                                        placeholder="DD"
+                                        title="Due day (1–31)"
+                                      />
+
+                                      <SelectAllNumberInput
+                                        className="col-span-3 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-lime-300"
                                         value={e.amount ?? 0}
                                         onChange={(ev) => updateExpenseItem(g.id, e.id, { amount: ev.target.value })}
                                         inputMode="decimal"
                                         placeholder="0"
+                                        title="Amount"
                                       />
+
                                       <button
                                         className="print:hidden col-span-1 h-10 rounded-xl border border-neutral-200 bg-neutral-50 hover:bg-neutral-100 px-3"
                                         title="Remove"
@@ -1105,41 +1481,40 @@ export default function BudgitApp() {
                                       </button>
                                     </div>
 
-                                    {/* Drop after this item (insert at idx+1) */}
-                                    <div
+                                    {/* Dropzone after each row (insert exact position) */}
+                                    <InsertDropZone
+                                      active={dropHint?.type === "expenseInsert" && dropHint?.groupId === g.id && dropHint?.index === idx + 1}
                                       onDragOver={(ev) => {
                                         const p = readDragPayload(ev);
                                         if (p?.type !== "expense") return;
                                         ev.preventDefault();
-                                        setDropHint({ kind: "expense", groupId: g.id, index: idx + 1 });
+                                        setDropHint({ type: "expenseInsert", groupId: g.id, index: idx + 1 });
                                       }}
                                       onDrop={(ev) => {
                                         const p = readDragPayload(ev);
                                         if (!p || p.type !== "expense") return;
                                         ev.preventDefault();
-                                        moveExpenseToIndex(p.fromGroupId, p.itemId, g.id, idx + 1);
+                                        moveExpenseInsert(p.fromGroupId, p.itemId, g.id, idx + 1);
                                         clearDragState();
                                       }}
-                                    >
-                                      <DropZone active={dropHint?.kind === "expense" && dropHint?.groupId === g.id && dropHint?.index === idx + 1} />
-                                    </div>
+                                    />
                                   </div>
                                 ))}
                               </div>
                             )}
 
-                            {/* Friendly hint when dragging */}
-                            {drag?.type === "expense" ? (
-                              <div className="mt-2 text-xs text-neutral-500">Drop on the green line to insert. You can also drop into another section.</div>
-                            ) : null}
-                          </div>
-                        ) : (
-                          <div className="p-3 text-sm text-neutral-600">
-                            Collapsed. Drop an item here to move it into this section.
-                            <div className="mt-2">
-                              <DropZone active={dropHint?.kind === "expense" && dropHint?.groupId === g.id} />
+                            <div className="pt-3 mt-3 border-t border-neutral-100 flex items-center justify-between">
+                              <div>
+                                <div className="text-sm text-neutral-600">Remaining</div>
+                                <div className="text-xs text-neutral-500">Planned: €{planned.toFixed(2)}</div>
+                              </div>
+                              <div className="font-semibold text-neutral-900">
+                                <Money value={remaining} />
+                              </div>
                             </div>
                           </div>
+                        ) : (
+                          <div className="p-3 text-sm text-neutral-600">Collapsed. Drop an item on a green line to insert into this section.</div>
                         )}
                       </div>
                     );
@@ -1148,18 +1523,13 @@ export default function BudgitApp() {
                   {(active.expenseGroups || []).length === 0 ? (
                     <div className="text-sm text-neutral-600">No expense sections yet. Click “Add section”.</div>
                   ) : (
-                    <div className="pt-3 mt-2 border-t border-neutral-100">
-                      <div className="flex items-center justify-between">
+                    <div className="pt-3 mt-2 border-t border-neutral-100 flex items-center justify-between">
+                      <div>
                         <div className="text-sm text-neutral-600">Remaining expenses</div>
-                        <div className="font-semibold text-neutral-900">
-                          <Money value={expenseTotalRemaining} />
-                        </div>
+                        <div className="text-xs text-neutral-500">Planned: €{expensePlannedTotal.toFixed(2)}</div>
                       </div>
-                      <div className="flex items-center justify-between text-sm text-neutral-600 mt-1">
-                        <div>Planned expenses</div>
-                        <div className="font-medium text-neutral-900">
-                          <Money value={expenseTotalPlanned} />
-                        </div>
+                      <div className="font-semibold text-neutral-900">
+                        <Money value={expenseRemainingTotal} />
                       </div>
                     </div>
                   )}
@@ -1199,11 +1569,9 @@ export default function BudgitApp() {
               <div className="rounded-2xl border border-neutral-200 p-4">
                 <div className="text-sm text-neutral-600">Remaining expenses</div>
                 <div className="text-2xl font-semibold text-neutral-900 mt-1">
-                  <Money value={expenseTotalRemaining} />
+                  <Money value={expenseRemainingTotal} />
                 </div>
-                <div className="text-xs text-neutral-600 mt-2">
-                  Planned: <span className="font-medium text-neutral-900"><Money value={expenseTotalPlanned} /></span>
-                </div>
+                <div className="text-xs text-neutral-500 mt-2">Planned expenses: €{expensePlannedTotal.toFixed(2)}</div>
               </div>
 
               <div className={`rounded-2xl border p-4 ${netRemaining >= 0 ? "border-emerald-200" : "border-red-200"}`}>
@@ -1212,7 +1580,7 @@ export default function BudgitApp() {
                   <Money value={netRemaining} />
                 </div>
                 <div className="text-xs text-neutral-600 mt-2">
-                  Savings rate: <span className="font-medium">{savingsRateRemaining.toFixed(1)}%</span>
+                  Savings rate: <span className="font-medium">{savingsRate.toFixed(1)}%</span>
                 </div>
               </div>
 
@@ -1230,16 +1598,16 @@ export default function BudgitApp() {
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span>Paid items</span>
+                    <span>Unpaid items</span>
                     <span className="font-medium text-neutral-900">
-                      {(active.expenseGroups || []).reduce((s, g) => s + (g.items || []).filter((it) => it.paid).length, 0)}
+                      {(active.expenseGroups || []).reduce((s, g) => s + (g.items || []).filter((it) => !it.paid).length, 0)}
                     </span>
                   </div>
                 </div>
               </div>
 
               <div className="text-xs text-neutral-500">
-                Tip: Tick paid expenses to keep “Remaining” accurate. Drag using ⋮⋮ and drop on the green line.
+                Tip: Paid items don’t count toward remaining expenses. Use “Hide paid” to keep lists clean.
               </div>
             </div>
           </div>
