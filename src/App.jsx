@@ -1065,9 +1065,9 @@ export default function BudgitApp() {
             {/* Master heading style */}
             <div className="text-4xl sm:text-5xl font-black tracking-tight text-neutral-700">
               <span>Budg</span>
-              <span className="text-lime-500">it</span>
+              <span className="text-[#D5FF00]">It</span>
             </div>
-            <div className="text-sm text-neutral-700">Monthly budget • drag to reorder • tick paid to reduce remaining</div>
+            <div className="text-sm text-neutral-700">Monthly personal budgeting tool</div>
             <div className="mt-3 h-[2px] w-80 rounded-full bg-gradient-to-r from-lime-400/0 via-lime-400 to-emerald-400/0" />
           </div>
 
