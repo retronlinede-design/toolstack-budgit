@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 // ToolStack Budgit — Simple monthly budgeting tool (free)
 // - Runs fully in-browser
@@ -9,7 +9,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 // - Drag & drop reordering with TRUE insert positions (within a section + between sections)
 // - Check off expenses as paid → Remaining totals update
 // - Collapsible expense sections
-// - Due day per expense + Sort due helper
+// - Due date picker (calendar)
 // - Copy this month → next month (all or unpaid only)
 // - Better Month Picker (month + year selects + prev/next)
 // - Print to PDF via browser Print
@@ -21,7 +21,7 @@ const LS_KEY = "toolstack_budgit_v1";
 const uid = () => {
   try {
     if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
-  } catch {
+  } catch (err) {
     // ignore
   }
   return `id_${Math.random().toString(16).slice(2)}_${Date.now()}`;
@@ -29,27 +29,32 @@ const uid = () => {
 
 const pad2 = (n) => String(n).padStart(2, "0");
 
-const monthKey = (d = new Date()) => {
-  const y = d.getFullYear();
-  const m = pad2(d.getMonth() + 1);
+const monthKey = (d) => {
+  const dd = d || new Date();
+  const y = dd.getFullYear();
+  const m = pad2(dd.getMonth() + 1);
   return `${y}-${m}`; // YYYY-MM
 };
 
 const parseYM = (ym) => {
-  const [y, m] = String(ym || "").split("-");
-  return { y: Number(y), m: Number(m) };
+  const parts = String(ym || "").split("-");
+  const y = Number(parts[0]);
+  const m = Number(parts[1]);
+  return { y, m };
 };
 
 const addMonths = (ym, delta) => {
-  const { y, m } = parseYM(ym);
-  if (!y || !m) return monthKey();
-  const d = new Date(y, m - 1, 1);
+  const p = parseYM(ym);
+  if (!p.y || !p.m) return monthKey();
+  const d = new Date(p.y, p.m - 1, 1);
   d.setMonth(d.getMonth() + delta);
   return monthKey(d);
 };
 
 const monthLabel = (ym) => {
-  const [y, m] = String(ym || "").split("-");
+  const parts = String(ym || "").split("-");
+  const y = parts[0];
+  const m = parts[1];
   if (!y || !m) return String(ym || "");
   const d = new Date(Number(y), Number(m) - 1, 1);
   return d.toLocaleDateString(undefined, { year: "numeric", month: "long" });
@@ -58,18 +63,65 @@ const monthLabel = (ym) => {
 const safeParse = (s, fallback) => {
   try {
     const v = JSON.parse(s);
-    return v ?? fallback;
-  } catch {
+    return v == null ? fallback : v;
+  } catch (err) {
     return fallback;
   }
 };
 
 const toNumber = (v) => {
-  const n = Number(String(v ?? "").replace(",", "."));
+  const n = Number(String(v == null ? "" : v).replace(",", "."));
   return Number.isFinite(n) ? n : 0;
 };
 
 const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
+
+// ---------------------------
+// Due date helpers (calendar UI)
+// ---------------------------
+
+const daysInMonthYM = (ym) => {
+  const p = parseYM(ym);
+  if (!p.y || !p.m) return 31;
+  // month is 1-12 → day 0 of next month gives last day of this month
+  return new Date(p.y, p.m, 0).getDate();
+};
+
+const dueInfo = (ym, dueDay) => {
+  const raw = dueDay == null ? null : Number(dueDay);
+  if (!raw || !Number.isFinite(raw)) return null;
+
+  const requested = clamp(raw, 1, 31);
+  const p = parseYM(ym);
+  if (!p.y || !p.m) {
+    return {
+      display: String(requested),
+      title: `Due day: ${requested}`,
+      actual: requested,
+      requested,
+      dim: 31,
+    };
+  }
+
+  const dim = daysInMonthYM(ym);
+  const actual = Math.min(requested, dim);
+  const d = new Date(p.y, p.m - 1, actual);
+
+  const displayBase = d.toLocaleDateString(undefined, { day: "2-digit", month: "short" });
+  const display = `${displayBase}${actual !== requested ? "*" : ""}`;
+
+  const full = d.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+  const note =
+    actual !== requested ? ` (requested ${requested}, month has ${dim} days → using last day ${actual})` : "";
+
+  return {
+    display,
+    title: `Due: ${full}${note}`,
+    actual,
+    requested,
+    dim,
+  };
+};
 
 // ---------------------------
 // localStorage safe wrapper
@@ -78,7 +130,7 @@ const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
 const canUseLS = () => {
   try {
     return typeof window !== "undefined" && !!window.localStorage;
-  } catch {
+  } catch (err) {
     return false;
   }
 };
@@ -87,7 +139,7 @@ const lsGet = (key) => {
   if (!canUseLS()) return null;
   try {
     return window.localStorage.getItem(key);
-  } catch {
+  } catch (err) {
     return null;
   }
 };
@@ -96,7 +148,7 @@ const lsSet = (key, value) => {
   if (!canUseLS()) return;
   try {
     window.localStorage.setItem(key, value);
-  } catch {
+  } catch (err) {
     // ignore
   }
 };
@@ -154,7 +206,15 @@ function ActionFileButton({ children, onFile, accept = "application/json", tone 
   return (
     <label title={title} className={`${ACTION_BASE} ${cls} cursor-pointer`}>
       <span>{children}</span>
-      <input type="file" accept={accept} className="hidden" onChange={(e) => onFile?.(e.target.files?.[0] || null)} />
+      <input
+        type="file"
+        accept={accept}
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+          if (typeof onFile === "function") onFile(file);
+        }}
+      />
     </label>
   );
 }
@@ -210,18 +270,20 @@ function PaidCheck({ checked, onChange }) {
         type="checkbox"
         className="h-4 w-4 accent-lime-500"
         checked={!!checked}
-        onChange={(e) => onChange?.(e.target.checked)}
+        onChange={(e) => {
+          if (typeof onChange === "function") onChange(e.target.checked);
+        }}
       />
     </label>
   );
 }
 
 function SelectAllNumberInput({ className = "", value, onChange, placeholder, inputMode = "decimal", title }) {
-  // Ensures default 0 is easy to overwrite: click → selects all.
+  // Click/focus selects all so you can type immediately over defaults.
   return (
     <input
       className={className}
-      value={value ?? "0"}
+      value={value == null ? "0" : value}
       onChange={onChange}
       placeholder={placeholder}
       inputMode={inputMode}
@@ -229,19 +291,257 @@ function SelectAllNumberInput({ className = "", value, onChange, placeholder, in
       onFocus={(e) => {
         try {
           e.target.select();
-        } catch {
+        } catch (err) {
           // ignore
         }
       }}
-      onMouseUp={(e) => {
-        // Keep selection on first click
+      onClick={(e) => {
         try {
-          e.preventDefault();
-        } catch {
+          e.target.select();
+        } catch (err) {
           // ignore
         }
       }}
     />
+  );
+}
+
+function CalendarIcon({ className = "" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+      <line x1="16" y1="2" x2="16" y2="6" />
+      <line x1="8" y1="2" x2="8" y2="6" />
+      <line x1="3" y1="10" x2="21" y2="10" />
+    </svg>
+  );
+}
+
+function DuePicker({ ym, value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const boxRef = useRef(null);
+  const btnRef = useRef(null);
+  const popRef = useRef(null);
+  const [pos, setPos] = useState(null);
+
+  const info = useMemo(() => dueInfo(ym, value), [ym, value]);
+  const ymParts = useMemo(() => parseYM(ym), [ym]);
+
+  const dim = useMemo(() => daysInMonthYM(ym), [ym]);
+  const firstDow = useMemo(() => {
+    // Monday-start: 0=Mon ... 6=Sun
+    if (!ymParts.y || !ymParts.m) return 0;
+    const js = new Date(ymParts.y, ymParts.m - 1, 1).getDay(); // 0=Sun ... 6=Sat
+    return (js + 6) % 7;
+  }, [ymParts.y, ymParts.m]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e) => {
+      if (!boxRef.current) return;
+      if (!boxRef.current.contains(e.target)) setOpen(false);
+    };
+    const onKey = (e) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("mousedown", onDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("mousedown", onDown);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  // Keep the calendar fully on-screen (flip up/down, clamp left/right)
+  useLayoutEffect(() => {
+    if (!open) {
+      setPos(null);
+      return;
+    }
+
+    const place = () => {
+      const btn = btnRef.current;
+      const pop = popRef.current;
+      if (!btn || !pop) return;
+
+      const pad = 8;
+      const r = btn.getBoundingClientRect();
+
+      // Measure popover size (works even if visibility:hidden)
+      const pr = pop.getBoundingClientRect();
+      const w = pr.width || 256;
+      const h = pr.height || 300;
+
+      const vw = window.innerWidth || 1024;
+      const vh = window.innerHeight || 768;
+
+      // Prefer aligning right edge with button right edge
+      let left = r.right - w;
+      left = Math.max(pad, Math.min(left, vw - w - pad));
+
+      // Prefer below; if not enough space, flip above
+      let top = r.bottom + 8;
+      if (top + h > vh - pad) {
+        top = r.top - 8 - h;
+      }
+      top = Math.max(pad, Math.min(top, vh - h - pad));
+
+      setPos({ top, left });
+    };
+
+    // Place immediately, then on resize/scroll
+    place();
+    window.addEventListener("resize", place);
+    // Capture scroll events from any scrollable parent
+    window.addEventListener("scroll", place, true);
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+    };
+  }, [open, ym]);
+
+  const weekLabels = useMemo(() => {
+    // Mon → Sun
+    const base = new Date(2024, 0, 1); // Monday (Jan 1, 2024)
+    const labels = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(base);
+      d.setDate(base.getDate() + i);
+      labels.push(d.toLocaleDateString(undefined, { weekday: "short" }));
+    }
+    return labels;
+  }, []);
+
+  const days = useMemo(() => {
+    const cells = [];
+    for (let i = 0; i < firstDow; i++) cells.push(null);
+    for (let d = 1; d <= dim; d++) cells.push(d);
+    while (cells.length % 7 !== 0) cells.push(null);
+    return cells;
+  }, [firstDow, dim]);
+
+  const btnLabel = info ? info.display : "Due";
+  const btnTitle = info ? info.title : "Select a due date";
+
+  return (
+    <div ref={boxRef} className="relative">
+      <button
+        ref={btnRef}
+        type="button"
+        title={btnTitle}
+        onClick={() => setOpen((v) => !v)}
+        className={`w-full h-10 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 shadow-sm px-3 text-neutral-800 text-sm flex items-center justify-between gap-2 focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300 ${
+          info ? "font-medium" : "text-neutral-500"
+        }`}
+      >
+        <span className="tabular-nums">{btnLabel}</span>
+        <span className="flex items-center gap-2">
+          {info ? (
+            <span
+              className="h-6 w-6 rounded-lg border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-600 flex items-center justify-center"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (typeof onChange === "function") onChange(null);
+                setOpen(false);
+              }}
+              title="Clear due date"
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (typeof onChange === "function") onChange(null);
+                  setOpen(false);
+                }
+              }}
+            >
+              ×
+            </span>
+          ) : null}
+          <CalendarIcon className="h-5 w-5 text-neutral-600" />
+        </span>
+      </button>
+
+      {open ? (
+        <div
+          ref={popRef}
+          style={pos ? { top: pos.top, left: pos.left } : { top: 0, left: 0, visibility: "hidden" }}
+          className="print:hidden fixed z-50 w-64 rounded-2xl border border-neutral-200 bg-white shadow-xl overflow-hidden max-h-[75vh] overflow-auto"
+        >
+          <div className="px-3 py-2 border-b border-neutral-100 flex items-center justify-between">
+            <div className="text-sm font-semibold text-neutral-800">{monthLabel(ym)}</div>
+            <button
+              type="button"
+              className="h-8 px-3 rounded-xl text-xs font-medium border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-800"
+              onClick={() => setOpen(false)}
+              title="Close"
+            >
+              Close
+            </button>
+          </div>
+
+          <div className="p-3">
+            <div className="grid grid-cols-7 gap-1 text-[11px] text-neutral-500 mb-2">
+              {weekLabels.map((w, idx) => (
+                <div key={idx} className="text-center">
+                  {w}
+                </div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-7 gap-1">
+              {days.map((d, idx) => {
+                if (!d) return <div key={idx} className="h-8" />;
+                const selected = Number(value) === d;
+                return (
+                  <button
+                    key={idx}
+                    type="button"
+                    className={`h-8 rounded-xl text-sm tabular-nums border transition ${
+                      selected
+                        ? "bg-neutral-700 border-neutral-700 text-white"
+                        : "bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-50"
+                    }`}
+                    onClick={() => {
+                      if (typeof onChange === "function") onChange(d);
+                      setOpen(false);
+                    }}
+                    title={`Set due: ${d}`}
+                  >
+                    {d}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="mt-3 flex items-center justify-between">
+              <div className="text-xs text-neutral-600">Click a day to set due date.</div>
+              <button
+                type="button"
+                className="h-8 px-3 rounded-xl text-xs font-medium border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-800"
+                onClick={() => {
+                  if (typeof onChange === "function") onChange(null);
+                  setOpen(false);
+                }}
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -303,9 +603,7 @@ function HelpModal({ open, onClose }) {
               Budgit saves automatically in your browser (localStorage) under:
               <span className="ml-2 font-mono text-xs bg-neutral-50 border border-neutral-200 rounded-lg px-2 py-1">{LS_KEY}</span>
             </div>
-            <div className="text-xs text-neutral-600 mt-2">
-              If you clear browser data or switch devices/browsers, your local data won’t follow automatically.
-            </div>
+            <div className="text-xs text-neutral-600 mt-2">If you clear browser data or switch devices/browsers, your local data won’t follow automatically.</div>
           </div>
 
           <div className="rounded-2xl border border-neutral-200 p-4">
@@ -357,17 +655,17 @@ function HelpModal({ open, onClose }) {
 // ---------------------------
 
 const normalizeIncomeItem = (x) => ({
-  id: x?.id || uid(),
-  name: typeof x?.name === "string" ? x.name : "",
-  amount: x?.amount ?? "0",
+  id: x && x.id ? x.id : uid(),
+  name: x && typeof x.name === "string" ? x.name : "",
+  amount: x && x.amount != null ? x.amount : "0",
 });
 
 const normalizeExpenseItem = (x) => ({
-  id: x?.id || uid(),
-  name: typeof x?.name === "string" ? x.name : "",
-  amount: x?.amount ?? "0",
-  dueDay: x?.dueDay == null ? null : Number(x.dueDay),
-  paid: !!x?.paid,
+  id: x && x.id ? x.id : uid(),
+  name: x && typeof x.name === "string" ? x.name : "",
+  amount: x && x.amount != null ? x.amount : "0",
+  dueDay: x && x.dueDay != null ? Number(x.dueDay) : null,
+  paid: !!(x && x.paid),
 });
 
 // Migration:
@@ -382,9 +680,9 @@ function normalizeMonthData(monthData) {
     const groups = m.expenseGroups
       .filter(Boolean)
       .map((g) => ({
-        id: g.id || uid(),
-        label: typeof g.label === "string" ? g.label : "",
-        items: Array.isArray(g.items) ? g.items.map(normalizeExpenseItem) : [],
+        id: g && g.id ? g.id : uid(),
+        label: g && typeof g.label === "string" ? g.label : "",
+        items: Array.isArray(g && g.items) ? g.items.map(normalizeExpenseItem) : [],
       }));
 
     return {
@@ -447,6 +745,9 @@ export default function BudgitApp() {
   // Copy month menu
   const [copyOpen, setCopyOpen] = useState(false);
 
+  // Auto-focus newly added items so you can type immediately over default values.
+  const [lastAdded, setLastAdded] = useState(null);
+
   const notify = (msg) => {
     setToast(msg);
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -459,7 +760,7 @@ export default function BudgitApp() {
 
   const active = useMemo(() => {
     const m = app.activeMonth;
-    return normalizeMonthData(app.months?.[m]);
+    return normalizeMonthData(app.months && app.months[m] ? app.months[m] : null);
   }, [app]);
 
   const updateMonth = (updater) => {
@@ -487,7 +788,9 @@ export default function BudgitApp() {
   const years = useMemo(() => {
     const nowY = new Date().getFullYear();
     const keys = Object.keys(app.months || {});
-    const ys = keys.map((k) => parseYM(k).y).filter(Boolean);
+    const ys = keys
+      .map((k) => parseYM(k).y)
+      .filter((y) => !!y);
     const minY = Math.min(nowY - 3, ...(ys.length ? ys : [nowY]));
     const maxY = Math.max(nowY + 3, ...(ys.length ? ys : [nowY]));
     const out = [];
@@ -514,6 +817,7 @@ export default function BudgitApp() {
   const addIncome = () => {
     const item = { id: uid(), name: "Salary", amount: "0" };
     updateMonth((cur) => ({ ...cur, incomes: [item, ...(cur.incomes || [])] }));
+    setLastAdded({ kind: "income", id: item.id });
   };
 
   const updateIncome = (id, patch) => {
@@ -536,7 +840,7 @@ export default function BudgitApp() {
       const items = [...(cur.incomes || [])];
       const fromIndex = items.findIndex((x) => x.id === itemId);
       if (fromIndex < 0) return cur;
-      const [moved] = items.splice(fromIndex, 1);
+      const moved = items.splice(fromIndex, 1)[0];
       let insertAt = clamp(toIndex, 0, items.length);
       if (fromIndex < insertAt) insertAt = insertAt - 1;
       items.splice(clamp(insertAt, 0, items.length), 0, moved);
@@ -567,13 +871,13 @@ export default function BudgitApp() {
 
   const normalizeExpenseGroupLabel = (groupId) => {
     const g = (active.expenseGroups || []).find((x) => x.id === groupId);
-    const clean = String(g?.label ?? "").trim();
+    const clean = String(g && g.label != null ? g.label : "").trim();
     updateExpenseGroupLabel(groupId, clean || "General");
   };
 
   const deleteExpenseGroup = (groupId) => {
     const g = (active.expenseGroups || []).find((x) => x.id === groupId);
-    const name = (g?.label || "this section").trim();
+    const name = String((g && g.label) || "this section").trim();
     const ok = window.confirm(`Delete “${name}” and all items inside it?`);
     if (!ok) return;
 
@@ -599,6 +903,7 @@ export default function BudgitApp() {
       expenseGroups: (cur.expenseGroups || []).map((g) => (g.id === groupId ? { ...g, items: [item, ...(g.items || [])] } : g)),
     }));
     setCollapsed((c) => ({ ...c, [groupId]: false }));
+    setLastAdded({ kind: "expense", groupId, id: item.id });
   };
 
   const updateExpenseItem = (groupId, itemId, patch) => {
@@ -635,7 +940,7 @@ export default function BudgitApp() {
       const fromIndex = fromG.items.findIndex((x) => x.id === itemId);
       if (fromIndex < 0) return cur;
 
-      const [moved] = fromG.items.splice(fromIndex, 1);
+      const moved = fromG.items.splice(fromIndex, 1)[0];
       if (!moved) return cur;
 
       let insertAt = clamp(toIndex, 0, toG.items.length);
@@ -660,13 +965,13 @@ export default function BudgitApp() {
 
   const clearGroupItems = (groupId) => {
     const g = (active.expenseGroups || []).find((x) => x.id === groupId);
-    const name = (g?.label || "this section").trim();
+    const name = String((g && g.label) || "this section").trim();
     const ok = window.confirm(`Clear ALL items in “${name}”?`);
     if (!ok) return;
 
     updateMonth((cur) => ({
       ...cur,
-      expenseGroups: (cur.expenseGroups || []).map((g) => (g.id === groupId ? { ...g, items: [] } : g)),
+      expenseGroups: (cur.expenseGroups || []).map((g2) => (g2.id === groupId ? { ...g2, items: [] } : g2)),
     }));
   };
 
@@ -691,7 +996,8 @@ export default function BudgitApp() {
   };
 
   const groupPlannedTotal = (group) => (group.items || []).reduce((s, it) => s + toNumber(it.amount), 0);
-  const groupRemainingTotal = (group) => (group.items || []).reduce((s, it) => s + (it.paid ? 0 : toNumber(it.amount)), 0);
+  const groupRemainingTotal = (group) =>
+    (group.items || []).reduce((s, it) => s + (it.paid ? 0 : toNumber(it.amount)), 0);
 
   // ---------------------------
   // Month actions
@@ -718,17 +1024,18 @@ export default function BudgitApp() {
     const fromKey = app.activeMonth;
     const toKey = addMonths(fromKey, 1);
 
-    const from = normalizeMonthData(app.months?.[fromKey]);
+    const from = normalizeMonthData(app.months && app.months[fromKey] ? app.months[fromKey] : null);
 
-    const makeItem = (it) => ({
-      ...normalizeExpenseItem(it),
-      id: uid(),
-      paid: false, // new month = unpaid
-    });
+    const makeItem = (it) => {
+      const base = normalizeExpenseItem(it);
+      return { ...base, id: uid(), paid: false };
+    };
 
     const nextGroups = (from.expenseGroups || []).map((g) => {
-      const items = (g.items || []).filter((it) => (mode === "unpaid" ? !it.paid : true)).map(makeItem);
-      return { id: uid(), label: (g.label || "General").trim() || "General", items };
+      const items = (g.items || [])
+        .filter((it) => (mode === "unpaid" ? !it.paid : true))
+        .map(makeItem);
+      return { id: uid(), label: String((g.label || "General")).trim() || "General", items };
     });
 
     const next = normalizeMonthData({
@@ -799,7 +1106,7 @@ export default function BudgitApp() {
       e.dataTransfer.effectAllowed = "move";
       e.dataTransfer.setData("application/json", JSON.stringify(payload));
       e.dataTransfer.setData("text/plain", JSON.stringify(payload));
-    } catch {
+    } catch (err) {
       // ignore
     }
     setDrag(payload);
@@ -811,7 +1118,7 @@ export default function BudgitApp() {
       if (!j) return drag;
       const p = safeParse(j, null);
       return p || drag;
-    } catch {
+    } catch (err) {
       return drag;
     }
   };
@@ -868,6 +1175,12 @@ export default function BudgitApp() {
       const t = normalizeMonthData(null);
       console.assert(Array.isArray(t.expenseGroups) && t.expenseGroups.length >= 1, "normalizeMonthData should create at least one group");
 
+      // dueInfo: Feb 2024 has 29 days.
+      const di = dueInfo("2024-02", 31);
+      console.assert(di && di.actual === 29, "dueInfo should clamp to last day of month");
+      console.assert(di && String(di.display).includes("*"), "dueInfo should mark clamped days with *");
+
+      // move simulation: g1 → g2
       const g1 = { id: "g1", label: "A", items: [{ id: "i1", name: "x", amount: "1", paid: false, dueDay: 1 }] };
       const g2 = { id: "g2", label: "B", items: [] };
       const m = normalizeMonthData({ incomes: [], expenseGroups: [g1, g2], notes: "" });
@@ -879,14 +1192,14 @@ export default function BudgitApp() {
         const fromG = groups.find((gg) => gg.id === "g1");
         const toG = groups.find((gg) => gg.id === "g2");
         const fromIndex = fromG.items.findIndex((x) => x.id === "i1");
-        const [mv] = fromG.items.splice(fromIndex, 1);
+        const mv = fromG.items.splice(fromIndex, 1)[0];
         toG.items.splice(0, 0, mv);
         return cur;
       })();
 
       console.assert(sim.expenseGroups[0].items.length === before - 1, "sim move should remove from source");
       console.assert(sim.expenseGroups[1].items.length === 1, "sim move should insert into target");
-    } catch {
+    } catch (err) {
       // ignore
     }
   }, []);
@@ -988,10 +1301,9 @@ export default function BudgitApp() {
                         previewGroups.map((g) => (
                           <div key={g.id} className="rounded-2xl border border-neutral-200">
                             <div className="px-3 py-2 border-b border-neutral-100 flex items-center justify-between">
-                              <div className="font-semibold text-neutral-800">{(g.label || "General").trim()}</div>
+                              <div className="font-semibold text-neutral-800">{String((g.label || "General")).trim()}</div>
                               <div className="text-sm text-neutral-700">
-                                Remaining:{" "}
-                                <span className="font-semibold text-neutral-800">€{groupRemainingTotal(g).toFixed(2)}</span>
+                                Remaining: <span className="font-semibold text-neutral-800">€{groupRemainingTotal(g).toFixed(2)}</span>
                                 <span className="text-neutral-400"> • </span>
                                 Planned: <span className="font-medium">€{groupPlannedTotal(g).toFixed(2)}</span>
                               </div>
@@ -1000,18 +1312,25 @@ export default function BudgitApp() {
                               {(g.items || []).length === 0 ? (
                                 <div className="text-sm text-neutral-700">No items.</div>
                               ) : (
-                                (g.items || []).map((e) => (
-                                  <div key={e.id} className="flex items-center justify-between gap-3">
-                                    <div className="text-neutral-800">
-                                      {e.paid ? "✓ " : ""}
-                                      {e.name || "(unnamed)"}
-                                      {e.dueDay ? <span className="text-neutral-600"> (due {e.dueDay})</span> : null}
+                                (g.items || []).map((e) => {
+                                  const info = dueInfo(app.activeMonth, e.dueDay);
+                                  return (
+                                    <div key={e.id} className="flex items-center justify-between gap-3">
+                                      <div className="text-neutral-800">
+                                        {e.paid ? "✓ " : ""}
+                                        {e.name || "(unnamed)"}
+                                        {info ? (
+                                          <span className="text-neutral-600" title={info.title}>
+                                            {" "}(Due {info.display})
+                                          </span>
+                                        ) : null}
+                                      </div>
+                                      <div className="text-neutral-800">
+                                        <Money value={toNumber(e.amount)} />
+                                      </div>
                                     </div>
-                                    <div className="text-neutral-800">
-                                      <Money value={toNumber(e.amount)} />
-                                    </div>
-                                  </div>
-                                ))
+                                  );
+                                })
                               )}
                             </div>
                           </div>
@@ -1044,15 +1363,11 @@ export default function BudgitApp() {
 
                   <div className="rounded-2xl border border-neutral-200 p-4">
                     <div className="text-sm text-neutral-700">Notes</div>
-                    <div className="mt-2 whitespace-pre-wrap text-neutral-800 text-sm">
-                      {String(active.notes || "").trim() ? active.notes : "(none)"}
-                    </div>
+                    <div className="mt-2 whitespace-pre-wrap text-neutral-800 text-sm">{String(active.notes || "").trim() ? active.notes : "(none)"}</div>
                   </div>
                 </div>
 
-                <div className="mt-4 text-xs text-neutral-600">
-                  Tip: If the preview looks right, hit “Print / Save PDF” and choose “Save as PDF”.
-                </div>
+                <div className="mt-4 text-xs text-neutral-600">Tip: If the preview looks right, hit “Print / Save PDF” and choose “Save as PDF”.</div>
               </div>
             </div>
           </div>
@@ -1063,12 +1378,12 @@ export default function BudgitApp() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             {/* Master heading style */}
-            <div className="text-4xl sm:text-5xl font-black tracking-tight text-neutral-700">
+            <div className="text-4xl sm:text-5xl font-black tracking-tight text-neutral-800">
               <span>Budg</span>
               <span className="text-[#D5FF00]">It</span>
             </div>
             <div className="text-sm text-neutral-700">Monthly personal budgeting tool</div>
-            <div className="mt-3 h-[2px] w-80 rounded-full bg-gradient-to-r from-lime-400/0 via-lime-400 to-emerald-400/0" />
+            <div className="mt-3 h-[2px] w-80 rounded-full bg-gradient-to-r from-[#D5FF00]/0 via-[#D5FF00] to-[#D5FF00]/0" />
           </div>
 
           <div className="w-full sm:w-[520px] lg:w-[620px]">
@@ -1146,16 +1461,12 @@ export default function BudgitApp() {
                           <MiniActionButton tone="primary" onClick={() => copyMonthToNext("all")}>
                             Copy ALL
                           </MiniActionButton>
-                          <MiniActionButton onClick={() => copyMonthToNext("unpaid")}>
-                            Copy UNPAID only
-                          </MiniActionButton>
+                          <MiniActionButton onClick={() => copyMonthToNext("unpaid")}>Copy UNPAID only</MiniActionButton>
                           <MiniActionButton tone="danger" onClick={() => setCopyOpen(false)}>
                             Cancel
                           </MiniActionButton>
                         </div>
-                        <div className="mt-2 text-xs text-neutral-600">
-                          Note: copied items are set to unpaid in the new month.
-                        </div>
+                        <div className="mt-2 text-xs text-neutral-600">Note: copied items are set to unpaid in the new month.</div>
                       </div>
                     ) : null}
                   </div>
@@ -1166,7 +1477,13 @@ export default function BudgitApp() {
                 </div>
               </div>
 
-              <div className="mt-2 text-sm text-neutral-700">{monthLabel(app.activeMonth)}</div>
+              <div className="mt-3">
+                <div className="flex items-end justify-between gap-3">
+                  <div className="text-3xl sm:text-4xl font-black tracking-tight text-neutral-800">{monthLabel(app.activeMonth)}</div>
+                  <div className="hidden sm:block text-xs text-neutral-500 font-medium tabular-nums">{app.activeMonth}</div>
+                </div>
+                <div className="mt-2 h-[2px] w-72 rounded-full bg-gradient-to-r from-[#D5FF00]/0 via-[#D5FF00] to-[#D5FF00]/0" />
+              </div>
             </div>
 
             <div className="p-4 space-y-4">
@@ -1181,10 +1498,10 @@ export default function BudgitApp() {
 
                 <div className="p-4 space-y-2">
                   <InsertDropZone
-                    active={dropHint?.type === "incomeInsert" && dropHint?.index === 0}
+                    active={dropHint && dropHint.type === "incomeInsert" && dropHint.index === 0}
                     onDragOver={(e) => {
                       const p = readDragPayload(e);
-                      if (p?.type !== "income") return;
+                      if (!p || p.type !== "income") return;
                       e.preventDefault();
                       setDropHint({ type: "incomeInsert", index: 0 });
                     }}
@@ -1217,11 +1534,39 @@ export default function BudgitApp() {
                             value={i.name || ""}
                             onChange={(e) => updateIncome(i.id, { name: e.target.value })}
                             placeholder="Income name"
+                            onFocus={(e) => {
+                              try {
+                                e.target.select();
+                              } catch (err) {
+                                // ignore
+                              }
+                            }}
+                            onClick={(e) => {
+                              try {
+                                e.target.select();
+                              } catch (err) {
+                                // ignore
+                              }
+                            }}
+                            ref={(node) => {
+                              if (!node || !lastAdded) return;
+                              if (lastAdded.kind === "income" && lastAdded.id === i.id) {
+                                requestAnimationFrame(() => {
+                                  try {
+                                    node.focus();
+                                    node.select();
+                                  } catch (err) {
+                                    // ignore
+                                  }
+                                  setTimeout(() => setLastAdded(null), 0);
+                                });
+                              }
+                            }}
                           />
 
                           <SelectAllNumberInput
                             className="col-span-4 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-right text-neutral-800 tabular-nums focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300"
-                            value={i.amount ?? "0"}
+                            value={i.amount == null ? "0" : i.amount}
                             onChange={(e) => updateIncome(i.id, { amount: e.target.value })}
                             inputMode="decimal"
                             placeholder="0"
@@ -1238,10 +1583,10 @@ export default function BudgitApp() {
                         </div>
 
                         <InsertDropZone
-                          active={dropHint?.type === "incomeInsert" && dropHint?.index === idx + 1}
+                          active={dropHint && dropHint.type === "incomeInsert" && dropHint.index === idx + 1}
                           onDragOver={(e) => {
                             const p = readDragPayload(e);
-                            if (p?.type !== "income") return;
+                            if (!p || p.type !== "income") return;
                             e.preventDefault();
                             setDropHint({ type: "incomeInsert", index: idx + 1 });
                           }}
@@ -1306,14 +1651,14 @@ export default function BudgitApp() {
                                   type="button"
                                   className="print:hidden h-10 w-10 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 shadow-sm flex items-center justify-center text-neutral-700"
                                   title={isCollapsed ? "Expand" : "Collapse"}
-                                  onClick={() => setCollapsed((c) => ({ ...c, [g.id]: !c?.[g.id] }))}
+                                  onClick={() => setCollapsed((c) => ({ ...c, [g.id]: !c[g.id] }))}
                                 >
                                   <span className="text-lg leading-none">{isCollapsed ? "▸" : "▾"}</span>
                                 </button>
 
                                 <input
                                   className="w-[240px] max-w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 font-semibold text-neutral-800 focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300"
-                                  value={g.label ?? ""}
+                                  value={g.label == null ? "" : g.label}
                                   onChange={(e) => updateExpenseGroupLabel(g.id, e.target.value)}
                                   onBlur={() => normalizeExpenseGroupLabel(g.id)}
                                   placeholder="Section label (e.g., Loans)"
@@ -1327,7 +1672,7 @@ export default function BudgitApp() {
                                 </div>
                               </div>
 
-                              <SmallButton tone="primary" onClick={() => addExpenseItem(g.id)}>
+                              <SmallButton tone="primary" onClick={() => addExpenseItem(g.id)} className="whitespace-nowrap px-4 text-xs sm:text-sm">
                                 + Add item
                               </SmallButton>
                             </div>
@@ -1371,10 +1716,10 @@ export default function BudgitApp() {
                         {!isCollapsed ? (
                           <div className="p-3 space-y-2">
                             <InsertDropZone
-                              active={dropHint?.type === "expenseInsert" && dropHint?.groupId === g.id && dropHint?.index === 0}
+                              active={dropHint && dropHint.type === "expenseInsert" && dropHint.groupId === g.id && dropHint.index === 0}
                               onDragOver={(e) => {
                                 const p = readDragPayload(e);
-                                if (p?.type !== "expense") return;
+                                if (!p || p.type !== "expense") return;
                                 e.preventDefault();
                                 setDropHint({ type: "expenseInsert", groupId: g.id, index: 0 });
                               }}
@@ -1407,36 +1752,58 @@ export default function BudgitApp() {
                                     </div>
 
                                     <input
-                                      className={`col-span-5 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300 ${
+                                      className={`col-span-4 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300 ${
                                         e.paid ? "line-through text-neutral-600" : ""
                                       }`}
                                       value={e.name || ""}
                                       onChange={(ev) => updateExpenseItem(g.id, e.id, { name: ev.target.value })}
                                       placeholder="Expense name"
+                                      onFocus={(ev) => {
+                                        try {
+                                          ev.target.select();
+                                        } catch (err) {
+                                          // ignore
+                                        }
+                                      }}
+                                      onClick={(ev) => {
+                                        try {
+                                          ev.target.select();
+                                        } catch (err) {
+                                          // ignore
+                                        }
+                                      }}
+                                      ref={(node) => {
+                                        if (!node || !lastAdded) return;
+                                        if (lastAdded.kind === "expense" && lastAdded.groupId === g.id && lastAdded.id === e.id) {
+                                          requestAnimationFrame(() => {
+                                            try {
+                                              node.focus();
+                                              node.select();
+                                            } catch (err) {
+                                              // ignore
+                                            }
+                                            setTimeout(() => setLastAdded(null), 0);
+                                          });
+                                        }
+                                      }}
                                     />
 
                                     <SelectAllNumberInput
                                       className="col-span-3 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-right text-neutral-800 tabular-nums focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300"
-                                      value={e.amount ?? "0"}
+                                      value={e.amount == null ? "0" : e.amount}
                                       onChange={(ev) => updateExpenseItem(g.id, e.id, { amount: ev.target.value })}
                                       inputMode="decimal"
                                       placeholder="0"
                                       title="Amount"
                                     />
 
-                                    <SelectAllNumberInput
-                                      className="col-span-1 rounded-xl border border-neutral-200 px-2 py-2 bg-white text-center text-neutral-800 tabular-nums focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300"
-                                      value={e.dueDay ?? ""}
-                                      onChange={(ev) => {
-                                        const raw = ev.target.value;
-                                        const n = raw === "" ? null : Number(raw);
-                                        const due = n && n >= 1 && n <= 31 ? n : null;
-                                        updateExpenseItem(g.id, e.id, { dueDay: due });
-                                      }}
-                                      inputMode="numeric"
-                                      placeholder="—"
-                                      title="Due day (1-31)"
-                                    />
+                                    <div className="col-span-2">
+                                      <DuePicker
+                                        ym={app.activeMonth}
+                                        value={e.dueDay}
+                                        onChange={(due) => updateExpenseItem(g.id, e.id, { dueDay: due })}
+                                      />
+                                    </div>
 
                                     <button
                                       className="print:hidden col-span-1 h-10 rounded-xl border border-neutral-200 bg-neutral-50 hover:bg-neutral-100 px-3 text-neutral-700"
@@ -1448,10 +1815,10 @@ export default function BudgitApp() {
                                   </div>
 
                                   <InsertDropZone
-                                    active={dropHint?.type === "expenseInsert" && dropHint?.groupId === g.id && dropHint?.index === idx + 1}
+                                    active={dropHint && dropHint.type === "expenseInsert" && dropHint.groupId === g.id && dropHint.index === idx + 1}
                                     onDragOver={(ev) => {
                                       const p = readDragPayload(ev);
-                                      if (p?.type !== "expense") return;
+                                      if (!p || p.type !== "expense") return;
                                       ev.preventDefault();
                                       setDropHint({ type: "expenseInsert", groupId: g.id, index: idx + 1 });
                                     }}
@@ -1472,7 +1839,7 @@ export default function BudgitApp() {
                             className="p-3 text-sm text-neutral-700"
                             onDragOver={(e) => {
                               const p = readDragPayload(e);
-                              if (p?.type !== "expense") return;
+                              if (!p || p.type !== "expense") return;
                               e.preventDefault();
                               setDropHint({ type: "expenseInsert", groupId: g.id, index: (g.items || []).length });
                             }}
@@ -1564,15 +1931,11 @@ export default function BudgitApp() {
                   </div>
                   <div className="flex items-center justify-between">
                     <span>Expense items</span>
-                    <span className="font-medium text-neutral-800">
-                      {(active.expenseGroups || []).reduce((s, g) => s + (g.items || []).length, 0)}
-                    </span>
+                    <span className="font-medium text-neutral-800">{(active.expenseGroups || []).reduce((s, gg) => s + (gg.items || []).length, 0)}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span>Unpaid items</span>
-                    <span className="font-medium text-neutral-800">
-                      {(active.expenseGroups || []).reduce((s, g) => s + (g.items || []).filter((it) => !it.paid).length, 0)}
-                    </span>
+                    <span className="font-medium text-neutral-800">{(active.expenseGroups || []).reduce((s, gg) => s + (gg.items || []).filter((it) => !it.paid).length, 0)}</span>
                   </div>
                 </div>
               </div>
