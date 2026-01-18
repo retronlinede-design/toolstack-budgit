@@ -51,13 +51,13 @@ const addMonths = (ym, delta) => {
   return monthKey(d);
 };
 
-const monthLabel = (ym) => {
+const monthLabel = (ym, lang = "en") => {
   const parts = String(ym || "").split("-");
   const y = parts[0];
   const m = parts[1];
   if (!y || !m) return String(ym || "");
   const d = new Date(Number(y), Number(m) - 1, 1);
-  return d.toLocaleDateString(undefined, { year: "numeric", month: "long" });
+  return d.toLocaleDateString(lang === "de" ? "de-DE" : "en-US", { year: "numeric", month: "long" });
 };
 
 const safeParse = (s, fallback) => {
@@ -87,7 +87,7 @@ const daysInMonthYM = (ym) => {
   return new Date(p.y, p.m, 0).getDate();
 };
 
-const dueInfo = (ym, dueDay) => {
+const dueInfo = (ym, dueDay, lang = "en") => {
   const raw = dueDay == null ? null : Number(dueDay);
   if (!raw || !Number.isFinite(raw)) return null;
 
@@ -107,10 +107,11 @@ const dueInfo = (ym, dueDay) => {
   const actual = Math.min(requested, dim);
   const d = new Date(p.y, p.m - 1, actual);
 
-  const displayBase = d.toLocaleDateString(undefined, { day: "2-digit", month: "short" });
+  const locale = lang === "de" ? "de-DE" : "en-US";
+  const displayBase = d.toLocaleDateString(locale, { day: "2-digit", month: "short" });
   const display = `${displayBase}${actual !== requested ? "*" : ""}`;
 
-  const full = d.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+  const full = d.toLocaleDateString(locale, { year: "numeric", month: "long", day: "numeric" });
   const note =
     actual !== requested ? ` (requested ${requested}, month has ${dim} days → using last day ${actual})` : "";
 
@@ -160,10 +161,10 @@ const lsSet = (key, value) => {
 function SmallButton({ children, onClick, tone = "default", className = "", disabled, title, type = "button" }) {
   const cls =
     tone === "primary"
-      ? "bg-neutral-700 hover:bg-neutral-600 text-white border-neutral-700 shadow-sm"
+      ? "bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 text-neutral-700 border-neutral-200 shadow-sm"
       : tone === "danger"
         ? "bg-red-50 hover:bg-red-100 text-red-700 border-red-200 shadow-sm"
-        : "bg-white hover:bg-neutral-50 text-neutral-700 border-neutral-200 shadow-sm";
+        : "bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 text-neutral-700 border-neutral-200 shadow-sm";
 
   return (
     <button
@@ -185,10 +186,10 @@ const ACTION_BASE =
 function ActionButton({ children, onClick, tone = "default", disabled, title }) {
   const cls =
     tone === "primary"
-      ? "bg-neutral-700 hover:bg-neutral-600 text-white border-neutral-700"
+      ? "bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 text-neutral-700 border-neutral-200"
       : tone === "danger"
         ? "bg-red-50 hover:bg-red-100 text-red-700 border-red-200"
-        : "bg-white hover:bg-neutral-50 text-neutral-700 border-neutral-200";
+        : "bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 text-neutral-700 border-neutral-200";
 
   return (
     <button type="button" onClick={onClick} disabled={disabled} title={title} className={`${ACTION_BASE} ${cls}`}>
@@ -200,8 +201,8 @@ function ActionButton({ children, onClick, tone = "default", disabled, title }) 
 function ActionFileButton({ children, onFile, accept = "application/json", tone = "primary", title }) {
   const cls =
     tone === "primary"
-      ? "bg-neutral-700 hover:bg-neutral-600 text-white border-neutral-700"
-      : "bg-white hover:bg-neutral-50 text-neutral-700 border-neutral-200";
+      ? "bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 text-neutral-700 border-neutral-200"
+      : "bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 text-neutral-700 border-neutral-200";
 
   return (
     <label title={title} className={`${ACTION_BASE} ${cls} cursor-pointer`}>
@@ -222,10 +223,10 @@ function ActionFileButton({ children, onFile, accept = "application/json", tone 
 function MiniActionButton({ children, onClick, tone = "default", disabled, title, className = "" }) {
   const cls =
     tone === "primary"
-      ? "bg-neutral-700 hover:bg-neutral-600 text-white border-neutral-700"
+      ? "bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 text-neutral-700 border-neutral-200"
       : tone === "danger"
         ? "bg-red-50 hover:bg-red-100 text-red-700 border-red-200"
-        : "bg-white hover:bg-neutral-50 text-neutral-700 border-neutral-200";
+        : "bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 text-neutral-700 border-neutral-200";
 
   return (
     <button
@@ -255,7 +256,7 @@ function DragHandle({ title = "Drag to reorder" }) {
   return (
     <div
       title={title}
-      className="print:hidden select-none h-10 w-10 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 shadow-sm flex items-center justify-center text-neutral-700 cursor-grab active:cursor-grabbing"
+      className="print:hidden select-none h-10 w-10 rounded-xl border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 shadow-sm flex items-center justify-center text-neutral-700 cursor-grab active:cursor-grabbing"
       aria-label={title}
     >
       <span className="leading-none text-lg">⋮⋮</span>
@@ -265,7 +266,7 @@ function DragHandle({ title = "Drag to reorder" }) {
 
 function PaidCheck({ checked, onChange }) {
   return (
-    <label className="print:hidden h-10 w-10 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 shadow-sm flex items-center justify-center cursor-pointer">
+    <label className="print:hidden h-10 w-10 rounded-xl border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 shadow-sm flex items-center justify-center cursor-pointer">
       <input
         type="checkbox"
         className="h-4 w-4 accent-lime-500"
@@ -326,14 +327,14 @@ function CalendarIcon({ className = "" }) {
   );
 }
 
-function DuePicker({ ym, value, onChange }) {
+function DuePicker({ ym, value, onChange, lang = "en", t }) {
   const [open, setOpen] = useState(false);
   const boxRef = useRef(null);
   const btnRef = useRef(null);
   const popRef = useRef(null);
   const [pos, setPos] = useState(null);
 
-  const info = useMemo(() => dueInfo(ym, value), [ym, value]);
+  const info = useMemo(() => dueInfo(ym, value, lang), [ym, value, lang]);
   const ymParts = useMemo(() => parseYM(ym), [ym]);
 
   const dim = useMemo(() => daysInMonthYM(ym), [ym]);
@@ -416,7 +417,8 @@ function DuePicker({ ym, value, onChange }) {
     for (let i = 0; i < 7; i++) {
       const d = new Date(base);
       d.setDate(base.getDate() + i);
-      labels.push(d.toLocaleDateString(undefined, { weekday: "short" }));
+      const locale = lang === "de" ? "de-DE" : "en-US";
+      labels.push(d.toLocaleDateString(locale, { weekday: "short" }));
     }
     return labels;
   }, []);
@@ -429,8 +431,8 @@ function DuePicker({ ym, value, onChange }) {
     return cells;
   }, [firstDow, dim]);
 
-  const btnLabel = info ? info.display : "Due";
-  const btnTitle = info ? info.title : "Select a due date";
+  const btnLabel = info ? info.display : t("due");
+  const btnTitle = info ? info.title : t("selectDueDate");
 
   return (
     <div ref={boxRef} className="relative">
@@ -439,22 +441,22 @@ function DuePicker({ ym, value, onChange }) {
         type="button"
         title={btnTitle}
         onClick={() => setOpen((v) => !v)}
-        className={`w-full h-10 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 shadow-sm px-3 text-neutral-800 text-sm flex items-center justify-between gap-2 focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300 ${
+        className={`w-full h-10 rounded-xl border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 shadow-sm px-3 text-neutral-800 text-sm flex items-center justify-between gap-2 focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300 ${
           info ? "font-medium" : "text-neutral-500"
         }`}
       >
-        <span className="tabular-nums">{btnLabel}</span>
+        <span className="tabular-nums truncate">{btnLabel}</span>
         <span className="flex items-center gap-2">
           {info ? (
             <span
-              className="h-6 w-6 rounded-lg border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-600 flex items-center justify-center"
+              className="h-6 w-6 rounded-lg border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 text-neutral-600 flex items-center justify-center"
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 if (typeof onChange === "function") onChange(null);
                 setOpen(false);
               }}
-              title="Clear due date"
+              title={t("clearDueDate")}
               role="button"
               tabIndex={0}
               onKeyDown={(e) => {
@@ -480,12 +482,12 @@ function DuePicker({ ym, value, onChange }) {
           className="print:hidden fixed z-50 w-64 rounded-2xl border border-neutral-200 bg-white shadow-xl overflow-hidden max-h-[75vh] overflow-auto"
         >
           <div className="px-3 py-2 border-b border-neutral-100 flex items-center justify-between">
-            <div className="text-sm font-semibold text-neutral-800">{monthLabel(ym)}</div>
+            <div className="text-sm font-semibold text-neutral-800">{monthLabel(ym, lang)}</div>
             <button
               type="button"
-              className="h-8 px-3 rounded-xl text-xs font-medium border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-800"
+              className="h-8 px-3 rounded-xl text-xs font-medium border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 text-neutral-800"
               onClick={() => setOpen(false)}
-              title="Close"
+              title={t("closeTitle")}
             >
               Close
             </button>
@@ -510,14 +512,14 @@ function DuePicker({ ym, value, onChange }) {
                     type="button"
                     className={`h-8 rounded-xl text-sm tabular-nums border transition ${
                       selected
-                        ? "bg-neutral-700 border-neutral-700 text-white"
-                        : "bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-50"
+                        ? "bg-[#D5FF00] border-[#D5FF00] text-neutral-800"
+                        : "bg-white border-neutral-200 text-neutral-700 hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800"
                     }`}
                     onClick={() => {
                       if (typeof onChange === "function") onChange(d);
                       setOpen(false);
                     }}
-                    title={`Set due: ${d}`}
+                    title={t("setDueTitle", { d })}
                   >
                     {d}
                   </button>
@@ -526,16 +528,16 @@ function DuePicker({ ym, value, onChange }) {
             </div>
 
             <div className="mt-3 flex items-center justify-between">
-              <div className="text-xs text-neutral-600">Click a day to set due date.</div>
+              <div className="text-xs text-neutral-600">{t("clickDay")}</div>
               <button
                 type="button"
-                className="h-8 px-3 rounded-xl text-xs font-medium border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-800"
+                className="h-8 px-3 rounded-xl text-xs font-medium border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 text-neutral-800"
                 onClick={() => {
                   if (typeof onChange === "function") onChange(null);
                   setOpen(false);
                 }}
               >
-                Clear
+                {t("clearDate")}
               </button>
             </div>
           </div>
@@ -562,19 +564,26 @@ function TogglePill({ on, labelOn = "On", labelOff = "Off", onClick, title }) {
       type="button"
       title={title}
       onClick={onClick}
-      className={`print:hidden h-10 w-full rounded-xl text-sm font-medium border shadow-sm transition active:translate-y-[1px] flex items-center justify-center ${
-        on
-          ? "bg-neutral-700 border-neutral-700 text-white hover:bg-neutral-600"
-          : "bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-50"
-      }`}
+      className="print:hidden h-10 w-full rounded-xl text-sm font-medium border shadow-sm transition active:translate-y-[1px] flex items-center justify-between px-3 gap-2 bg-white border-neutral-200 text-neutral-700 hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 group"
     >
-      {on ? labelOn : labelOff}
+      <span className="truncate">{on ? labelOn : labelOff}</span>
+      <div
+        className={`relative h-5 w-9 shrink-0 rounded-full transition-colors duration-200 ease-in-out ${
+          on ? "bg-neutral-800" : "bg-neutral-200 group-hover:bg-neutral-300"
+        }`}
+      >
+        <div
+          className={`absolute left-[2px] top-[2px] h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 ease-in-out ${
+            on ? "translate-x-4" : "translate-x-0"
+          }`}
+        />
+      </div>
     </button>
   );
 }
 
 /** ToolStack — Help Pack v1 (shared modal) */
-function HelpModal({ open, onClose }) {
+function HelpModal({ open, onClose, t }) {
   if (!open) return null;
 
   return (
@@ -583,68 +592,138 @@ function HelpModal({ open, onClose }) {
       <div className="relative w-full max-w-2xl rounded-2xl bg-white border border-neutral-200 shadow-xl overflow-hidden">
         <div className="p-4 border-b border-neutral-100 flex items-start justify-between gap-4">
           <div>
-            <div className="text-lg font-semibold text-neutral-800">Help</div>
-            <div className="text-sm text-neutral-700 mt-1">How your data is saved + how to keep continuity.</div>
+            <div className="text-lg font-semibold text-neutral-800">{t("helpTitle")}</div>
+            <div className="text-sm text-neutral-700 mt-1">{t("helpSubtitle")}</div>
             <div className="mt-3 h-[2px] w-56 rounded-full bg-gradient-to-r from-lime-400/0 via-lime-400 to-emerald-400/0" />
           </div>
           <button
             type="button"
-            className="px-3 py-2 rounded-xl text-sm font-medium border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-800 transition"
+            className="px-3 py-2 rounded-xl text-sm font-medium border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 text-neutral-800 transition"
             onClick={onClose}
           >
-            Close
+            {t("close")}
           </button>
         </div>
 
         <div className="p-4 space-y-4">
           <div className="rounded-2xl border border-neutral-200 p-4">
-            <div className="font-semibold text-neutral-800">Autosave (default)</div>
+            <div className="font-semibold text-neutral-800">{t("autosave")}</div>
             <div className="text-sm text-neutral-700 mt-1">
-              Budgit saves automatically in your browser (localStorage) under:
+              {t("autosaveDesc")}
               <span className="ml-2 font-mono text-xs bg-neutral-50 border border-neutral-200 rounded-lg px-2 py-1">{LS_KEY}</span>
             </div>
-            <div className="text-xs text-neutral-600 mt-2">If you clear browser data or switch devices/browsers, your local data won’t follow automatically.</div>
+            <div className="text-xs text-neutral-600 mt-2">{t("autosaveWarn")}</div>
           </div>
 
           <div className="rounded-2xl border border-neutral-200 p-4">
-            <div className="font-semibold text-neutral-800">Best practice (continuity)</div>
+            <div className="font-semibold text-neutral-800">{t("bestPractice")}</div>
             <ul className="mt-2 space-y-2 text-sm text-neutral-700 list-disc pl-5">
               <li>
-                Use <span className="font-semibold">Export</span> once a week (or after big updates) to create a backup JSON file.
+                {t("bp1")} <span className="font-semibold">{t("data")}</span> {t("bp1b")}
               </li>
-              <li>Store that JSON in a safe place (Google Drive / iCloud / email to yourself / USB).</li>
+              <li>{t("bp2")}</li>
               <li>
-                On a new device/browser, use <span className="font-semibold">Import</span> to restore everything.
+                {t("bp3")} <span className="font-semibold">{t("import")}</span> {t("bp3b")}
               </li>
             </ul>
           </div>
 
           <div className="rounded-2xl border border-neutral-200 p-4">
-            <div className="font-semibold text-neutral-800">Reordering</div>
+            <div className="font-semibold text-neutral-800">{t("reordering")}</div>
             <div className="text-sm text-neutral-700 mt-1">
-              Drag using the <span className="font-semibold">⋮⋮</span> handle. Drop on the small lines between items to insert exactly where you want.
+              {t("reorderingDesc")} <span className="font-semibold">⋮⋮</span> {t("reorderingDesc2")}
             </div>
           </div>
 
           <div className="rounded-2xl border border-neutral-200 p-4">
-            <div className="font-semibold text-neutral-800">Paid items</div>
-            <div className="text-sm text-neutral-700 mt-1">Tick the checkbox to mark an expense as paid. Paid items don’t count toward remaining totals.</div>
+            <div className="font-semibold text-neutral-800">{t("paidItems")}</div>
+            <div className="text-sm text-neutral-700 mt-1">{t("paidItemsDesc")}</div>
           </div>
 
           <div className="rounded-2xl border border-neutral-200 p-4">
-            <div className="font-semibold text-neutral-800">Printing / PDF</div>
+            <div className="font-semibold text-neutral-800">{t("printing")}</div>
             <div className="text-sm text-neutral-700 mt-1">
-              Use <span className="font-semibold">Preview</span> to check the layout, then <span className="font-semibold">Print / Save PDF</span> and choose “Save as PDF”.
+              {t("printingDesc")} <span className="font-semibold">{t("preview")}</span> {t("printingDesc2")} <span className="font-semibold">{t("printSave")}</span> {t("printingDesc3")}
             </div>
           </div>
 
           <div className="rounded-2xl border border-neutral-200 p-4">
-            <div className="font-semibold text-neutral-800">Privacy</div>
-            <div className="text-sm text-neutral-700 mt-1">Budgit runs in your browser. There’s no account system here yet, and nothing is uploaded unless you choose to share your exported file.</div>
+            <div className="font-semibold text-neutral-800">{t("privacy")}</div>
+            <div className="text-sm text-neutral-700 mt-1">{t("privacyDesc")}</div>
           </div>
         </div>
 
-        <div className="p-4 border-t border-neutral-100 text-xs text-neutral-600">ToolStack • Help Pack v1</div>
+        <div className="p-4 border-t border-neutral-100 text-xs text-neutral-600">{t("footer")}</div>
+      </div>
+    </div>
+  );
+}
+
+function ExportModal({ open, onClose, onPreview, onPrint, onBackup, onImport, t }) {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8 print:hidden">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative w-full max-w-sm rounded-2xl bg-white border border-neutral-200 shadow-xl overflow-hidden">
+        <div className="p-4 border-b border-neutral-100 flex items-center justify-between">
+          <div className="text-lg font-semibold text-neutral-800">{t("exportTitle")}</div>
+          <button
+            type="button"
+            className="h-8 w-8 rounded-xl border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 flex items-center justify-center text-neutral-600 transition"
+            onClick={onClose}
+          >
+            ×
+          </button>
+        </div>
+        <div className="p-4 space-y-2">
+          <button
+            className="w-full text-left px-4 py-3 rounded-xl border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 transition flex items-center justify-between group"
+            onClick={() => {
+              onClose();
+              onPreview();
+            }}
+          >
+            <span className="font-medium">{t("preview")}</span>
+            <span className="text-neutral-400 group-hover:text-neutral-600">→</span>
+          </button>
+          <button
+            className="w-full text-left px-4 py-3 rounded-xl border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 transition flex items-center justify-between group"
+            onClick={() => {
+              onClose();
+              onPrint();
+            }}
+          >
+            <span className="font-medium">{t("printSave")}</span>
+            <span className="text-neutral-400 group-hover:text-neutral-600">→</span>
+          </button>
+          <button
+            className="w-full text-left px-4 py-3 rounded-xl border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 transition flex items-center justify-between group"
+            onClick={() => {
+              onClose();
+              onBackup();
+            }}
+          >
+            <span className="font-medium">{t("backup")}</span>
+            <span className="text-neutral-400 group-hover:text-neutral-600">→</span>
+          </button>
+          <label className="w-full text-left px-4 py-3 rounded-xl border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 transition flex items-center justify-between group cursor-pointer">
+            <span className="font-medium">{t("import")}</span>
+            <span className="text-neutral-400 group-hover:text-neutral-600">→</span>
+            <input
+              type="file"
+              accept="application/json"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+                if (file) {
+                  onClose();
+                  onImport(file);
+                }
+              }}
+            />
+          </label>
+        </div>
       </div>
     </div>
   );
@@ -700,6 +779,247 @@ function normalizeMonthData(monthData) {
   };
 }
 
+const TRANSLATIONS = {
+  en: {
+    subtitle: "Monthly personal budgeting tool",
+    hub: "HUB",
+    preview: "Preview",
+    data: "Data",
+    help: "Help",
+    month: "Month",
+    prevMonth: "◀ Prev",
+    nextMonth: "Next ▶",
+    copyNext: "Copy → Next",
+    copyAll: "Copy ALL",
+    copyUnpaid: "Copy UNPAID only",
+    cancel: "Cancel",
+    clear: "Clear",
+    income: "Income",
+    addIncome: "+ Add income",
+    totalIncome: "Total income",
+    expenses: "Expenses",
+    addSection: "+ Add section",
+    hidePaid: "Hide paid",
+    showPaid: "Show paid",
+    expandAll: "Expand all",
+    sortDue: "Sort due",
+    clearPaid: "Clear paid",
+    clearItems: "Clear items",
+    deleteSection: "Delete section",
+    notes: "Notes",
+    notesPlaceholder: "Optional notes for this month…",
+    summary: "Summary",
+    remainingExpenses: "Remaining expenses",
+    plannedExpenses: "Planned expenses",
+    netRemaining: "Net (after remaining)",
+    savingsRate: "Savings rate",
+    quickView: "Quick view",
+    sections: "Sections",
+    expenseItems: "Expense items",
+    unpaidItems: "Unpaid items",
+    tip: "Tip: Paid items don’t count toward remaining expenses. Use “Hide paid” to keep lists clean.",
+    printPreview: "Print preview",
+    printSave: "Print / Save PDF",
+    close: "Close",
+    generated: "Generated",
+    noIncome: "No income items yet.",
+    noExpenses: "No expense sections yet. Click “Add section”.",
+    noItems: "No items.",
+    noItemsSection: "No items in this section.",
+    collapsedDrop: "Collapsed. Drop an item here to move it into this section.",
+    due: "Due",
+    backup: "Backup (JSON)",
+    import: "Import (JSON)",
+    exportTitle: "Data",
+    helpTitle: "Help",
+    helpSubtitle: "How your data is saved + how to keep continuity.",
+    autosave: "Autosave (default)",
+    autosaveDesc: "Budgit saves automatically in your browser (localStorage) under:",
+    autosaveWarn: "If you clear browser data or switch devices/browsers, your local data won’t follow automatically.",
+    bestPractice: "Best practice (continuity)",
+    bp1: "Use",
+    bp1b: "once a week (or after big updates) to create a backup JSON file.",
+    bp2: "Store that JSON in a safe place (Google Drive / iCloud / email to yourself / USB).",
+    bp3: "On a new device/browser, use",
+    bp3b: "to restore everything.",
+    reordering: "Reordering",
+    reorderingDesc: "Drag using the",
+    reorderingDesc2: "handle. Drop on the small lines between items to insert exactly where you want.",
+    paidItems: "Paid items",
+    paidItemsDesc: "Tick the checkbox to mark an expense as paid. Paid items don’t count toward remaining totals.",
+    printing: "Printing / PDF",
+    printingDesc: "Use",
+    printingDesc2: "to check the layout, then",
+    printingDesc3: "and choose “Save as PDF”.",
+    privacy: "Privacy",
+    privacyDesc: "Budgit runs in your browser. There’s no account system here yet, and nothing is uploaded unless you choose to share your exported file.",
+    footer: "ToolStack • Help Pack v1",
+    copyUnpaidMsg: "Copied unpaid → next month",
+    copyAllMsg: "Copied month → next month",
+    monthCleared: "Month cleared",
+    imported: "Imported",
+    invalidJson: "Invalid JSON",
+    deleteSectionConfirm: "Delete “{name}” and all items inside it?",
+    clearItemsConfirm: "Clear ALL items in “{name}”?",
+    clearMonthConfirm: "Clear all income and expenses for this month?",
+    unnamed: "(unnamed)",
+    none: "(none)",
+    salary: "Salary",
+    newSection: "New section",
+    expense: "Expense",
+    sectionLabel: "Section label (e.g., Loans)",
+    incomeName: "Income name",
+    expenseName: "Expense name",
+    amount: "Amount",
+    dueDay: "Due day",
+    setDue: "Set due",
+    clickDay: "Click a day to set due date.",
+    clearDate: "Clear",
+    dueDate: "Due",
+    selectDueDate: "Select a due date",
+    clearDueDate: "Clear due date",
+    copyNote: "Note: copied items are set to unpaid in the new month.",
+    previewTip: "Tip: If the preview looks right, hit “Print / Save PDF” and choose “Save as PDF”.",
+    togglePaidTitle: "Toggle visibility of paid items",
+    expandAllTitle: "Expand all sections",
+    copyNextTitle: "Copy this month to next",
+    clearMonthTitle: "Clear this month",
+    prevMonthTitle: "Previous month",
+    nextMonthTitle: "Next month",
+    yearTitle: "Year",
+    monthTitle: "Month",
+    dragIncomeTitle: "Drag income item",
+    removeTitle: "Remove",
+    sortDueTitle: "Sort by due day (earliest first)",
+    clearPaidTitle: "Remove all PAID items in this section",
+    clearItemsTitle: "Clear ALL items in this section",
+    deleteSectionTitle: "Delete this section and all its items",
+    dragExpenseTitle: "Drag expense item",
+    closeTitle: "Close",
+    clearDueTitle: "Clear due date",
+    setDueTitle: "Set due: {d}",
+  },
+  de: {
+    subtitle: "Monatliches persönliches Budgetierungstool",
+    hub: "HUB",
+    preview: "Vorschau",
+    data: "Daten",
+    help: "Hilfe",
+    month: "Monat",
+    prevMonth: "◀ Zurück",
+    nextMonth: "Weiter ▶",
+    copyNext: "Kopieren → Nächster",
+    copyAll: "ALLES kopieren",
+    copyUnpaid: "Nur UNBEZAHLTE kopieren",
+    cancel: "Abbrechen",
+    clear: "Leeren",
+    income: "Einkommen",
+    addIncome: "+ Einkommen",
+    totalIncome: "Gesamteinkommen",
+    expenses: "Ausgaben",
+    addSection: "+ Abschnitt",
+    hidePaid: "Bezahlte ausblenden",
+    showPaid: "Bezahlte anzeigen",
+    expandAll: "Alle erweitern",
+    sortDue: "Fälligkeit sort.",
+    clearPaid: "Bezahlte leeren",
+    clearItems: "Elemente leeren",
+    deleteSection: "Abschnitt löschen",
+    notes: "Notizen",
+    notesPlaceholder: "Optionale Notizen für diesen Monat…",
+    summary: "Zusammenfassung",
+    remainingExpenses: "Verbleibende Ausgaben",
+    plannedExpenses: "Geplante Ausgaben",
+    netRemaining: "Netto (nach Verbleibenden)",
+    savingsRate: "Sparquote",
+    quickView: "Schnellansicht",
+    sections: "Abschnitte",
+    expenseItems: "Ausgabenelemente",
+    unpaidItems: "Unbezahlte Elemente",
+    tip: "Tipp: Bezahlte Elemente zählen nicht zu den verbleibenden Ausgaben. Verwenden Sie „Bezahlte ausblenden“, um Listen sauber zu halten.",
+    printPreview: "Druckvorschau",
+    printSave: "Drucken / PDF speichern",
+    close: "Schließen",
+    generated: "Erstellt",
+    noIncome: "Keine Einkommenselemente.",
+    noExpenses: "Keine Ausgabenabschnitte. Klicken Sie auf „+ Abschnitt“.",
+    noItems: "Keine Elemente.",
+    noItemsSection: "Keine Elemente in diesem Abschnitt.",
+    collapsedDrop: "Eingeklappt. Element hier ablegen, um es in diesen Abschnitt zu verschieben.",
+    due: "Fällig",
+    backup: "Sicherung (JSON)",
+    import: "Importieren (JSON)",
+    exportTitle: "Daten",
+    helpTitle: "Hilfe",
+    helpSubtitle: "Wie Ihre Daten gespeichert werden + wie Sie Kontinuität wahren.",
+    autosave: "Automatische Speicherung (Standard)",
+    autosaveDesc: "Budgit speichert automatisch in Ihrem Browser (localStorage) unter:",
+    autosaveWarn: "Wenn Sie Browserdaten löschen oder Geräte/Browser wechseln, folgen Ihre lokalen Daten nicht automatisch.",
+    bestPractice: "Best Practice (Kontinuität)",
+    bp1: "Verwenden Sie",
+    bp1b: "einmal pro Woche (oder nach großen Updates), um eine JSON-Sicherungsdatei zu erstellen.",
+    bp2: "Speichern Sie diese JSON an einem sicheren Ort (Google Drive / iCloud / E-Mail an sich selbst / USB).",
+    bp3: "Verwenden Sie auf einem neuen Gerät/Browser",
+    bp3b: "um alles wiederherzustellen.",
+    reordering: "Neuordnen",
+    reorderingDesc: "Ziehen Sie mit dem",
+    reorderingDesc2: "Griff. Lassen Sie auf die kleinen Linien zwischen den Elementen fallen, um genau dort einzufügen.",
+    paidItems: "Bezahlte Elemente",
+    paidItemsDesc: "Aktivieren Sie das Kontrollkästchen, um eine Ausgabe als bezahlt zu markieren. Bezahlte Elemente zählen nicht zu den verbleibenden Summen.",
+    printing: "Drucken / PDF",
+    printingDesc: "Verwenden Sie",
+    printingDesc2: "um das Layout zu überprüfen, dann",
+    printingDesc3: "und wählen Sie „Als PDF speichern“.",
+    privacy: "Datenschutz",
+    privacyDesc: "Budgit läuft in Ihrem Browser. Es gibt hier noch kein Kontosystem, und nichts wird hochgeladen, es sei denn, Sie entscheiden sich, Ihre exportierte Datei zu teilen.",
+    footer: "ToolStack • Help Pack v1",
+    copyUnpaidMsg: "Unbezahlte kopiert → nächster Monat",
+    copyAllMsg: "Monat kopiert → nächster Monat",
+    monthCleared: "Monat geleert",
+    imported: "Importiert",
+    invalidJson: "Ungültiges JSON",
+    deleteSectionConfirm: "„{name}“ und alle Elemente darin löschen?",
+    clearItemsConfirm: "ALLE Elemente in „{name}“ leeren?",
+    clearMonthConfirm: "Alle Einkommen und Ausgaben für diesen Monat löschen?",
+    unnamed: "(unbenannt)",
+    none: "(keine)",
+    salary: "Gehalt",
+    newSection: "Neuer Abschnitt",
+    expense: "Ausgabe",
+    sectionLabel: "Abschnittsbezeichnung (z. B. Kredite)",
+    incomeName: "Einkommensname",
+    expenseName: "Ausgabenname",
+    amount: "Betrag",
+    dueDay: "Fälligkeitstag",
+    setDue: "Fällig setzen",
+    clickDay: "Klicken Sie auf einen Tag, um das Fälligkeitsdatum festzulegen.",
+    clearDate: "Leeren",
+    dueDate: "Fällig",
+    selectDueDate: "Fälligkeitsdatum wählen",
+    clearDueDate: "Fälligkeitsdatum löschen",
+    copyNote: "Hinweis: Kopierte Elemente werden im neuen Monat auf unbezahlt gesetzt.",
+    previewTip: "Tipp: Wenn die Vorschau korrekt aussieht, klicken Sie auf „Drucken / PDF speichern“ und wählen Sie „Als PDF speichern“.",
+    togglePaidTitle: "Sichtbarkeit bezahlter Elemente umschalten",
+    expandAllTitle: "Alle Abschnitte erweitern",
+    copyNextTitle: "Diesen Monat in den nächsten kopieren",
+    clearMonthTitle: "Diesen Monat leeren",
+    prevMonthTitle: "Vorheriger Monat",
+    nextMonthTitle: "Nächster Monat",
+    yearTitle: "Jahr",
+    monthTitle: "Monat",
+    dragIncomeTitle: "Einkommenselement ziehen",
+    removeTitle: "Entfernen",
+    sortDueTitle: "Nach Fälligkeit sortieren (früheste zuerst)",
+    clearPaidTitle: "Alle BEZAHLTEN Elemente in diesem Abschnitt entfernen",
+    clearItemsTitle: "ALLE Elemente in diesem Abschnitt leeren",
+    deleteSectionTitle: "Diesen Abschnitt und alle seine Elemente löschen",
+    dragExpenseTitle: "Ausgabenelement ziehen",
+    closeTitle: "Schließen",
+    clearDueTitle: "Fälligkeitsdatum löschen",
+    setDueTitle: "Fällig setzen: {d}",
+  }
+};
+
 // ---------------------------
 // App
 // ---------------------------
@@ -709,6 +1029,7 @@ export default function BudgitApp() {
     const base = {
       activeMonth: monthKey(),
       months: {},
+      lang: "en",
     };
 
     const saved = lsGet(LS_KEY);
@@ -723,6 +1044,7 @@ export default function BudgitApp() {
     });
     if (!data.months[m]) data.months[m] = normalizeMonthData(null);
 
+    if (!data.lang) data.lang = "en";
     return data;
   });
 
@@ -731,6 +1053,7 @@ export default function BudgitApp() {
 
   const [previewOpen, setPreviewOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
 
   // Collapsed expense groups (UI-only)
   const [collapsed, setCollapsed] = useState(() => ({}));
@@ -763,6 +1086,12 @@ export default function BudgitApp() {
     return normalizeMonthData(app.months && app.months[m] ? app.months[m] : null);
   }, [app]);
 
+  const t = (key, args = {}) => {
+    const txt = TRANSLATIONS[app.lang || "en"][key] || key;
+    // simple replacement for {name}
+    return txt.replace(/\{(\w+)\}/g, (_, k) => args[k] || "");
+  };
+
   const updateMonth = (updater) => {
     setApp((a) => {
       const m = a.activeMonth;
@@ -779,6 +1108,10 @@ export default function BudgitApp() {
       if (!months[m]) months[m] = normalizeMonthData(null);
       return { ...a, activeMonth: m, months };
     });
+  };
+
+  const setLang = (lang) => {
+    setApp((a) => ({ ...a, lang }));
   };
 
   // ---------------------------
@@ -815,7 +1148,7 @@ export default function BudgitApp() {
   // ---------------------------
 
   const addIncome = () => {
-    const item = { id: uid(), name: "Salary", amount: "0" };
+    const item = { id: uid(), name: t("salary"), amount: "0" };
     updateMonth((cur) => ({ ...cur, incomes: [item, ...(cur.incomes || [])] }));
     setLastAdded({ kind: "income", id: item.id });
   };
@@ -854,7 +1187,7 @@ export default function BudgitApp() {
 
   const addExpenseGroup = () => {
     const newId = uid();
-    const group = { id: newId, label: "New section", items: [] };
+    const group = { id: newId, label: t("newSection"), items: [] };
     updateMonth((cur) => ({
       ...cur,
       expenseGroups: [group, ...(cur.expenseGroups || [])],
@@ -878,7 +1211,7 @@ export default function BudgitApp() {
   const deleteExpenseGroup = (groupId) => {
     const g = (active.expenseGroups || []).find((x) => x.id === groupId);
     const name = String((g && g.label) || "this section").trim();
-    const ok = window.confirm(`Delete “${name}” and all items inside it?`);
+    const ok = window.confirm(t("deleteSectionConfirm", { name }));
     if (!ok) return;
 
     updateMonth((cur) => {
@@ -897,7 +1230,7 @@ export default function BudgitApp() {
   };
 
   const addExpenseItem = (groupId) => {
-    const item = { id: uid(), name: "Expense", amount: "0", dueDay: null, paid: false };
+    const item = { id: uid(), name: t("expense"), amount: "0", dueDay: null, paid: false };
     updateMonth((cur) => ({
       ...cur,
       expenseGroups: (cur.expenseGroups || []).map((g) => (g.id === groupId ? { ...g, items: [item, ...(g.items || [])] } : g)),
@@ -966,7 +1299,7 @@ export default function BudgitApp() {
   const clearGroupItems = (groupId) => {
     const g = (active.expenseGroups || []).find((x) => x.id === groupId);
     const name = String((g && g.label) || "this section").trim();
-    const ok = window.confirm(`Clear ALL items in “${name}”?`);
+    const ok = window.confirm(t("clearItemsConfirm", { name }));
     if (!ok) return;
 
     updateMonth((cur) => ({
@@ -1004,7 +1337,7 @@ export default function BudgitApp() {
   // ---------------------------
 
   const clearMonth = () => {
-    const ok = window.confirm("Clear all income and expenses for this month?");
+    const ok = window.confirm(t("clearMonthConfirm"));
     if (!ok) return;
     setApp((a) => {
       const m = a.activeMonth;
@@ -1017,7 +1350,7 @@ export default function BudgitApp() {
       return { ...a, months };
     });
     setCollapsed({});
-    notify("Month cleared");
+    notify(t("monthCleared"));
   };
 
   const copyMonthToNext = (mode) => {
@@ -1051,7 +1384,7 @@ export default function BudgitApp() {
     });
 
     setCopyOpen(false);
-    notify(mode === "unpaid" ? "Copied unpaid → next month" : "Copied month → next month");
+    notify(mode === "unpaid" ? t("copyUnpaidMsg") : t("copyAllMsg"));
   };
 
   // ---------------------------
@@ -1075,7 +1408,7 @@ export default function BudgitApp() {
     const text = await file.text();
     const parsed = safeParse(text, null);
     if (!parsed || !parsed.months) {
-      notify("Invalid JSON");
+      notify(t("invalidJson"));
       return;
     }
 
@@ -1092,7 +1425,7 @@ export default function BudgitApp() {
 
     setApp(next);
     setCollapsed({});
-    notify("Imported");
+    notify(t("imported"));
   };
 
   const openPreview = () => setPreviewOpen(true);
@@ -1221,7 +1554,16 @@ export default function BudgitApp() {
         }
       `}</style>
 
-      <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
+      <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} t={t} />
+      <ExportModal
+        open={exportModalOpen}
+        onClose={() => setExportModalOpen(false)}
+        onPreview={openPreview}
+        onPrint={() => window.print()}
+        onBackup={exportJSON}
+        onImport={importJSON}
+        t={t}
+      />
 
       {previewOpen ? (
         <style>{`
@@ -1239,19 +1581,19 @@ export default function BudgitApp() {
 
           <div className="relative w-full max-w-4xl">
             <div className="flex items-center justify-between gap-3 mb-3">
-              <div className="text-lg font-semibold text-white">Print preview</div>
+              <div className="text-lg font-semibold text-white">{t("printPreview")}</div>
               <div className="flex items-center gap-2">
                 <button
-                  className="px-3 py-2 rounded-xl text-sm font-medium border border-white/40 bg-white/10 hover:bg-white/15 text-white transition"
+                  className="px-3 py-2 rounded-xl text-sm font-medium border border-white/40 bg-white/10 hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 text-white transition"
                   onClick={() => window.print()}
                 >
-                  Print / Save PDF
+                  {t("printSave")}
                 </button>
                 <button
-                  className="px-3 py-2 rounded-xl text-sm font-medium border border-white/40 bg-white/10 hover:bg-white/15 text-white transition"
+                  className="px-3 py-2 rounded-xl text-sm font-medium border border-white/40 bg-white/10 hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 text-white transition"
                   onClick={() => setPreviewOpen(false)}
                 >
-                  Close
+                  {t("close")}
                 </button>
               </div>
             </div>
@@ -1261,22 +1603,22 @@ export default function BudgitApp() {
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <div className="text-2xl font-semibold text-neutral-800">Budgit</div>
-                    <div className="text-sm text-neutral-700">{monthLabel(app.activeMonth)}</div>
+                    <div className="text-sm text-neutral-700">{monthLabel(app.activeMonth, app.lang)}</div>
                     <div className="mt-3 h-[2px] w-64 rounded-full bg-gradient-to-r from-lime-400/0 via-lime-400 to-emerald-400/0" />
                   </div>
-                  <div className="text-sm text-neutral-700">Generated: {new Date().toLocaleString()}</div>
+                  <div className="text-sm text-neutral-700">{t("generated")}: {new Date().toLocaleString()}</div>
                 </div>
 
                 <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="rounded-2xl border border-neutral-200">
-                    <div className="px-4 py-3 border-b border-neutral-100 font-semibold text-neutral-800">Income</div>
+                    <div className="px-4 py-3 border-b border-neutral-100 font-semibold text-neutral-800">{t("income")}</div>
                     <div className="p-4 space-y-2">
                       {previewIncomes.length === 0 ? (
-                        <div className="text-sm text-neutral-700">No income items.</div>
+                        <div className="text-sm text-neutral-700">{t("noIncome")}</div>
                       ) : (
                         previewIncomes.map((i) => (
                           <div key={i.id} className="flex items-center justify-between gap-3">
-                            <div className="text-neutral-800">{i.name || "(unnamed)"}</div>
+                            <div className="text-neutral-800">{i.name || t("unnamed")}</div>
                             <div className="font-semibold text-neutral-800">
                               <Money value={toNumber(i.amount)} />
                             </div>
@@ -1284,7 +1626,7 @@ export default function BudgitApp() {
                         ))
                       )}
                       <div className="pt-3 mt-3 border-t border-neutral-100 flex items-center justify-between">
-                        <div className="font-semibold text-neutral-800">Total income</div>
+                        <div className="font-semibold text-neutral-800">{t("totalIncome")}</div>
                         <div className="font-semibold text-neutral-800">
                           <Money value={incomeTotal} />
                         </div>
@@ -1293,17 +1635,17 @@ export default function BudgitApp() {
                   </div>
 
                   <div className="rounded-2xl border border-neutral-200">
-                    <div className="px-4 py-3 border-b border-neutral-100 font-semibold text-neutral-800">Expenses</div>
+                    <div className="px-4 py-3 border-b border-neutral-100 font-semibold text-neutral-800">{t("expenses")}</div>
                     <div className="p-4 space-y-4">
                       {previewGroups.length === 0 ? (
-                        <div className="text-sm text-neutral-700">No expense sections.</div>
+                        <div className="text-sm text-neutral-700">{t("noExpenses")}</div>
                       ) : (
                         previewGroups.map((g) => (
                           <div key={g.id} className="rounded-2xl border border-neutral-200">
                             <div className="px-3 py-2 border-b border-neutral-100 flex items-center justify-between">
                               <div className="font-semibold text-neutral-800">{String((g.label || "General")).trim()}</div>
                               <div className="text-sm text-neutral-700">
-                                Remaining: <span className="font-semibold text-neutral-800">€{groupRemainingTotal(g).toFixed(2)}</span>
+                                {t("remainingExpenses")}: <span className="font-semibold text-neutral-800">€{groupRemainingTotal(g).toFixed(2)}</span>
                                 <span className="text-neutral-400"> • </span>
                                 Planned: <span className="font-medium">€{groupPlannedTotal(g).toFixed(2)}</span>
                               </div>
@@ -1313,15 +1655,15 @@ export default function BudgitApp() {
                                 <div className="text-sm text-neutral-700">No items.</div>
                               ) : (
                                 (g.items || []).map((e) => {
-                                  const info = dueInfo(app.activeMonth, e.dueDay);
+                                  const info = dueInfo(app.activeMonth, e.dueDay, app.lang);
                                   return (
                                     <div key={e.id} className="flex items-center justify-between gap-3">
                                       <div className="text-neutral-800">
                                         {e.paid ? "✓ " : ""}
-                                        {e.name || "(unnamed)"}
+                                        {e.name || t("unnamed")}
                                         {info ? (
                                           <span className="text-neutral-600" title={info.title}>
-                                            {" "}(Due {info.display})
+                                            {" "}({t("due")} {info.display})
                                           </span>
                                         ) : null}
                                       </div>
@@ -1339,8 +1681,8 @@ export default function BudgitApp() {
 
                       <div className="pt-3 mt-2 border-t border-neutral-100 flex items-center justify-between">
                         <div>
-                          <div className="font-semibold text-neutral-800">Remaining expenses</div>
-                          <div className="text-xs text-neutral-600">Planned: €{expensePlannedTotal.toFixed(2)}</div>
+                          <div className="font-semibold text-neutral-800">{t("remainingExpenses")}</div>
+                          <div className="text-xs text-neutral-600">{t("plannedExpenses")}: €{expensePlannedTotal.toFixed(2)}</div>
                         </div>
                         <div className="font-semibold text-neutral-800">
                           <Money value={expenseRemainingTotal} />
@@ -1352,22 +1694,22 @@ export default function BudgitApp() {
 
                 <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className={`rounded-2xl border p-4 ${netRemaining >= 0 ? "border-emerald-200" : "border-red-200"}`}>
-                    <div className="text-sm text-neutral-700">Net (after remaining)</div>
+                    <div className="text-sm text-neutral-700">{t("netRemaining")}</div>
                     <div className="text-2xl font-semibold text-neutral-800 mt-1">
                       <Money value={netRemaining} />
                     </div>
                     <div className="text-xs text-neutral-700 mt-2">
-                      Savings rate: <span className="font-medium">{savingsRate.toFixed(1)}%</span>
+                      {t("savingsRate")}: <span className="font-medium">{savingsRate.toFixed(1)}%</span>
                     </div>
                   </div>
 
                   <div className="rounded-2xl border border-neutral-200 p-4">
-                    <div className="text-sm text-neutral-700">Notes</div>
-                    <div className="mt-2 whitespace-pre-wrap text-neutral-800 text-sm">{String(active.notes || "").trim() ? active.notes : "(none)"}</div>
+                    <div className="text-sm text-neutral-700">{t("notes")}</div>
+                    <div className="mt-2 whitespace-pre-wrap text-neutral-800 text-sm">{String(active.notes || "").trim() ? active.notes : t("none")}</div>
                   </div>
                 </div>
 
-                <div className="mt-4 text-xs text-neutral-600">Tip: If the preview looks right, hit “Print / Save PDF” and choose “Save as PDF”.</div>
+                <div className="mt-4 text-xs text-neutral-600">{t("previewTip")}</div>
               </div>
             </div>
           </div>
@@ -1380,28 +1722,41 @@ export default function BudgitApp() {
             {/* Master heading style */}
             <div className="text-4xl sm:text-5xl font-black tracking-tight text-neutral-800">
               <span>Budg</span>
-              <span className="text-[#D5FF00]">It</span>
+              <span className="text-neutral-800">It</span>
             </div>
-            <div className="text-sm text-neutral-700">Monthly personal budgeting tool</div>
+            <div className="text-sm text-neutral-700">{t("subtitle")}</div>
             <div className="mt-3 h-[2px] w-80 rounded-full bg-gradient-to-r from-[#D5FF00]/0 via-[#D5FF00] to-[#D5FF00]/0" />
+
+            <div className="flex items-center gap-2 mt-2">
+              <button
+                onClick={() => setLang("en")}
+                className={`text-xs font-medium px-2 py-1 rounded-lg transition ${app.lang === "en" ? "bg-neutral-200 text-neutral-800" : "text-neutral-500 hover:text-neutral-700"}`}
+              >
+                EN
+              </button>
+              <button
+                onClick={() => setLang("de")}
+                className={`text-xs font-medium px-2 py-1 rounded-lg transition ${app.lang === "de" ? "bg-neutral-200 text-neutral-800" : "text-neutral-500 hover:text-neutral-700"}`}
+              >
+                DE
+              </button>
+            </div>
           </div>
 
           <div className="w-full sm:w-[520px] lg:w-[620px]">
             <div className="relative">
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 pr-12">
-                <ActionButton onClick={openPreview}>Preview</ActionButton>
-                <ActionButton onClick={() => window.print()}>Print / Save PDF</ActionButton>
-                <ActionButton onClick={exportJSON}>Export</ActionButton>
-                <ActionFileButton onFile={(f) => importJSON(f)} tone="primary">
-                  Import
-                </ActionFileButton>
+              <div className="grid grid-cols-3 gap-2 pr-12">
+                <ActionButton onClick={() => {}}>{t("hub")}</ActionButton>
+                <ActionButton onClick={openPreview}>{t("preview")}</ActionButton>
+
+                <ActionButton onClick={() => setExportModalOpen(true)}>{t("data")}</ActionButton>
               </div>
 
               <button
                 type="button"
                 title="Help"
                 onClick={() => setHelpOpen(true)}
-                className="print:hidden absolute right-0 top-0 h-10 w-10 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 shadow-sm flex items-center justify-center font-bold text-neutral-800"
+                className="print:hidden absolute right-0 top-0 h-10 w-10 rounded-xl border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 shadow-sm flex items-center justify-center font-bold text-neutral-800"
                 aria-label="Help"
               >
                 ?
@@ -1414,21 +1769,21 @@ export default function BudgitApp() {
           <div className="md:col-span-2 rounded-2xl bg-white shadow-sm border border-neutral-200 print:shadow-none">
             <div className="px-4 py-3 border-b border-neutral-100">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="font-semibold text-neutral-800">Month</div>
+                <div className="font-semibold text-neutral-800">{t("month")}</div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 w-full sm:w-auto">
-                  <MiniActionButton onClick={() => ensureMonth(addMonths(app.activeMonth, -1))} title="Previous month">
-                    ◀ Prev
+                  <MiniActionButton onClick={() => ensureMonth(addMonths(app.activeMonth, -1))} title={t("prevMonthTitle")}>
+                    {t("prevMonth")}
                   </MiniActionButton>
-                  <MiniActionButton onClick={() => ensureMonth(addMonths(app.activeMonth, 1))} title="Next month">
-                    Next ▶
+                  <MiniActionButton onClick={() => ensureMonth(addMonths(app.activeMonth, 1))} title={t("nextMonthTitle")}>
+                    {t("nextMonth")}
                   </MiniActionButton>
 
                   <select
                     value={activeYM.y || new Date().getFullYear()}
                     onChange={(e) => setActiveYear(Number(e.target.value))}
                     className="print:hidden h-10 w-full rounded-xl text-sm font-medium border border-neutral-200 bg-white hover:bg-neutral-50 shadow-sm px-3 text-neutral-700"
-                    title="Year"
+                    title={t("yearTitle")}
                   >
                     {years.map((y) => (
                       <option key={y} value={y}>
@@ -1441,45 +1796,45 @@ export default function BudgitApp() {
                     value={activeYM.m || 1}
                     onChange={(e) => setActiveMonthNum(Number(e.target.value))}
                     className="print:hidden h-10 w-full rounded-xl text-sm font-medium border border-neutral-200 bg-white hover:bg-neutral-50 shadow-sm px-3 text-neutral-700"
-                    title="Month"
+                    title={t("monthTitle")}
                   >
                     {Array.from({ length: 12 }).map((_, i) => (
                       <option key={i + 1} value={i + 1}>
-                        {new Date(2000, i, 1).toLocaleDateString(undefined, { month: "long" })}
+                        {new Date(2000, i, 1).toLocaleDateString(app.lang === "de" ? "de-DE" : "en-US", { month: "long" })}
                       </option>
                     ))}
                   </select>
 
                   <div className="relative col-span-2 sm:col-span-2">
-                    <MiniActionButton onClick={() => setCopyOpen((v) => !v)} title="Copy this month to next">
-                      Copy → Next
+                    <MiniActionButton onClick={() => setCopyOpen((v) => !v)} title={t("copyNextTitle")}>
+                      {t("copyNext")}
                     </MiniActionButton>
 
                     {copyOpen ? (
                       <div className="print:hidden absolute z-20 mt-2 w-full rounded-2xl border border-neutral-200 bg-white shadow-xl p-2">
                         <div className="grid grid-cols-1 gap-2">
                           <MiniActionButton tone="primary" onClick={() => copyMonthToNext("all")}>
-                            Copy ALL
+                            {t("copyAll")}
                           </MiniActionButton>
-                          <MiniActionButton onClick={() => copyMonthToNext("unpaid")}>Copy UNPAID only</MiniActionButton>
+                          <MiniActionButton onClick={() => copyMonthToNext("unpaid")}>{t("copyUnpaid")}</MiniActionButton>
                           <MiniActionButton tone="danger" onClick={() => setCopyOpen(false)}>
-                            Cancel
+                            {t("cancel")}
                           </MiniActionButton>
                         </div>
-                        <div className="mt-2 text-xs text-neutral-600">Note: copied items are set to unpaid in the new month.</div>
+                        <div className="mt-2 text-xs text-neutral-600">{t("copyNote")}</div>
                       </div>
                     ) : null}
                   </div>
 
-                  <MiniActionButton tone="danger" onClick={clearMonth} title="Clear this month">
-                    Clear
+                  <MiniActionButton tone="danger" onClick={clearMonth} title={t("clearMonthTitle")}>
+                    {t("clear")}
                   </MiniActionButton>
                 </div>
               </div>
 
               <div className="mt-3">
                 <div className="flex items-end justify-between gap-3">
-                  <div className="text-3xl sm:text-4xl font-black tracking-tight text-neutral-800">{monthLabel(app.activeMonth)}</div>
+                  <div className="text-3xl sm:text-4xl font-black tracking-tight text-neutral-800">{monthLabel(app.activeMonth, app.lang)}</div>
                   <div className="hidden sm:block text-xs text-neutral-500 font-medium tabular-nums">{app.activeMonth}</div>
                 </div>
                 <div className="mt-2 h-[2px] w-72 rounded-full bg-gradient-to-r from-[#D5FF00]/0 via-[#D5FF00] to-[#D5FF00]/0" />
@@ -1490,9 +1845,9 @@ export default function BudgitApp() {
               {/* Income */}
               <div className="rounded-2xl border border-neutral-200 bg-white">
                 <div className="px-4 py-3 border-b border-neutral-100 flex items-center justify-between">
-                  <div className="font-semibold text-neutral-800">Income</div>
+                  <div className="font-semibold text-neutral-800">{t("income")}</div>
                   <SmallButton tone="primary" onClick={addIncome}>
-                    + Add income
+                    {t("addIncome")}
                   </SmallButton>
                 </div>
 
@@ -1515,7 +1870,7 @@ export default function BudgitApp() {
                   />
 
                   {(active.incomes || []).length === 0 ? (
-                    <div className="text-sm text-neutral-700">No income items yet.</div>
+                    <div className="text-sm text-neutral-700">{t("noIncome")}</div>
                   ) : (
                     (active.incomes || []).map((i, idx) => (
                       <div key={i.id}>
@@ -1526,14 +1881,14 @@ export default function BudgitApp() {
                             onDragStart={(e) => setDragPayload({ type: "income", itemId: i.id }, e)}
                             onDragEnd={clearDragState}
                           >
-                            <DragHandle title="Drag income item" />
+                            <DragHandle title={t("dragIncomeTitle")} />
                           </div>
 
                           <input
                             className="col-span-6 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300"
                             value={i.name || ""}
                             onChange={(e) => updateIncome(i.id, { name: e.target.value })}
-                            placeholder="Income name"
+                            placeholder={t("incomeName")}
                             onFocus={(e) => {
                               try {
                                 e.target.select();
@@ -1570,12 +1925,12 @@ export default function BudgitApp() {
                             onChange={(e) => updateIncome(i.id, { amount: e.target.value })}
                             inputMode="decimal"
                             placeholder="0"
-                            title="Amount"
+                            title={t("amount")}
                           />
 
                           <button
-                            className="print:hidden col-span-1 h-10 rounded-xl border border-neutral-200 bg-neutral-50 hover:bg-neutral-100 px-3 text-neutral-700"
-                            title="Remove"
+                            className="print:hidden col-span-1 h-10 rounded-xl border border-neutral-200 bg-neutral-50 hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 px-3 text-neutral-700"
+                            title={t("removeTitle")}
                             onClick={() => deleteIncome(i.id)}
                           >
                             ×
@@ -1604,7 +1959,7 @@ export default function BudgitApp() {
 
                   {(active.incomes || []).length ? (
                     <div className="pt-3 mt-2 border-t border-neutral-100 flex items-center justify-between">
-                      <div className="text-sm text-neutral-700">Total income</div>
+                      <div className="text-sm text-neutral-700">{t("totalIncome")}</div>
                       <div className="font-semibold text-neutral-800">
                         <Money value={incomeTotal} />
                       </div>
@@ -1616,20 +1971,20 @@ export default function BudgitApp() {
               {/* Expenses */}
               <div className="rounded-2xl border border-neutral-200 bg-white">
                 <div className="px-4 py-3 border-b border-neutral-100 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="font-semibold text-neutral-800">Expenses</div>
+                  <div className="font-semibold text-neutral-800">{t("expenses")}</div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 w-full sm:w-auto">
                     <MiniActionButton tone="primary" onClick={addExpenseGroup}>
-                      + Add section
+                      {t("addSection")}
                     </MiniActionButton>
                     <TogglePill
                       on={hidePaid}
-                      labelOn="Hide paid"
-                      labelOff="Show paid"
-                      title="Toggle visibility of paid items"
+                      labelOn={t("hidePaid")}
+                      labelOff={t("showPaid")}
+                      title={t("togglePaidTitle")}
                       onClick={() => setHidePaid((v) => !v)}
                     />
-                    <MiniActionButton onClick={() => setCollapsed({})} title="Expand all sections">
-                      Expand all
+                    <MiniActionButton onClick={() => setCollapsed({})} title={t("expandAllTitle")}>
+                      {t("expandAll")}
                     </MiniActionButton>
                   </div>
                 </div>
@@ -1649,7 +2004,7 @@ export default function BudgitApp() {
                               <div className="flex items-center gap-2">
                                 <button
                                   type="button"
-                                  className="print:hidden h-10 w-10 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 shadow-sm flex items-center justify-center text-neutral-700"
+                                  className="print:hidden h-10 w-10 rounded-xl border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 shadow-sm flex items-center justify-center text-neutral-700"
                                   title={isCollapsed ? "Expand" : "Collapse"}
                                   onClick={() => setCollapsed((c) => ({ ...c, [g.id]: !c[g.id] }))}
                                 >
@@ -1661,51 +2016,51 @@ export default function BudgitApp() {
                                   value={g.label == null ? "" : g.label}
                                   onChange={(e) => updateExpenseGroupLabel(g.id, e.target.value)}
                                   onBlur={() => normalizeExpenseGroupLabel(g.id)}
-                                  placeholder="Section label (e.g., Loans)"
+                                  placeholder={t("sectionLabel")}
                                 />
 
                                 <div className="hidden md:block text-sm text-neutral-700">
-                                  {itemsCount} item{itemsCount === 1 ? "" : "s"} • Remaining:{" "}
+                                  {itemsCount} item{itemsCount === 1 ? "" : "s"} • {t("remainingExpenses")}:{" "}
                                   <span className="font-semibold text-neutral-800">€{groupRemainingTotal(g).toFixed(2)}</span>
                                   <span className="text-neutral-400"> • </span>
                                   Planned: <span className="font-medium">€{groupPlannedTotal(g).toFixed(2)}</span>
                                 </div>
                               </div>
 
-                              <SmallButton tone="primary" onClick={() => addExpenseItem(g.id)} className="whitespace-nowrap px-4 text-xs sm:text-sm">
-                                + Add item
+                              <SmallButton tone="primary" onClick={() => addExpenseItem(g.id)} className="whitespace-nowrap px-4 text-xs sm:text-sm" title="Add item">
+                                +
                               </SmallButton>
                             </div>
 
                             {/* ACTIONS TABLE (consistent sizes) */}
                             <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                              <MiniActionButton title="Sort by due day (earliest first)" onClick={() => sortGroupByDue(g.id)}>
-                                Sort due
+                              <MiniActionButton title={t("sortDueTitle")} onClick={() => sortGroupByDue(g.id)}>
+                                {t("sortDue")}
                               </MiniActionButton>
 
                               <TogglePill
                                 on={hidePaid}
-                                labelOn="Hide paid"
-                                labelOff="Show paid"
-                                title="Toggle visibility of paid items"
+                                labelOn={t("hidePaid")}
+                                labelOff={t("showPaid")}
+                                title={t("togglePaidTitle")}
                                 onClick={() => setHidePaid((v) => !v)}
                               />
 
-                              <MiniActionButton title="Remove all PAID items in this section" onClick={() => clearPaidInGroup(g.id)}>
-                                Clear paid
+                              <MiniActionButton title={t("clearPaidTitle")} onClick={() => clearPaidInGroup(g.id)}>
+                                {t("clearPaid")}
                               </MiniActionButton>
 
-                              <MiniActionButton tone="danger" title="Clear ALL items in this section" onClick={() => clearGroupItems(g.id)}>
-                                Clear items
+                              <MiniActionButton tone="danger" title={t("clearItemsTitle")} onClick={() => clearGroupItems(g.id)}>
+                                {t("clearItems")}
                               </MiniActionButton>
 
-                              <MiniActionButton tone="danger" title="Delete this section and all its items" onClick={() => deleteExpenseGroup(g.id)}>
-                                Delete section
+                              <MiniActionButton tone="danger" title={t("deleteSectionTitle")} onClick={() => deleteExpenseGroup(g.id)}>
+                                {t("deleteSection")}
                               </MiniActionButton>
                             </div>
 
                             <div className="md:hidden text-sm text-neutral-700">
-                              {itemsCount} item{itemsCount === 1 ? "" : "s"} • Remaining:{" "}
+                              {itemsCount} item{itemsCount === 1 ? "" : "s"} • {t("remainingExpenses")}:{" "}
                               <span className="font-semibold text-neutral-800">€{groupRemainingTotal(g).toFixed(2)}</span>
                               <span className="text-neutral-400"> • </span>
                               Planned: <span className="font-medium">€{groupPlannedTotal(g).toFixed(2)}</span>
@@ -1733,7 +2088,7 @@ export default function BudgitApp() {
                             />
 
                             {itemsVisible.length === 0 ? (
-                              <div className="text-sm text-neutral-700">No items in this section.</div>
+                              <div className="text-sm text-neutral-700">{t("noItemsSection")}</div>
                             ) : (
                               itemsVisible.map((e, idx) => (
                                 <div key={e.id}>
@@ -1744,7 +2099,7 @@ export default function BudgitApp() {
                                       onDragStart={(ev) => setDragPayload({ type: "expense", fromGroupId: g.id, itemId: e.id }, ev)}
                                       onDragEnd={clearDragState}
                                     >
-                                      <DragHandle title="Drag expense item" />
+                                      <DragHandle title={t("dragExpenseTitle")} />
                                     </div>
 
                                     <div className="col-span-1">
@@ -1752,12 +2107,12 @@ export default function BudgitApp() {
                                     </div>
 
                                     <input
-                                      className={`col-span-4 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300 ${
+                                      className={`col-span-3 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300 ${
                                         e.paid ? "line-through text-neutral-600" : ""
                                       }`}
                                       value={e.name || ""}
                                       onChange={(ev) => updateExpenseItem(g.id, e.id, { name: ev.target.value })}
-                                      placeholder="Expense name"
+                                      placeholder={t("expenseName")}
                                       onFocus={(ev) => {
                                         try {
                                           ev.target.select();
@@ -1794,20 +2149,22 @@ export default function BudgitApp() {
                                       onChange={(ev) => updateExpenseItem(g.id, e.id, { amount: ev.target.value })}
                                       inputMode="decimal"
                                       placeholder="0"
-                                      title="Amount"
+                                      title={t("amount")}
                                     />
 
-                                    <div className="col-span-2">
+                                    <div className="col-span-3">
                                       <DuePicker
                                         ym={app.activeMonth}
                                         value={e.dueDay}
                                         onChange={(due) => updateExpenseItem(g.id, e.id, { dueDay: due })}
+                                        lang={app.lang}
+                                        t={t}
                                       />
                                     </div>
 
                                     <button
-                                      className="print:hidden col-span-1 h-10 rounded-xl border border-neutral-200 bg-neutral-50 hover:bg-neutral-100 px-3 text-neutral-700"
-                                      title="Remove"
+                                      className="print:hidden col-span-1 h-10 rounded-xl border border-neutral-200 bg-neutral-50 hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 px-3 text-neutral-700"
+                                      title={t("removeTitle")}
                                       onClick={() => deleteExpenseItem(g.id, e.id)}
                                     >
                                       ×
@@ -1851,7 +2208,7 @@ export default function BudgitApp() {
                               clearDragState();
                             }}
                           >
-                            Collapsed. Drop an item here to move it into this section.
+                            {t("collapsedDrop")}
                           </div>
                         )}
                       </div>
@@ -1859,12 +2216,12 @@ export default function BudgitApp() {
                   })}
 
                   {(active.expenseGroups || []).length === 0 ? (
-                    <div className="text-sm text-neutral-700">No expense sections yet. Click “Add section”.</div>
+                    <div className="text-sm text-neutral-700">{t("noExpenses")}</div>
                   ) : (
                     <div className="pt-3 mt-2 border-t border-neutral-100 flex items-center justify-between">
                       <div>
-                        <div className="text-sm text-neutral-700">Remaining expenses</div>
-                        <div className="text-xs text-neutral-600">Planned: €{expensePlannedTotal.toFixed(2)}</div>
+                        <div className="text-sm text-neutral-700">{t("remainingExpenses")}</div>
+                        <div className="text-xs text-neutral-600">{t("plannedExpenses")}: €{expensePlannedTotal.toFixed(2)}</div>
                       </div>
                       <div className="font-semibold text-neutral-800">
                         <Money value={expenseRemainingTotal} />
@@ -1877,14 +2234,14 @@ export default function BudgitApp() {
               {/* Notes */}
               <div className="rounded-2xl border border-neutral-200 bg-white">
                 <div className="px-4 py-3 border-b border-neutral-100">
-                  <div className="font-semibold text-neutral-800">Notes</div>
+                  <div className="font-semibold text-neutral-800">{t("notes")}</div>
                 </div>
                 <div className="p-4">
                   <textarea
                     className="w-full rounded-xl border border-neutral-200 px-3 py-2 bg-white min-h-[90px] text-neutral-800 focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300"
                     value={active.notes || ""}
                     onChange={(e) => updateNotes(e.target.value)}
-                    placeholder="Optional notes for this month…"
+                    placeholder={t("notesPlaceholder")}
                   />
                 </div>
               </div>
@@ -1894,53 +2251,53 @@ export default function BudgitApp() {
           {/* Summary */}
           <div className="rounded-2xl bg-white shadow-sm border border-neutral-200 print:shadow-none">
             <div className="px-4 py-3 border-b border-neutral-100">
-              <div className="font-semibold text-neutral-800">Summary</div>
+              <div className="font-semibold text-neutral-800">{t("summary")}</div>
             </div>
             <div className="p-4 space-y-4">
               <div className="rounded-2xl border border-neutral-200 p-4">
-                <div className="text-sm text-neutral-700">Total income</div>
+                <div className="text-sm text-neutral-700">{t("totalIncome")}</div>
                 <div className="text-2xl font-semibold text-neutral-800 mt-1">
                   <Money value={incomeTotal} />
                 </div>
               </div>
 
               <div className="rounded-2xl border border-neutral-200 p-4">
-                <div className="text-sm text-neutral-700">Remaining expenses</div>
+                <div className="text-sm text-neutral-700">{t("remainingExpenses")}</div>
                 <div className="text-2xl font-semibold text-neutral-800 mt-1">
                   <Money value={expenseRemainingTotal} />
                 </div>
-                <div className="text-xs text-neutral-600 mt-2">Planned expenses: €{expensePlannedTotal.toFixed(2)}</div>
+                <div className="text-xs text-neutral-600 mt-2">{t("plannedExpenses")}: €{expensePlannedTotal.toFixed(2)}</div>
               </div>
 
               <div className={`rounded-2xl border p-4 ${netRemaining >= 0 ? "border-emerald-200" : "border-red-200"}`}>
-                <div className="text-sm text-neutral-700">Net (after remaining)</div>
+                <div className="text-sm text-neutral-700">{t("netRemaining")}</div>
                 <div className="text-2xl font-semibold text-neutral-800 mt-1">
                   <Money value={netRemaining} />
                 </div>
                 <div className="text-xs text-neutral-700 mt-2">
-                  Savings rate: <span className="font-medium">{savingsRate.toFixed(1)}%</span>
+                  {t("savingsRate")}: <span className="font-medium">{savingsRate.toFixed(1)}%</span>
                 </div>
               </div>
 
               <div className="rounded-2xl border border-neutral-200 p-4">
-                <div className="text-sm text-neutral-700">Quick view</div>
+                <div className="text-sm text-neutral-700">{t("quickView")}</div>
                 <div className="mt-2 text-sm text-neutral-700 space-y-1">
                   <div className="flex items-center justify-between">
-                    <span>Sections</span>
+                    <span>{t("sections")}</span>
                     <span className="font-medium text-neutral-800">{(active.expenseGroups || []).length}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span>Expense items</span>
+                    <span>{t("expenseItems")}</span>
                     <span className="font-medium text-neutral-800">{(active.expenseGroups || []).reduce((s, gg) => s + (gg.items || []).length, 0)}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span>Unpaid items</span>
+                    <span>{t("unpaidItems")}</span>
                     <span className="font-medium text-neutral-800">{(active.expenseGroups || []).reduce((s, gg) => s + (gg.items || []).filter((it) => !it.paid).length, 0)}</span>
                   </div>
                 </div>
               </div>
 
-              <div className="text-xs text-neutral-600">Tip: Paid items don’t count toward remaining expenses. Use “Hide paid” to keep lists clean.</div>
+              <div className="text-xs text-neutral-600">{t("tip")}</div>
             </div>
           </div>
         </div>
