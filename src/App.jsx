@@ -161,7 +161,7 @@ const lsSet = (key, value) => {
 function SmallButton({ children, onClick, tone = "default", className = "", disabled, title, type = "button" }) {
   const cls =
     tone === "primary"
-      ? "bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 text-neutral-700 border-neutral-200 shadow-sm"
+      ? "bg-[#D5FF00]/30 border-[#D5FF00]/30 text-neutral-800 shadow-sm hover:bg-white hover:border-neutral-200"
       : tone === "danger"
         ? "bg-red-50 hover:bg-red-100 text-red-700 border-red-200 shadow-sm"
         : "bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 text-neutral-700 border-neutral-200 shadow-sm";
@@ -186,7 +186,7 @@ const ACTION_BASE =
 function ActionButton({ children, onClick, tone = "default", disabled, title }) {
   const cls =
     tone === "primary"
-      ? "bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 text-neutral-700 border-neutral-200"
+      ? "bg-[#D5FF00]/30 border-[#D5FF00]/30 text-neutral-800 hover:bg-white hover:border-neutral-200"
       : tone === "danger"
         ? "bg-red-50 hover:bg-red-100 text-red-700 border-red-200"
         : "bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 text-neutral-700 border-neutral-200";
@@ -201,7 +201,7 @@ function ActionButton({ children, onClick, tone = "default", disabled, title }) 
 function ActionFileButton({ children, onFile, accept = "application/json", tone = "primary", title }) {
   const cls =
     tone === "primary"
-      ? "bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 text-neutral-700 border-neutral-200"
+      ? "bg-[#D5FF00]/30 border-[#D5FF00]/30 text-neutral-800 hover:bg-white hover:border-neutral-200"
       : "bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 text-neutral-700 border-neutral-200";
 
   return (
@@ -223,7 +223,7 @@ function ActionFileButton({ children, onFile, accept = "application/json", tone 
 function MiniActionButton({ children, onClick, tone = "default", disabled, title, className = "" }) {
   const cls =
     tone === "primary"
-      ? "bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 text-neutral-700 border-neutral-200"
+      ? "bg-[#D5FF00]/30 border-[#D5FF00]/30 text-neutral-800 hover:bg-white hover:border-neutral-200"
       : tone === "danger"
         ? "bg-red-50 hover:bg-red-100 text-red-700 border-red-200"
         : "bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 text-neutral-700 border-neutral-200";
@@ -1134,9 +1134,6 @@ export default function BudgitApp() {
   const [helpOpen, setHelpOpen] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
 
-  // Collapsed expense groups (UI-only)
-  const [collapsed, setCollapsed] = useState(() => ({}));
-
   // Hide paid items (UI-only)
   const [hidePaid, setHidePaid] = useState(true);
 
@@ -1271,7 +1268,6 @@ export default function BudgitApp() {
       ...cur,
       expenseGroups: [group, ...(cur.expenseGroups || [])],
     }));
-    setCollapsed((c) => ({ ...c, [newId]: false }));
   };
 
   const updateExpenseGroupLabel = (groupId, label) => {
@@ -1300,12 +1296,6 @@ export default function BudgitApp() {
         expenseGroups: next.length ? next : [{ id: uid(), label: "General", items: [] }],
       };
     });
-
-    setCollapsed((c) => {
-      const n = { ...(c || {}) };
-      delete n[groupId];
-      return n;
-    });
   };
 
   const addExpenseItem = (groupId) => {
@@ -1314,7 +1304,6 @@ export default function BudgitApp() {
       ...cur,
       expenseGroups: (cur.expenseGroups || []).map((g) => (g.id === groupId ? { ...g, items: [item, ...(g.items || [])] } : g)),
     }));
-    setCollapsed((c) => ({ ...c, [groupId]: false }));
     setLastAdded({ kind: "expense", groupId, id: item.id });
   };
 
@@ -1361,8 +1350,6 @@ export default function BudgitApp() {
       toG.items.splice(clamp(insertAt, 0, toG.items.length), 0, moved);
       return { ...cur, expenseGroups: groups };
     });
-
-    setCollapsed((c) => ({ ...c, [toGroupId]: false }));
   };
 
   const moveExpenseGroupInsert = (groupId, toIndex) => {
@@ -1443,7 +1430,6 @@ export default function BudgitApp() {
       });
       return { ...a, months };
     });
-    setCollapsed({});
     notify(t("monthCleared"));
   };
 
@@ -1518,7 +1504,6 @@ export default function BudgitApp() {
     next.months[next.activeMonth] = normalizeMonthData(next.months[next.activeMonth]);
 
     setApp(next);
-    setCollapsed({});
     notify(t("imported"));
   };
 
@@ -1670,30 +1655,38 @@ export default function BudgitApp() {
       ) : null}
 
       {previewOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setPreviewOpen(false)} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8 print:p-0">
+          <div className="absolute inset-0 bg-neutral-900/40 backdrop-blur-sm transition-opacity print:hidden" onClick={() => setPreviewOpen(false)} />
 
-          <div className="relative w-full max-w-4xl">
-            <div className="flex items-center justify-between gap-3 mb-3">
-              <div className="text-lg font-semibold text-white">{t("printPreview")}</div>
-              <div className="flex items-center gap-2">
+          <div className="relative w-full max-w-4xl bg-white rounded-[32px] shadow-2xl overflow-hidden ring-1 ring-black/5 transform transition-all flex flex-col max-h-[90vh] print:max-h-none print:rounded-none print:shadow-none print:overflow-visible">
+            
+            <div className="px-8 pt-8 pb-6 flex items-start justify-between shrink-0 print:hidden">
+              <div>
+                <div className="inline-block">
+                  <div className="font-bold text-3xl text-neutral-900 tracking-tight">{t("printPreview")}</div>
+                  <div className="mt-2 h-1 w-full rounded-full bg-[#D5FF00]" />
+                </div>
+                <div className="text-sm text-neutral-500 mt-3 font-medium max-w-md">{t("previewTip")}</div>
+              </div>
+              <div className="flex items-center gap-3">
                 <button
-                  className="px-3 py-2 rounded-xl text-sm font-medium border border-white/40 bg-white/10 hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 text-white transition"
                   onClick={() => window.print()}
+                  className="h-10 px-5 rounded-full bg-[#D5FF00] hover:bg-[#c7f000] text-neutral-900 font-bold text-sm transition flex items-center gap-2 shadow-sm active:scale-[0.98]"
                 >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
                   {t("printSave")}
                 </button>
                 <button
-                  className="px-3 py-2 rounded-xl text-sm font-medium border border-white/40 bg-white/10 hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 text-white transition"
                   onClick={() => setPreviewOpen(false)}
+                  className="h-10 w-10 rounded-full bg-neutral-100 hover:bg-[#D5FF00] hover:text-neutral-900 flex items-center justify-center text-neutral-600 transition"
                 >
-                  {t("close")}
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
               </div>
             </div>
 
-            <div className="rounded-2xl bg-white border border-neutral-200 shadow-lg overflow-auto max-h-[80vh]">
-              <div id="budgit-print-preview" className="p-6">
+            <div className="overflow-y-auto p-8 pt-0 print:p-0 print:overflow-visible">
+              <div id="budgit-print-preview" className="p-8 border border-neutral-100 rounded-2xl bg-white print:border-none print:p-0 print:rounded-none">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <div className="text-2xl font-semibold text-neutral-800">Budgit</div>
@@ -1787,7 +1780,7 @@ export default function BudgitApp() {
                 </div>
 
                 <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className={`rounded-2xl border p-4 ${netRemaining >= 0 ? "border-emerald-200" : "border-red-200"}`}>
+                  <div className={`rounded-2xl border p-4 ${netRemaining >= 0 ? "border-[#D5FF00]" : "border-red-200"}`}>
                     <div className="text-sm text-neutral-700">{t("netRemaining")}</div>
                     <div className="text-2xl font-semibold text-neutral-800 mt-1">
                       <Money value={netRemaining} />
@@ -1802,8 +1795,6 @@ export default function BudgitApp() {
                     <div className="mt-2 whitespace-pre-wrap text-neutral-800 text-sm">{String(active.notes || "").trim() ? active.notes : t("none")}</div>
                   </div>
                 </div>
-
-                <div className="mt-4 text-xs text-neutral-600">{t("previewTip")}</div>
               </div>
             </div>
           </div>
@@ -2023,7 +2014,7 @@ export default function BudgitApp() {
                           />
 
                           <button
-                            className="print:hidden col-span-1 h-10 rounded-xl border border-neutral-200 bg-neutral-50 hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 px-3 text-neutral-700"
+                            className="print:hidden col-span-1 h-10 rounded-xl border border-red-500/30 bg-red-500/30 hover:bg-white hover:border-neutral-200 hover:text-neutral-800 px-3 text-red-900 shadow-sm"
                             title={t("removeTitle")}
                             onClick={() => deleteIncome(i.id)}
                           >
@@ -2066,7 +2057,7 @@ export default function BudgitApp() {
               <div className="rounded-2xl border border-neutral-200 bg-white">
                 <div className="px-4 py-3 border-b border-neutral-100 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div className="font-semibold text-neutral-800">{t("expenses")}</div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full sm:w-auto">
+                  <div className="grid grid-cols-2 sm:grid-cols-2 gap-2 w-full sm:w-auto">
                     <MiniActionButton tone="primary" onClick={addExpenseGroup}>
                       {t("addSection")}
                     </MiniActionButton>
@@ -2077,21 +2068,6 @@ export default function BudgitApp() {
                       title={t("togglePaidTitle")}
                       onClick={() => setHidePaid((v) => !v)}
                     />
-                    <MiniActionButton onClick={() => setCollapsed({})} title={t("expandAllTitle")}>
-                      {t("expandAll")}
-                    </MiniActionButton>
-                    <MiniActionButton
-                      onClick={() => {
-                        const all = {};
-                        (active.expenseGroups || []).forEach((g) => {
-                          all[g.id] = true;
-                        });
-                        setCollapsed(all);
-                      }}
-                      title={t("collapseAllTitle")}
-                    >
-                      {t("collapseAll")}
-                    </MiniActionButton>
                   </div>
                 </div>
 
@@ -2114,7 +2090,6 @@ export default function BudgitApp() {
                   />
 
                   {(active.expenseGroups || []).map((g, gIdx) => {
-                    const isCollapsed = !!collapsed[g.id];
                     const allItems = g.items || [];
                     const itemsVisible = hidePaid ? allItems.filter((it) => !it.paid) : allItems;
                     const itemsCount = allItems.length;
@@ -2133,15 +2108,6 @@ export default function BudgitApp() {
                                 >
                                   <DragHandle title={t("dragSectionTitle")} />
                                 </div>
-
-                                <button
-                                  type="button"
-                                  className="print:hidden h-10 w-10 rounded-xl border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 shadow-sm flex items-center justify-center text-neutral-700"
-                                  title={isCollapsed ? "Expand" : "Collapse"}
-                                  onClick={() => setCollapsed((c) => ({ ...c, [g.id]: !c[g.id] }))}
-                                >
-                                  <span className="text-lg leading-none">{isCollapsed ? "▸" : "▾"}</span>
-                                </button>
 
                                 <input
                                   className="w-[240px] max-w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 font-semibold text-neutral-800 focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300"
@@ -2200,7 +2166,6 @@ export default function BudgitApp() {
                           </div>
                         </div>
 
-                        {!isCollapsed ? (
                           <div className="p-3 space-y-2">
                             <InsertDropZone
                               active={dropHint && dropHint.type === "expenseInsert" && dropHint.groupId === g.id && dropHint.index === 0}
@@ -2295,7 +2260,7 @@ export default function BudgitApp() {
                                     </div>
 
                                     <button
-                                      className="print:hidden col-span-1 h-10 rounded-xl border border-neutral-200 bg-neutral-50 hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 px-3 text-neutral-700"
+                                      className="print:hidden col-span-1 h-10 rounded-xl border border-red-500/30 bg-red-500/30 hover:bg-white hover:border-neutral-200 hover:text-neutral-800 px-3 text-red-900 shadow-sm"
                                       title={t("removeTitle")}
                                       onClick={() => deleteExpenseItem(g.id, e.id)}
                                     >
@@ -2323,26 +2288,6 @@ export default function BudgitApp() {
                               ))
                             )}
                           </div>
-                        ) : (
-                          <div
-                            className="p-3 text-sm text-neutral-700"
-                            onDragOver={(e) => {
-                              const p = readDragPayload(e);
-                              if (!p || p.type !== "expense") return;
-                              e.preventDefault();
-                              setDropHint({ type: "expenseInsert", groupId: g.id, index: (g.items || []).length });
-                            }}
-                            onDrop={(e) => {
-                              const p = readDragPayload(e);
-                              if (!p || p.type !== "expense") return;
-                              e.preventDefault();
-                              moveExpenseInsert(p.fromGroupId, p.itemId, g.id, (g.items || []).length);
-                              clearDragState();
-                            }}
-                          >
-                            {t("collapsedDrop")}
-                          </div>
-                        )}
                         </div>
                         <InsertDropZone
                           active={dropHint && dropHint.type === "groupInsert" && dropHint.index === gIdx + 1}
@@ -2418,7 +2363,7 @@ export default function BudgitApp() {
                 <div className="text-xs text-neutral-600 mt-2">{t("plannedExpenses")}: €{expensePlannedTotal.toFixed(2)}</div>
               </div>
 
-              <div className={`rounded-2xl border p-4 ${netRemaining >= 0 ? "border-emerald-200" : "border-red-200"}`}>
+              <div className={`rounded-2xl border p-4 ${netRemaining >= 0 ? "border-[#D5FF00]" : "border-red-200"}`}>
                 <div className="text-sm text-neutral-700">{t("netRemaining")}</div>
                 <div className="text-2xl font-semibold text-neutral-800 mt-1">
                   <Money value={netRemaining} />
