@@ -161,7 +161,7 @@ const lsSet = (key, value) => {
 function SmallButton({ children, onClick, tone = "default", className = "", disabled, title, type = "button" }) {
   const cls =
     tone === "primary"
-      ? "bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 text-neutral-700 border-neutral-200 shadow-sm"
+      ? "bg-white hover:bg-[#D5FF00]/30 hover:text-neutral-800 text-neutral-700 border-[#D5FF00] shadow-sm"
       : tone === "danger"
         ? "bg-red-50 hover:bg-red-100 text-red-700 border-red-200 shadow-sm"
         : "bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 text-neutral-700 border-neutral-200 shadow-sm";
@@ -802,6 +802,7 @@ const TRANSLATIONS = {
     hidePaid: "Hide paid",
     showPaid: "Show paid",
     expandAll: "Expand all",
+    collapseAll: "Collapse all",
     sortDue: "Sort due",
     clearPaid: "Clear paid",
     clearItems: "Clear items",
@@ -882,6 +883,7 @@ const TRANSLATIONS = {
     previewTip: "Tip: If the preview looks right, hit “Print / Save PDF” and choose “Save as PDF”.",
     togglePaidTitle: "Toggle visibility of paid items",
     expandAllTitle: "Expand all sections",
+    collapseAllTitle: "Collapse all sections",
     copyNextTitle: "Copy this month to next",
     clearMonthTitle: "Clear this month",
     prevMonthTitle: "Previous month",
@@ -922,6 +924,7 @@ const TRANSLATIONS = {
     hidePaid: "Bezahlte ausblenden",
     showPaid: "Bezahlte anzeigen",
     expandAll: "Alle erweitern",
+    collapseAll: "Alle einklappen",
     sortDue: "Fälligkeit sort.",
     clearPaid: "Bezahlte leeren",
     clearItems: "Elemente leeren",
@@ -1002,6 +1005,7 @@ const TRANSLATIONS = {
     previewTip: "Tipp: Wenn die Vorschau korrekt aussieht, klicken Sie auf „Drucken / PDF speichern“ und wählen Sie „Als PDF speichern“.",
     togglePaidTitle: "Sichtbarkeit bezahlter Elemente umschalten",
     expandAllTitle: "Alle Abschnitte erweitern",
+    collapseAllTitle: "Alle Abschnitte einklappen",
     copyNextTitle: "Diesen Monat in den nächsten kopieren",
     clearMonthTitle: "Diesen Monat leeren",
     prevMonthTitle: "Vorheriger Monat",
@@ -1989,7 +1993,7 @@ export default function BudgitApp() {
               <div className="rounded-2xl border border-neutral-200 bg-white">
                 <div className="px-4 py-3 border-b border-neutral-100 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div className="font-semibold text-neutral-800">{t("expenses")}</div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 w-full sm:w-auto">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full sm:w-auto">
                     <MiniActionButton tone="primary" onClick={addExpenseGroup}>
                       {t("addSection")}
                     </MiniActionButton>
@@ -2002,6 +2006,18 @@ export default function BudgitApp() {
                     />
                     <MiniActionButton onClick={() => setCollapsed({})} title={t("expandAllTitle")}>
                       {t("expandAll")}
+                    </MiniActionButton>
+                    <MiniActionButton
+                      onClick={() => {
+                        const all = {};
+                        (active.expenseGroups || []).forEach((g) => {
+                          all[g.id] = true;
+                        });
+                        setCollapsed(all);
+                      }}
+                      title={t("collapseAllTitle")}
+                    >
+                      {t("collapseAll")}
                     </MiniActionButton>
                   </div>
                 </div>
