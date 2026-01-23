@@ -550,7 +550,7 @@ function DuePicker({ ym, value, onChange, lang = "en", t }) {
 function InsertDropZone({ active, onDragOver, onDrop }) {
   return (
     <div
-      className={`print:hidden h-2 rounded-xl transition ${active ? "bg-lime-200" : "bg-transparent"}`}
+      className={`print:hidden h-3 rounded-xl transition-colors duration-200 ${active ? "bg-lime-300 ring-2 ring-lime-100" : "bg-transparent"}`}
       onDragOver={onDragOver}
       onDrop={onDrop}
     />
@@ -889,6 +889,7 @@ const TRANSLATIONS = {
     yearTitle: "Year",
     monthTitle: "Month",
     dragIncomeTitle: "Drag income item",
+    dragSectionTitle: "Drag section",
     removeTitle: "Remove",
     sortDueTitle: "Sort by due day (earliest first)",
     clearPaidTitle: "Remove all PAID items in this section",
@@ -1008,6 +1009,7 @@ const TRANSLATIONS = {
     yearTitle: "Jahr",
     monthTitle: "Monat",
     dragIncomeTitle: "Einkommenselement ziehen",
+    dragSectionTitle: "Abschnitt ziehen",
     removeTitle: "Entfernen",
     sortDueTitle: "Nach Fälligkeit sortieren (früheste zuerst)",
     clearPaidTitle: "Alle BEZAHLTEN Elemente in diesem Abschnitt entfernen",
@@ -1286,6 +1288,21 @@ export default function BudgitApp() {
     setCollapsed((c) => ({ ...c, [toGroupId]: false }));
   };
 
+  const moveExpenseGroupInsert = (groupId, toIndex) => {
+    updateMonth((cur) => {
+      const groups = [...(cur.expenseGroups || [])];
+      const fromIndex = groups.findIndex((g) => g.id === groupId);
+      if (fromIndex < 0) return cur;
+
+      const moved = groups.splice(fromIndex, 1)[0];
+      let insertAt = clamp(toIndex, 0, groups.length);
+      if (fromIndex < insertAt) insertAt = insertAt - 1;
+
+      groups.splice(clamp(insertAt, 0, groups.length), 0, moved);
+      return { ...cur, expenseGroups: groups };
+    });
+  };
+
   const clearPaidInGroup = (groupId) => {
     updateMonth((cur) => ({
       ...cur,
@@ -1442,7 +1459,7 @@ export default function BudgitApp() {
     } catch (err) {
       // ignore
     }
-    setDrag(payload);
+    setTimeout(() => setDrag(payload), 0);
   };
 
   const readDragPayload = (e) => {
@@ -1990,18 +2007,44 @@ export default function BudgitApp() {
                 </div>
 
                 <div className="p-4 space-y-3">
-                  {(active.expenseGroups || []).map((g) => {
+                  <InsertDropZone
+                    active={dropHint && dropHint.type === "groupInsert" && dropHint.index === 0}
+                    onDragOver={(e) => {
+                      const p = readDragPayload(e);
+                      if (!p || p.type !== "expenseGroup") return;
+                      e.preventDefault();
+                      setDropHint({ type: "groupInsert", index: 0 });
+                    }}
+                    onDrop={(e) => {
+                      const p = readDragPayload(e);
+                      if (!p || p.type !== "expenseGroup") return;
+                      e.preventDefault();
+                      moveExpenseGroupInsert(p.groupId, 0);
+                      clearDragState();
+                    }}
+                  />
+
+                  {(active.expenseGroups || []).map((g, gIdx) => {
                     const isCollapsed = !!collapsed[g.id];
                     const allItems = g.items || [];
                     const itemsVisible = hidePaid ? allItems.filter((it) => !it.paid) : allItems;
                     const itemsCount = allItems.length;
 
                     return (
-                      <div key={g.id} className="rounded-2xl border border-neutral-200 overflow-hidden">
+                      <div key={g.id}>
+                        <div className="rounded-2xl border border-neutral-200 overflow-hidden">
                         <div className="px-3 py-3 border-b border-neutral-100">
                           <div className="flex flex-col gap-3">
                             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                               <div className="flex items-center gap-2">
+                                <div
+                                  draggable
+                                  onDragStart={(e) => setDragPayload({ type: "expenseGroup", groupId: g.id }, e)}
+                                  onDragEnd={clearDragState}
+                                >
+                                  <DragHandle title={t("dragSectionTitle")} />
+                                </div>
+
                                 <button
                                   type="button"
                                   className="print:hidden h-10 w-10 rounded-xl border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 shadow-sm flex items-center justify-center text-neutral-700"
@@ -2211,6 +2254,23 @@ export default function BudgitApp() {
                             {t("collapsedDrop")}
                           </div>
                         )}
+                        </div>
+                        <InsertDropZone
+                          active={dropHint && dropHint.type === "groupInsert" && dropHint.index === gIdx + 1}
+                          onDragOver={(e) => {
+                            const p = readDragPayload(e);
+                            if (!p || p.type !== "expenseGroup") return;
+                            e.preventDefault();
+                            setDropHint({ type: "groupInsert", index: gIdx + 1 });
+                          }}
+                          onDrop={(e) => {
+                            const p = readDragPayload(e);
+                            if (!p || p.type !== "expenseGroup") return;
+                            e.preventDefault();
+                            moveExpenseGroupInsert(p.groupId, gIdx + 1);
+                            clearDragState();
+                          }}
+                        />
                       </div>
                     );
                   })}
