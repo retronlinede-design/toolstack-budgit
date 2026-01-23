@@ -161,7 +161,7 @@ const lsSet = (key, value) => {
 function SmallButton({ children, onClick, tone = "default", className = "", disabled, title, type = "button" }) {
   const cls =
     tone === "primary"
-      ? "bg-white hover:bg-[#D5FF00]/30 hover:text-neutral-800 text-neutral-700 border-[#D5FF00] shadow-sm"
+      ? "bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 text-neutral-700 border-neutral-200 shadow-sm"
       : tone === "danger"
         ? "bg-red-50 hover:bg-red-100 text-red-700 border-red-200 shadow-sm"
         : "bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 text-neutral-700 border-neutral-200 shadow-sm";
@@ -586,74 +586,101 @@ function TogglePill({ on, labelOn = "On", labelOff = "Off", onClick, title }) {
 function HelpModal({ open, onClose, t }) {
   if (!open) return null;
 
+  const CloseIcon = () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  );
+
+  const Section = ({ title, children }) => (
+    <div className="rounded-2xl bg-[#D5FF00]/30 p-5 border border-neutral-100">
+      <div className="font-bold text-neutral-900 text-sm mb-2">{title}</div>
+      <div className="text-sm text-neutral-600 leading-relaxed space-y-2">
+        {children}
+      </div>
+    </div>
+  );
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8 print:hidden">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative w-full max-w-2xl rounded-2xl bg-white border border-neutral-200 shadow-xl overflow-hidden">
-        <div className="p-4 border-b border-neutral-100 flex items-start justify-between gap-4">
+      <div className="absolute inset-0 bg-neutral-900/40 backdrop-blur-sm transition-opacity" onClick={onClose} />
+      <div className="relative w-full max-w-2xl bg-white rounded-[32px] shadow-2xl overflow-hidden ring-1 ring-black/5 transform transition-all flex flex-col max-h-[85vh]">
+        
+        <div className="px-8 pt-8 pb-6 flex items-start justify-between shrink-0">
           <div>
-            <div className="text-lg font-semibold text-neutral-800">{t("helpTitle")}</div>
-            <div className="text-sm text-neutral-700 mt-1">{t("helpSubtitle")}</div>
-            <div className="mt-3 h-[2px] w-56 rounded-full bg-gradient-to-r from-lime-400/0 via-lime-400 to-emerald-400/0" />
+            <div className="inline-block">
+              <div className="font-bold text-3xl text-neutral-900 tracking-tight">{t("helpTitle")}</div>
+              <div className="mt-2 h-1 w-full rounded-full bg-[#D5FF00]" />
+            </div>
+            <div className="text-base text-neutral-500 mt-3 font-medium">{t("helpSubtitle")}</div>
           </div>
           <button
-            type="button"
-            className="px-3 py-2 rounded-xl text-sm font-medium border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 text-neutral-800 transition"
             onClick={onClose}
+            className="h-10 w-10 rounded-full bg-neutral-100 hover:bg-[#D5FF00] hover:text-neutral-900 flex items-center justify-center text-neutral-600 transition shrink-0"
           >
-            {t("close")}
+            <CloseIcon />
           </button>
         </div>
 
-        <div className="p-4 space-y-4">
-          <div className="rounded-2xl border border-neutral-200 p-4">
-            <div className="font-semibold text-neutral-800">{t("autosave")}</div>
-            <div className="text-sm text-neutral-700 mt-1">
-              {t("autosaveDesc")}
-              <span className="ml-2 font-mono text-xs bg-neutral-50 border border-neutral-200 rounded-lg px-2 py-1">{LS_KEY}</span>
-            </div>
-            <div className="text-xs text-neutral-600 mt-2">{t("autosaveWarn")}</div>
-          </div>
+        <div className="px-8 pb-8 overflow-y-auto">
+          <div className="space-y-4">
+            <Section title={t("autosave")}>
+              <p>
+                {t("autosaveDesc")}
+                <span className="ml-2 font-mono text-xs bg-white border border-neutral-200 rounded-lg px-2 py-1 text-neutral-500">{LS_KEY}</span>
+              </p>
+              <p className="text-orange-600/80 font-medium text-xs bg-orange-50 p-2 rounded-lg border border-orange-100 inline-block">
+                {t("autosaveWarn")}
+              </p>
+            </Section>
 
-          <div className="rounded-2xl border border-neutral-200 p-4">
-            <div className="font-semibold text-neutral-800">{t("bestPractice")}</div>
-            <ul className="mt-2 space-y-2 text-sm text-neutral-700 list-disc pl-5">
-              <li>
-                {t("bp1")} <span className="font-semibold">{t("data")}</span> {t("bp1b")}
-              </li>
-              <li>{t("bp2")}</li>
-              <li>
-                {t("bp3")} <span className="font-semibold">{t("import")}</span> {t("bp3b")}
-              </li>
-            </ul>
-          </div>
+            <Section title={t("bestPractice")}>
+              <ul className="list-disc pl-4 space-y-1 marker:text-neutral-400">
+                <li>
+                  {t("bp1")} <span className="font-semibold text-neutral-800">{t("data")}</span> {t("bp1b")}
+                </li>
+                <li>{t("bp2")}</li>
+                <li>
+                  {t("bp3")} <span className="font-semibold text-neutral-800">{t("import")}</span> {t("bp3b")}
+                </li>
+              </ul>
+            </Section>
 
-          <div className="rounded-2xl border border-neutral-200 p-4">
-            <div className="font-semibold text-neutral-800">{t("reordering")}</div>
-            <div className="text-sm text-neutral-700 mt-1">
-              {t("reorderingDesc")} <span className="font-semibold">⋮⋮</span> {t("reorderingDesc2")}
-            </div>
-          </div>
+            <Section title={t("reordering")}>
+              <p>
+                {t("reorderingDesc")} <span className="font-semibold text-neutral-800">⋮⋮</span> {t("reorderingDesc2")}
+              </p>
+            </Section>
 
-          <div className="rounded-2xl border border-neutral-200 p-4">
-            <div className="font-semibold text-neutral-800">{t("paidItems")}</div>
-            <div className="text-sm text-neutral-700 mt-1">{t("paidItemsDesc")}</div>
-          </div>
+            <Section title={t("paidItems")}>
+              <p>{t("paidItemsDesc")}</p>
+            </Section>
 
-          <div className="rounded-2xl border border-neutral-200 p-4">
-            <div className="font-semibold text-neutral-800">{t("printing")}</div>
-            <div className="text-sm text-neutral-700 mt-1">
-              {t("printingDesc")} <span className="font-semibold">{t("preview")}</span> {t("printingDesc2")} <span className="font-semibold">{t("printSave")}</span> {t("printingDesc3")}
-            </div>
-          </div>
+            <Section title={t("sectionsHelp")}>
+              <p>{t("sectionsHelpDesc")}</p>
+            </Section>
 
-          <div className="rounded-2xl border border-neutral-200 p-4">
-            <div className="font-semibold text-neutral-800">{t("privacy")}</div>
-            <div className="text-sm text-neutral-700 mt-1">{t("privacyDesc")}</div>
+            <Section title={t("dueDatesHelp")}>
+              <p>{t("dueDatesHelpDesc")}</p>
+            </Section>
+
+            <Section title={t("copyingHelp")}>
+              <p>{t("copyingHelpDesc")}</p>
+            </Section>
+
+            <Section title={t("printing")}>
+              <p>
+                {t("printingDesc")} <span className="font-semibold text-neutral-800">{t("preview")}</span> {t("printingDesc2")} <span className="font-semibold text-neutral-800">{t("printSave")}</span> {t("printingDesc3")}
+              </p>
+            </Section>
+
+            <Section title={t("privacy")}>
+              <p>{t("privacyDesc")}</p>
+            </Section>
           </div>
         </div>
 
-        <div className="p-4 border-t border-neutral-100 text-xs text-neutral-600">{t("footer")}</div>
+        <div className="mt-8 pt-6 border-t border-neutral-100 text-xs text-neutral-400 font-medium text-center">
+          {t("footer")}
+        </div>
       </div>
     </div>
   );
@@ -662,67 +689,101 @@ function HelpModal({ open, onClose, t }) {
 function ExportModal({ open, onClose, onPreview, onPrint, onBackup, onImport, t }) {
   if (!open) return null;
 
+  const IconWrapper = ({ children }) => (
+    <div className="h-10 w-10 rounded-full bg-[#D5FF00] flex items-center justify-center text-neutral-900 shrink-0">
+      {children}
+    </div>
+  );
+
+  const Icons = {
+    Preview: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
+    Print: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>,
+    Download: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
+    Upload: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>,
+    Close: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  };
+
+  const ActionRow = ({ icon, label, sub, onClick, file }) => {
+    const content = (
+      <>
+        <IconWrapper>{icon}</IconWrapper>
+        <div className="flex-1 text-left">
+          <div className="font-semibold text-neutral-900 text-base">{label}</div>
+          {sub && <div className="text-xs text-neutral-500 font-medium">{sub}</div>}
+        </div>
+      </>
+    );
+
+    const cls = "w-full p-3 rounded-2xl hover:bg-neutral-50 transition flex items-center gap-4 group active:scale-[0.98] border border-transparent hover:border-neutral-100";
+
+    if (file) {
+      return (
+        <label className={`${cls} cursor-pointer`}>
+          {content}
+          <input
+            type="file"
+            accept="application/json"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+              if (f) {
+                onClose();
+                if (typeof onImport === 'function') onImport(f);
+              }
+            }}
+          />
+        </label>
+      );
+    }
+
+    return (
+      <button type="button" className={cls} onClick={onClick}>
+        {content}
+      </button>
+    );
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8 print:hidden">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative w-full max-w-sm rounded-2xl bg-white border border-neutral-200 shadow-xl overflow-hidden">
-        <div className="p-4 border-b border-neutral-100 flex items-center justify-between">
-          <div className="text-lg font-semibold text-neutral-800">{t("exportTitle")}</div>
+      <div className="absolute inset-0 bg-neutral-900/40 backdrop-blur-sm transition-opacity" onClick={onClose} />
+      <div className="relative w-full max-w-sm bg-white rounded-[32px] shadow-2xl overflow-hidden ring-1 ring-black/5 transform transition-all">
+        <div className="px-6 pt-6 pb-4 flex items-center justify-between">
+          <div className="font-bold text-2xl text-neutral-900 tracking-tight">{t("exportTitle")}</div>
           <button
-            type="button"
-            className="h-8 w-8 rounded-xl border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 flex items-center justify-center text-neutral-600 transition"
             onClick={onClose}
+            className="h-8 w-8 rounded-full bg-neutral-100 hover:bg-[#D5FF00] hover:text-neutral-900 flex items-center justify-center text-neutral-600 transition"
           >
-            ×
+            <Icons.Close />
           </button>
         </div>
-        <div className="p-4 space-y-2">
-          <button
-            className="w-full text-left px-4 py-3 rounded-xl border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 transition flex items-center justify-between group"
-            onClick={() => {
-              onClose();
-              onPreview();
-            }}
-          >
-            <span className="font-medium">{t("preview")}</span>
-            <span className="text-neutral-400 group-hover:text-neutral-600">→</span>
-          </button>
-          <button
-            className="w-full text-left px-4 py-3 rounded-xl border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 transition flex items-center justify-between group"
-            onClick={() => {
-              onClose();
-              onPrint();
-            }}
-          >
-            <span className="font-medium">{t("printSave")}</span>
-            <span className="text-neutral-400 group-hover:text-neutral-600">→</span>
-          </button>
-          <button
-            className="w-full text-left px-4 py-3 rounded-xl border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 transition flex items-center justify-between group"
-            onClick={() => {
-              onClose();
-              onBackup();
-            }}
-          >
-            <span className="font-medium">{t("backup")}</span>
-            <span className="text-neutral-400 group-hover:text-neutral-600">→</span>
-          </button>
-          <label className="w-full text-left px-4 py-3 rounded-xl border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 transition flex items-center justify-between group cursor-pointer">
-            <span className="font-medium">{t("import")}</span>
-            <span className="text-neutral-400 group-hover:text-neutral-600">→</span>
-            <input
-              type="file"
-              accept="application/json"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
-                if (file) {
-                  onClose();
-                  onImport(file);
-                }
-              }}
-            />
-          </label>
+        
+        <div className="px-4 pb-6 flex flex-col gap-2">
+          <ActionRow
+            icon={<Icons.Preview />}
+            label={t("preview")}
+            sub="View before printing"
+            onClick={() => { onClose(); onPreview(); }}
+          />
+          <ActionRow
+            icon={<Icons.Print />}
+            label={t("printSave")}
+            sub="Save as PDF or Print"
+            onClick={() => { onClose(); onPrint(); }}
+          />
+          <div className="h-px bg-neutral-100 my-2 mx-4" />
+          <ActionRow
+            icon={<Icons.Download />}
+            label={t("backup")}
+            sub="Download JSON file"
+            onClick={() => { onClose(); onBackup(); }}
+          />
+          <ActionRow
+            icon={<Icons.Upload />}
+            label={t("import")}
+            sub="Restore from backup"
+            file
+            onImport={onImport}
+          />
         </div>
       </div>
     </div>
@@ -784,7 +845,7 @@ const TRANSLATIONS = {
     subtitle: "Monthly personal budgeting tool",
     hub: "HUB",
     preview: "Preview",
-    data: "Data",
+    data: "Export",
     help: "Help",
     month: "Month",
     prevMonth: "◀ Prev",
@@ -831,7 +892,7 @@ const TRANSLATIONS = {
     due: "Due",
     backup: "Backup (JSON)",
     import: "Import (JSON)",
-    exportTitle: "Data",
+    exportTitle: "Export",
     helpTitle: "Help",
     helpSubtitle: "How your data is saved + how to keep continuity.",
     autosave: "Autosave (default)",
@@ -848,13 +909,19 @@ const TRANSLATIONS = {
     reorderingDesc2: "handle. Drop on the small lines between items to insert exactly where you want.",
     paidItems: "Paid items",
     paidItemsDesc: "Tick the checkbox to mark an expense as paid. Paid items don’t count toward remaining totals.",
+    sectionsHelp: "Sections",
+    sectionsHelpDesc: "Group expenses by category. Click the section name to rename it. Use “Add section” to create new ones.",
+    dueDatesHelp: "Due Dates",
+    dueDatesHelpDesc: "Set due dates to track when bills are due. Use “Sort due” to organize items by date.",
+    copyingHelp: "Rolling Over",
+    copyingHelpDesc: "Move to the next month using “Copy → Next”. Choose “Copy UNPAID only” to carry over outstanding balances.",
     printing: "Printing / PDF",
     printingDesc: "Use",
     printingDesc2: "to check the layout, then",
     printingDesc3: "and choose “Save as PDF”.",
     privacy: "Privacy",
     privacyDesc: "Budgit runs in your browser. There’s no account system here yet, and nothing is uploaded unless you choose to share your exported file.",
-    footer: "ToolStack • Help Pack v1",
+    footer: "ToolStack • Help Pack v2",
     copyUnpaidMsg: "Copied unpaid → next month",
     copyAllMsg: "Copied month → next month",
     monthCleared: "Month cleared",
@@ -906,7 +973,7 @@ const TRANSLATIONS = {
     subtitle: "Monatliches persönliches Budgetierungstool",
     hub: "HUB",
     preview: "Vorschau",
-    data: "Daten",
+    data: "Export",
     help: "Hilfe",
     month: "Monat",
     prevMonth: "◀ Zurück",
@@ -953,7 +1020,7 @@ const TRANSLATIONS = {
     due: "Fällig",
     backup: "Sicherung (JSON)",
     import: "Importieren (JSON)",
-    exportTitle: "Daten",
+    exportTitle: "Export",
     helpTitle: "Hilfe",
     helpSubtitle: "Wie Ihre Daten gespeichert werden + wie Sie Kontinuität wahren.",
     autosave: "Automatische Speicherung (Standard)",
@@ -970,13 +1037,19 @@ const TRANSLATIONS = {
     reorderingDesc2: "Griff. Lassen Sie auf die kleinen Linien zwischen den Elementen fallen, um genau dort einzufügen.",
     paidItems: "Bezahlte Elemente",
     paidItemsDesc: "Aktivieren Sie das Kontrollkästchen, um eine Ausgabe als bezahlt zu markieren. Bezahlte Elemente zählen nicht zu den verbleibenden Summen.",
+    sectionsHelp: "Abschnitte",
+    sectionsHelpDesc: "Gruppieren Sie Ausgaben nach Kategorie. Klicken Sie auf den Abschnittsnamen, um ihn umzubenennen. Verwenden Sie „+ Abschnitt“, um neue zu erstellen.",
+    dueDatesHelp: "Fälligkeitsdaten",
+    dueDatesHelpDesc: "Legen Sie Fälligkeitsdaten fest, um Rechnungen zu verfolgen. Verwenden Sie „Fälligkeit sort.“, um Elemente nach Datum zu ordnen.",
+    copyingHelp: "Übertrag",
+    copyingHelpDesc: "Wechseln Sie mit „Kopieren → Nächster“ in den nächsten Monat. Wählen Sie „Nur UNBEZAHLTE kopieren“, um offene Salden zu übertragen.",
     printing: "Drucken / PDF",
     printingDesc: "Verwenden Sie",
     printingDesc2: "um das Layout zu überprüfen, dann",
     printingDesc3: "und wählen Sie „Als PDF speichern“.",
     privacy: "Datenschutz",
     privacyDesc: "Budgit läuft in Ihrem Browser. Es gibt hier noch kein Kontosystem, und nichts wird hochgeladen, es sei denn, Sie entscheiden sich, Ihre exportierte Datei zu teilen.",
-    footer: "ToolStack • Help Pack v1",
+    footer: "ToolStack • Help Pack v2",
     copyUnpaidMsg: "Unbezahlte kopiert → nächster Monat",
     copyAllMsg: "Monat kopiert → nächster Monat",
     monthCleared: "Monat geleert",
@@ -1746,7 +1819,7 @@ export default function BudgitApp() {
               <span className="text-neutral-800">It</span>
             </div>
             <div className="text-sm text-neutral-700">{t("subtitle")}</div>
-            <div className="mt-3 h-[2px] w-80 rounded-full bg-gradient-to-r from-[#D5FF00]/0 via-[#D5FF00] to-[#D5FF00]/0" />
+            <div className="mt-3 h-[2px] w-40 rounded-full bg-gradient-to-r from-[#D5FF00]/0 via-[#D5FF00] to-[#D5FF00]/0" />
 
             <div className="flex items-center gap-2 mt-2">
               <button
@@ -1770,7 +1843,7 @@ export default function BudgitApp() {
                 <ActionButton onClick={() => {}}>{t("hub")}</ActionButton>
                 <ActionButton onClick={openPreview}>{t("preview")}</ActionButton>
 
-                <ActionButton onClick={() => setExportModalOpen(true)}>{t("data")}</ActionButton>
+                <ActionButton tone="primary" onClick={() => setExportModalOpen(true)}>{t("data")}</ActionButton>
               </div>
 
               <button
