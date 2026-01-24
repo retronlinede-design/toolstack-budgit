@@ -1386,26 +1386,30 @@ function SpendTracker({ active, updateMonth, t, currencySymbol }) {
   };
 
   const handleAdd = () => {
-    const val = parseFloat(String(amount || "").replace(",", "."));
-    if (!val || isNaN(val) || !groupId) return;
+    try {
+      const val = parseFloat(String(amount || "").replace(",", "."));
+      if (!val || isNaN(val) || !groupId) return;
 
-    const newTransaction = {
-      id: uid(),
-      dateISO: new Date().toISOString(),
-      amountCents: Math.round(val * 100),
-      groupId: groupId,
-      itemId: itemId || null,
-      note: (note || "").trim(),
-      paymentMethod,
-    };
+      const newTransaction = {
+        id: uid(),
+        dateISO: new Date().toISOString(),
+        amountCents: Math.round(val * 100),
+        groupId: groupId,
+        itemId: itemId || null,
+        note: (note || "").trim(),
+        paymentMethod,
+      };
 
-    updateMonth((cur) => ({
-      ...cur,
-      transactions: [newTransaction, ...(cur.transactions || [])],
-    }));
+      updateMonth((cur) => ({
+        ...cur,
+        transactions: [newTransaction, ...(cur.transactions || [])],
+      }));
 
-    setAmount("");
-    setNote("");
+      setAmount("");
+      setNote("");
+    } catch (err) {
+      console.error("Error adding transaction:", err);
+    }
   };
 
   const handleDelete = (id) => {
@@ -1591,34 +1595,34 @@ function SpendTracker({ active, updateMonth, t, currencySymbol }) {
             {filteredTransactions.length === 0 ? (
               <div className="text-sm text-neutral-500 text-center py-4">{t("noTransactions")}</div>
             ) : (
-              filteredTransactions.map((t) => {
-                const group = expenseGroups.find((g) => g.id === t.groupId);
-                const item = group?.items?.find(i => i.id === t.itemId);
+              filteredTransactions.map((tx) => {
+                const group = expenseGroups.find((g) => g.id === tx.groupId);
+                const item = group?.items?.find(i => i.id === tx.itemId);
                 const label = item ? `${group?.label || "Unknown"}: ${item.name}` : (group?.label || "Unknown");
                 return (
-                  <div key={t.id} className="flex items-center justify-between p-3 rounded-xl border border-neutral-100 bg-neutral-50/50">
+                  <div key={tx.id} className="flex items-center justify-between p-3 rounded-xl border border-neutral-100 bg-neutral-50/50">
                     <div>
                       <div className="text-sm font-medium text-neutral-900">
-                        {label} <span className="text-neutral-400 font-normal">• {t.paymentMethod}</span>
+                        {label} <span className="text-neutral-400 font-normal">• {tx.paymentMethod}</span>
                       </div>
                       <div className="text-xs text-neutral-500">
                         {(() => {
                           try {
-                            const d = new Date(t.dateISO);
+                            const d = new Date(tx.dateISO);
                             return isNaN(d.getTime()) ? "??:??" : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                           } catch (e) {
                             return "??:??";
                           }
                         })()}
-                        {t.note && ` • ${t.note}`}
+                        {tx.note && ` • ${tx.note}`}
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="font-semibold text-neutral-900 tabular-nums">
-                        {currencySymbol}{(t.amountCents / 100).toFixed(2)}
+                        {currencySymbol}{(tx.amountCents / 100).toFixed(2)}
                       </div>
                       <button
-                        onClick={() => handleDelete(t.id)}
+                        onClick={() => handleDelete(tx.id)}
                         className="text-neutral-400 hover:text-red-600 transition px-1"
                         title={t("removeTitle")}
                       >
