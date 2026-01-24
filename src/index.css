@@ -1,3 +1,27 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer utilities {
+  .ts-graffiti-stroke {
+    -webkit-text-stroke: 3px black;
+    paint-order: stroke fill;
+  }
+  
+  .ts-graffiti-shadow {
+    filter: drop-shadow(5px 5px 0px rgba(0,0,0,1));
+  }
+
+  .ts-graffiti-drip-green::after {
+    content: '';
+    position: absolute;
+    bottom: 15%;
+    right: 25%;
+    width: 8px;
+    height: 25px;
+    background: #aacc00;
+    border-radius: 0 0 10px 10px;
+    z-index: -1;
+    transform: rotate(4deg);
+  }
+}
