@@ -205,7 +205,7 @@ function SmallButton({ children, onClick, tone = "default", className = "", disa
 
 /** Normalized Top Actions (mobile-aligned “table/grid”) */
 const ACTION_BASE =
-  "print:hidden h-10 w-full rounded-xl text-sm font-medium border transition shadow-sm active:translate-y-[1px] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center";
+  "print:hidden h-9 px-6 rounded-xl text-xs font-medium border transition shadow-sm active:translate-y-[1px] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center";
 
 function ActionButton({ children, onClick, tone = "default", disabled, title }) {
   const cls =
@@ -360,6 +360,16 @@ function CalculatorIcon({ className = "" }) {
       <path d="M8 14h.01" />
       <path d="M12 18h.01" />
       <path d="M8 18h.01" />
+    </svg>
+  );
+}
+
+function InsightsIcon({ className = "" }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M12 2a7 7 0 0 0-7 7c0 3.04 1.63 5.58 4 6.72V20a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-4.28c2.37-1.14 4-3.68 4-6.72a7 7 0 0 0-7-7z" />
+      <path d="M9 21h6" />
+      <path d="M12 1v1" />
     </svg>
   );
 }
@@ -1369,6 +1379,7 @@ const TRANSLATIONS = {
     copyUnpaid: "Copy UNPAID only",
     cancel: "Cancel",
     clear: "Clear",
+    startAgain: "Start Again",
     income: "Income",
     addIncome: "+ Add income",
     totalIncome: "Total income",
@@ -1485,6 +1496,7 @@ const TRANSLATIONS = {
     setDueTitle: "Set due: {d}",
     paidExpenses: "Paid expenses",
     calculator: "Calculator",
+    insights: "Insights",
     spendTracker: "Spend Tracker",
     addTransaction: "Add transaction",
     recentTransactions: "Recent transactions",
@@ -1515,6 +1527,7 @@ const TRANSLATIONS = {
     copyUnpaid: "Nur UNBEZAHLTE kopieren",
     cancel: "Abbrechen",
     clear: "Leeren",
+    startAgain: "Neu starten",
     income: "Einkommen",
     addIncome: "+ Einkommen",
     totalIncome: "Gesamteinkommen",
@@ -1631,6 +1644,7 @@ const TRANSLATIONS = {
     setDueTitle: "Fällig setzen: {d}",
     paidExpenses: "Bezahlte Ausgaben",
     calculator: "Taschenrechner",
+    insights: "Einblicke",
     spendTracker: "Ausgaben-Tracker",
     addTransaction: "Transaktion hinzufügen",
     recentTransactions: "Letzte Transaktionen",
@@ -2674,56 +2688,53 @@ export default function BudgitApp() {
       ) : null}
 
       <div className="max-w-5xl mx-auto px-4 py-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
+          <div className="md:col-span-2">
             {/* Master heading style */}
             <div className="relative">
               <img src={budgitLogo} alt="BudgIt" className="h-24 sm:h-32 w-auto select-none" />
             </div>
           </div>
 
-          <div className="w-full sm:w-[640px] lg:w-[780px] mb-12 sm:mb-0">
-            <div className="relative">
-              <div className="grid grid-cols-4 gap-2 pr-12">
-                <ActionButton onClick={() => {}}>{t("hub")}</ActionButton>
-                <ActionButton onClick={openPreview}>{t("preview")}</ActionButton>
-                <ActionButton onClick={() => setInsightsOpen(true)}>Insights</ActionButton>
-                <ActionButton onClick={() => setExportModalOpen(true)}>{t("data")}</ActionButton>
-              </div>
+          <div className="relative flex justify-end gap-2 pt-2 mb-12 md:mb-0">
+            <div className="flex items-center gap-2">
+              <ActionButton onClick={() => {}}>{t("hub")}</ActionButton>
+              <ActionButton onClick={openPreview}>{t("preview")}</ActionButton>
+              <ActionButton onClick={() => setExportModalOpen(true)}>{t("data")}</ActionButton>
+            </div>
 
-              <button
-                type="button"
-                title="Help"
-                onClick={() => setHelpOpen(true)}
-                className="print:hidden absolute right-0 top-0 h-10 w-10 rounded-xl border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 shadow-sm flex items-center justify-center font-bold text-neutral-800"
-                aria-label="Help"
-              >
-                ?
-              </button>
+            <button
+              type="button"
+              title="Help"
+              onClick={() => setHelpOpen(true)}
+              className="print:hidden h-9 w-9 rounded-xl border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 shadow-sm flex items-center justify-center font-bold text-neutral-800 text-sm"
+              aria-label="Help"
+            >
+              ?
+            </button>
 
-              <div className="print:hidden absolute right-0 top-12">
-                <div className="flex items-center gap-1 p-1 bg-white border border-neutral-200 rounded-xl w-fit shadow-sm">
-                  <button
-                    onClick={() => setLang("en")}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-                      app.lang === "en"
-                        ? "bg-[#D5FF00] text-neutral-900 shadow-sm"
-                        : "text-neutral-500 hover:text-neutral-900 hover:bg-[#D5FF00]/30"
-                    }`}
-                  >
-                    EN
-                  </button>
-                  <button
-                    onClick={() => setLang("de")}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-                      app.lang === "de"
-                        ? "bg-[#D5FF00] text-neutral-900 shadow-sm"
-                        : "text-neutral-500 hover:text-neutral-900 hover:bg-[#D5FF00]/30"
-                    }`}
-                  >
-                    DE
-                  </button>
-                </div>
+            <div className="print:hidden absolute right-0 top-12">
+              <div className="flex items-center gap-1 p-1 bg-white border border-neutral-200 rounded-xl w-fit shadow-sm">
+                <button
+                  onClick={() => setLang("en")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                    app.lang === "en"
+                      ? "bg-[#D5FF00] text-neutral-900 shadow-sm"
+                      : "text-neutral-500 hover:text-neutral-900 hover:bg-[#D5FF00]/30"
+                  }`}
+                >
+                  EN
+                </button>
+                <button
+                  onClick={() => setLang("de")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                    app.lang === "de"
+                      ? "bg-[#D5FF00] text-neutral-900 shadow-sm"
+                      : "text-neutral-500 hover:text-neutral-900 hover:bg-[#D5FF00]/30"
+                  }`}
+                >
+                  DE
+                </button>
               </div>
             </div>
           </div>
@@ -2767,13 +2778,13 @@ export default function BudgitApp() {
                     ))}
                   </select>
 
-                  <div className="relative col-span-2 sm:col-span-2">
-                    <MiniActionButton onClick={() => setCopyOpen((v) => !v)} title={t("copyNextTitle")}>
+                  <div className="relative col-span-1">
+                    <MiniActionButton onClick={() => setCopyOpen((v) => !v)} title={t("copyNextTitle")} className="!h-8 !text-xs">
                       {t("copyNext")}
                     </MiniActionButton>
 
                     {copyOpen ? (
-                      <div className="print:hidden absolute z-20 mt-2 w-full rounded-2xl border border-neutral-200 bg-white shadow-xl p-2">
+                      <div className="print:hidden absolute z-20 mt-2 w-48 rounded-2xl border border-neutral-200 bg-white shadow-xl p-2">
                         <div className="grid grid-cols-1 gap-2">
                           <MiniActionButton tone="primary" onClick={() => copyMonthToNext("all")}>
                             {t("copyAll")}
@@ -2789,7 +2800,7 @@ export default function BudgitApp() {
                   </div>
 
                   <MiniActionButton tone="danger" onClick={clearMonth} title={t("clearMonthTitle")}>
-                    {t("clear")}
+                    {t("startAgain")}
                   </MiniActionButton>
                 </div>
               </div>
@@ -3074,7 +3085,7 @@ export default function BudgitApp() {
 
                                     <input
                                       className={`col-span-3 rounded-xl border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300 ${
-                                        e.paid ? "bg-[#D5FF00]/30 border-transparent line-through text-lime-800 decoration-lime-800" : "bg-white border-neutral-200 text-neutral-800"
+                                        e.paid ? "bg-white border-neutral-200 line-through text-neutral-400 decoration-[#D5FF00] decoration-2" : "bg-white border-neutral-200 text-neutral-800"
                                       }`}
                                       value={e.name || ""}
                                       onChange={(ev) => updateExpenseItem(g.id, e.id, { name: ev.target.value })}
@@ -3111,7 +3122,7 @@ export default function BudgitApp() {
 
                                     <SelectAllNumberInput
                                       className={`col-span-3 rounded-xl border px-3 py-2 text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300 ${
-                                        e.paid ? "bg-[#D5FF00]/30 border-transparent line-through text-lime-800 decoration-lime-800" : "bg-white border-neutral-200 text-neutral-800"
+                                        e.paid ? "bg-white border-neutral-200 line-through text-neutral-400 decoration-[#D5FF00] decoration-2" : "bg-white border-neutral-200 text-neutral-800"
                                       }`}
                                       value={e.amount == null ? "0" : e.amount}
                                       onChange={(ev) => updateExpenseItem(g.id, e.id, { amount: ev.target.value })}
@@ -3215,6 +3226,14 @@ export default function BudgitApp() {
           {/* Summary */}
           <div className="flex flex-col gap-3">
             <div className="flex justify-end gap-2 print:hidden">
+              <button
+                type="button"
+                onClick={() => setInsightsOpen(true)}
+                className="h-10 w-10 rounded-xl border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 shadow-sm flex items-center justify-center text-neutral-600 transition"
+                title={t("insights")}
+              >
+                <InsightsIcon className="h-5 w-5" />
+              </button>
               <button
                 type="button"
                 onClick={() => {
