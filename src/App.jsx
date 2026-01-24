@@ -2682,7 +2682,7 @@ export default function BudgitApp() {
             </div>
           </div>
 
-          <div className="w-full sm:w-[520px] lg:w-[620px] mb-12 sm:mb-0">
+          <div className="w-full sm:w-[640px] lg:w-[780px] mb-12 sm:mb-0">
             <div className="relative">
               <div className="grid grid-cols-4 gap-2 pr-12">
                 <ActionButton onClick={() => {}}>{t("hub")}</ActionButton>
