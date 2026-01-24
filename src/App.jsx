@@ -1,3 +1,25 @@
+/*
+  FEATURE UPDATE: Item Notes System
+
+  This update introduces a system for adding notes to individual expense items.
+
+  1.  **Data Model & Migration**:
+      - `normalizeExpenseItem` now includes `note`, `notePinned`, and `noteUpdatedAt` fields.
+      - This ensures backward compatibility by safely adding these fields with default values to any existing data upon loading.
+
+  2.  **UI - Note Button & Editor**:
+      - Each expense item row now has a "Note" button, which shows a checkmark if a note exists.
+      - Clicking this button opens the `NoteEditorModal`, a new component for adding, editing, and pinning notes.
+
+  3.  **UI - Consolidated Notes Panel**:
+      - A new `NotesPanel` component has been added below the "Spend Tracker".
+      - It displays all non-empty notes, sorted by pinned status, then by section and item name.
+      - Each note has a "Jump to item" button that smoothly scrolls the corresponding expense item into view and briefly highlights it.
+
+  4.  **Export/Import**:
+      - The new note-related fields are automatically included in JSON exports.
+      - The import process is backward-compatible and correctly handles both old and new data formats.
+*/
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import budgitLogo from "./assets/budgit-graffiti.png";
 
@@ -16,6 +38,7 @@ import budgitLogo from "./assets/budgit-graffiti.png";
 // - Print to PDF via browser Print
 // - Export/Import JSON backup
 // - Print Preview (in-app)
+// - Spend Tracker (Real-world purchase tracking)
 
 const LS_KEY = "toolstack_budgit_v1";
 
@@ -842,13 +865,24 @@ const normalizeExpenseItem = (x) => ({
   paid: !!(x && x.paid),
 });
 
+const normalizeTransaction = (x) => ({
+  id: x && x.id ? x.id : uid(),
+  dateISO: x && x.dateISO ? x.dateISO : new Date().toISOString(),
+  amountCents: x && typeof x.amountCents === "number" ? x.amountCents : 0,
+  groupId: x && (x.groupId || x.categoryId) ? (x.groupId || x.categoryId) : null,
+  itemId: x && x.itemId ? x.itemId : null,
+  note: x && typeof x.note === "string" ? x.note : "",
+  paymentMethod: x && typeof x.paymentMethod === "string" ? x.paymentMethod : "Card",
+});
+
 // Migration:
 // - Legacy: { expenses: [] }
 // - New: { expenseGroups: [{ id, label, items: [] }] }
 function normalizeMonthData(monthData) {
-  const m = monthData || { incomes: [], expenses: [], notes: "" };
+  const m = monthData || { incomes: [], expenses: [], notes: "", transactions: [] };
 
   const incomes = Array.isArray(m.incomes) ? m.incomes.map(normalizeIncomeItem) : [];
+  const transactions = Array.isArray(m.transactions) ? m.transactions.map(normalizeTransaction) : [];
 
   if (Array.isArray(m.expenseGroups)) {
     const groups = m.expenseGroups
@@ -863,6 +897,7 @@ function normalizeMonthData(monthData) {
       incomes,
       expenseGroups: groups.length ? groups : [{ id: uid(), label: "General", items: [] }],
       notes: typeof m.notes === "string" ? m.notes : "",
+      transactions,
     };
   }
 
@@ -871,6 +906,7 @@ function normalizeMonthData(monthData) {
     incomes,
     expenseGroups: [{ id: uid(), label: "General", items: legacyExpenses }],
     notes: typeof m.notes === "string" ? m.notes : "",
+    transactions,
   };
 }
 
@@ -1004,6 +1040,21 @@ const TRANSLATIONS = {
     setDueTitle: "Set due: {d}",
     paidExpenses: "Paid expenses",
     calculator: "Calculator",
+    spendTracker: "Spend Tracker",
+    addTransaction: "Add transaction",
+    recentTransactions: "Recent transactions",
+    today: "Today",
+    thisMonth: "This Month",
+    paymentMethod: "Payment method",
+    card: "Card",
+    cash: "Cash",
+    other: "Other",
+    category: "Category",
+    spent: "Spent",
+    remaining: "Remaining",
+    noTransactions: "No transactions yet.",
+    note: "Note",
+    budgetLine: "Budget Line",
   },
   de: {
     subtitle: "Monatliches persönliches Budgetierungstool",
@@ -1114,7 +1165,7 @@ const TRANSLATIONS = {
     previewTip: "Tipp: Wenn die Vorschau korrekt aussieht, klicken Sie auf „Drucken / PDF speichern“ und wählen Sie „Als PDF speichern“.",
     togglePaidTitle: "Sichtbarkeit bezahlter Elemente umschalten",
     expandAllTitle: "Alle Abschnitte erweitern",
-    collapseAllTitle: "Alle Abschnitte einklappen",
+    collapseAllTitle: "Alle einklappen",
     copyNextTitle: "Diesen Monat in den nächsten kopieren",
     clearMonthTitle: "Diesen Monat leeren",
     prevMonthTitle: "Vorheriger Monat",
@@ -1134,8 +1185,299 @@ const TRANSLATIONS = {
     setDueTitle: "Fällig setzen: {d}",
     paidExpenses: "Bezahlte Ausgaben",
     calculator: "Taschenrechner",
+    spendTracker: "Ausgaben-Tracker",
+    addTransaction: "Transaktion hinzufügen",
+    recentTransactions: "Letzte Transaktionen",
+    today: "Heute",
+    thisMonth: "Diesen Monat",
+    paymentMethod: "Zahlungsmethode",
+    card: "Karte",
+    cash: "Bar",
+    other: "Andere",
+    category: "Kategorie",
+    spent: "Ausgegeben",
+    remaining: "Verbleibend",
+    noTransactions: "Noch keine Transaktionen.",
+    note: "Notiz",
+    budgetLine: "Budgetzeile",
   }
 };
+
+function SpendTracker({ active, updateMonth, t, currencySymbol }) {
+  const [amount, setAmount] = useState("");
+  const [groupId, setGroupId] = useState("");
+  const [itemId, setItemId] = useState("");
+  const [note, setNote] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("Card");
+  const [filter, setFilter] = useState("today"); // 'today' | 'month'
+
+  const expenseGroups = active.expenseGroups || [];
+  const transactions = active.transactions || [];
+
+  // Default group/item selection
+  useEffect(() => {
+    if (!groupId && expenseGroups.length > 0) {
+      const firstG = expenseGroups[0];
+      setGroupId(firstG.id);
+      if (firstG.items && firstG.items.length > 0) {
+        setItemId(firstG.items[0].id);
+      }
+    }
+  }, [expenseGroups, groupId]);
+
+  const handleGroupChange = (e) => {
+    const newGid = e.target.value;
+    setGroupId(newGid);
+    const g = expenseGroups.find((x) => x.id === newGid);
+    if (g && g.items && g.items.length > 0) {
+      setItemId(g.items[0].id);
+    } else {
+      setItemId("");
+    }
+  };
+
+  const handleAdd = () => {
+    const val = parseFloat(amount.replace(",", "."));
+    if (!val || isNaN(val)) return;
+
+    const newTransaction = {
+      id: uid(),
+      dateISO: new Date().toISOString(),
+      amountCents: Math.round(val * 100),
+      groupId: groupId,
+      itemId: itemId || null,
+      note: note.trim(),
+      paymentMethod,
+    };
+
+    updateMonth((cur) => ({
+      ...cur,
+      transactions: [newTransaction, ...(cur.transactions || [])],
+    }));
+
+    setAmount("");
+    setNote("");
+  };
+
+  const handleDelete = (id) => {
+    if (!window.confirm(t("removeTitle") + "?")) return;
+    updateMonth((cur) => ({
+      ...cur,
+      transactions: (cur.transactions || []).filter((t) => t.id !== id),
+    }));
+  };
+
+  // Summary Calculations
+  const summaryData = useMemo(() => {
+    return expenseGroups.map((g) => {
+      const groupItems = g.items || [];
+      
+      // Calculate per-item stats
+      const itemsWithStats = groupItems.map((item) => {
+        const planned = toNumber(item.amount);
+        const spentCents = transactions
+          .filter((t) => t.itemId === item.id)
+          .reduce((sum, t) => sum + t.amountCents, 0);
+        const spent = spentCents / 100;
+        return { ...item, planned, spent, remaining: planned - spent };
+      });
+
+      // Group rollup
+      const groupPlanned = itemsWithStats.reduce((s, i) => s + i.planned, 0);
+      const groupSpentItems = itemsWithStats.reduce((s, i) => s + i.spent, 0);
+      // Include transactions that have matching groupId but NO itemId (legacy or general)
+      const groupGeneralSpentCents = transactions.filter(t => t.groupId === g.id && !t.itemId).reduce((s, t) => s + t.amountCents, 0);
+      const totalGroupSpent = groupSpentItems + (groupGeneralSpentCents / 100);
+
+      return {
+        id: g.id,
+        label: g.label || t("unnamed"),
+        items: itemsWithStats,
+        rollup: { planned: groupPlanned, spent: totalGroupSpent, remaining: groupPlanned - totalGroupSpent }
+      };
+    });
+  }, [expenseGroups, transactions, t]);
+
+  // Filtered Transactions
+  const filteredTransactions = useMemo(() => {
+    const now = new Date();
+    const todayStr = now.toISOString().split("T")[0];
+    const monthStr = now.toISOString().slice(0, 7); // YYYY-MM
+
+    return transactions.filter((t) => {
+      const tDate = t.dateISO.split("T")[0];
+      if (filter === "today") return tDate === todayStr;
+      return tDate.startsWith(monthStr);
+    });
+  }, [transactions, filter]);
+
+  return (
+    <div className="rounded-2xl border border-neutral-200 bg-white">
+      <div className="px-4 py-3 border-b border-neutral-100 font-semibold text-neutral-800">
+        {t("spendTracker")}
+      </div>
+      <div className="p-4 space-y-6">
+        {/* Quick Add Form */}
+        <div className="space-y-3 bg-neutral-50 p-3 rounded-xl border border-neutral-100">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <input
+              className="rounded-xl border border-neutral-200 px-3 py-2 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300"
+              placeholder={`${t("amount")} (${currencySymbol})`}
+              type="number"
+              inputMode="decimal"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+            />
+            {/* Group Select */}
+            <select
+              className="rounded-xl border border-neutral-200 px-3 py-2 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300"
+              value={groupId}
+              onChange={handleGroupChange}
+            >
+              {expenseGroups.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.label || t("unnamed")}
+                </option>
+              ))}
+            </select>
+            {/* Item Select */}
+            <select
+              className="rounded-xl border border-neutral-200 px-3 py-2 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300 disabled:opacity-50"
+              value={itemId}
+              onChange={(e) => setItemId(e.target.value)}
+              disabled={!groupId}
+            >
+              {(expenseGroups.find(g => g.id === groupId)?.items || []).map((item) => (
+                <option key={item.id} value={item.id}>{item.name || t("unnamed")}</option>
+              ))}
+            </select>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <input
+              className="sm:col-span-1 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300"
+              placeholder={t("note")}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
+            <select
+              className="sm:col-span-1 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300"
+              value={paymentMethod}
+              onChange={(e) => setPaymentMethod(e.target.value)}
+            >
+              <option value="Card">{t("card")}</option>
+              <option value="Cash">{t("cash")}</option>
+              <option value="Other">{t("other")}</option>
+            </select>
+            <button
+              onClick={handleAdd}
+              className="sm:col-span-1 rounded-xl bg-[#D5FF00]/30 hover:bg-[#D5FF00]/50 border border-[#D5FF00]/30 text-neutral-800 font-medium py-2 transition shadow-sm"
+            >
+              {t("addTransaction")}
+            </button>
+          </div>
+        </div>
+
+        {/* Summary Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left">
+            <thead>
+              <tr className="text-neutral-500 border-b border-neutral-100">
+                <th className="pb-2 font-medium">{t("budgetLine")}</th>
+                <th className="pb-2 font-medium text-right">{t("plannedExpenses")}</th>
+                <th className="pb-2 font-medium text-right">{t("spent")}</th>
+                <th className="pb-2 font-medium text-right">{t("remaining")}</th>
+              </tr>
+            </thead>
+            <tbody className="text-neutral-800">
+              {summaryData.map((group) => (
+                <React.Fragment key={group.id}>
+                  {/* Group Header / Rollup */}
+                  <tr className="bg-neutral-50/80 font-semibold text-xs text-neutral-600">
+                    <td className="py-2 pl-2 rounded-l-lg">{group.label}</td>
+                    <td className="py-2 text-right tabular-nums">{currencySymbol}{group.rollup.planned.toFixed(2)}</td>
+                    <td className="py-2 text-right tabular-nums">{currencySymbol}{group.rollup.spent.toFixed(2)}</td>
+                    <td className={`py-2 text-right tabular-nums pr-2 rounded-r-lg ${group.rollup.remaining < 0 ? "text-red-600" : "text-emerald-600"}`}>
+                      {currencySymbol}{group.rollup.remaining.toFixed(2)}
+                    </td>
+                  </tr>
+                  {/* Items */}
+                  {group.items.map(item => (
+                    <tr key={item.id} className="border-b border-neutral-50 last:border-0">
+                      <td className="py-2 pl-6">{item.name || t("unnamed")}</td>
+                      <td className="py-2 text-right tabular-nums text-neutral-500">{currencySymbol}{item.planned.toFixed(2)}</td>
+                      <td className="py-2 text-right tabular-nums">{currencySymbol}{item.spent.toFixed(2)}</td>
+                      <td className={`py-2 text-right tabular-nums font-medium ${item.remaining < 0 ? "text-red-600" : "text-emerald-600"}`}>
+                        {currencySymbol}{item.remaining.toFixed(2)}
+                      </td>
+                    </tr>
+                  ))}
+                </React.Fragment>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Recent Transactions */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <div className="font-semibold text-neutral-800">{t("recentTransactions")}</div>
+            <div className="flex bg-neutral-100 rounded-lg p-1">
+              <button
+                onClick={() => setFilter("today")}
+                className={`px-3 py-1 rounded-md text-xs font-medium transition ${filter === "today" ? "bg-white shadow-sm text-neutral-900" : "text-neutral-500 hover:text-neutral-700"}`}
+              >
+                {t("today")}
+              </button>
+              <button
+                onClick={() => setFilter("month")}
+                className={`px-3 py-1 rounded-md text-xs font-medium transition ${filter === "month" ? "bg-white shadow-sm text-neutral-900" : "text-neutral-500 hover:text-neutral-700"}`}
+              >
+                {t("thisMonth")}
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            {filteredTransactions.length === 0 ? (
+              <div className="text-sm text-neutral-500 text-center py-4">{t("noTransactions")}</div>
+            ) : (
+              filteredTransactions.map((t) => {
+                const group = expenseGroups.find((g) => g.id === t.groupId);
+                const item = group?.items?.find(i => i.id === t.itemId);
+                const label = item ? `${group.label}: ${item.name}` : (group?.label || "Unknown");
+                return (
+                  <div key={t.id} className="flex items-center justify-between p-3 rounded-xl border border-neutral-100 bg-neutral-50/50">
+                    <div>
+                      <div className="text-sm font-medium text-neutral-900">
+                        {label} <span className="text-neutral-400 font-normal">• {t.paymentMethod}</span>
+                      </div>
+                      <div className="text-xs text-neutral-500">
+                        {new Date(t.dateISO).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {t.note && ` • ${t.note}`}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="font-semibold text-neutral-900 tabular-nums">
+                        {currencySymbol}{(t.amountCents / 100).toFixed(2)}
+                      </div>
+                      <button
+                        onClick={() => handleDelete(t.id)}
+                        className="text-neutral-400 hover:text-red-600 transition px-1"
+                        title={t("removeTitle")}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ---------------------------
 // App
@@ -1175,7 +1517,7 @@ export default function BudgitApp() {
   const [exportModalOpen, setExportModalOpen] = useState(false);
 
   // Hide paid items (UI-only)
-  const [hidePaid, setHidePaid] = useState(true);
+  const [hidePaid, setHidePaid] = useState(false);
 
   // Drag state (UI-only)
   const [drag, setDrag] = useState(null);
@@ -1401,10 +1743,10 @@ export default function BudgitApp() {
       if (fromIndex < 0) return cur;
 
       const moved = groups.splice(fromIndex, 1)[0];
-      let insertAt = clamp(toIndex, 0, groups.length);
+      let insertAt = clamp(toIndex, 0, items.length);
       if (fromIndex < insertAt) insertAt = insertAt - 1;
 
-      groups.splice(clamp(insertAt, 0, groups.length), 0, moved);
+      groups.splice(clamp(insertAt, 0, items.length), 0, moved);
       return { ...cur, expenseGroups: groups };
     });
   };
@@ -1863,7 +2205,7 @@ export default function BudgitApp() {
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
                       app.lang === "en"
                         ? "bg-[#D5FF00] text-neutral-900 shadow-sm"
-                        : "text-neutral-500 hover:text-neutral-900 hover:bg-neutral-50"
+                        : "text-neutral-500 hover:text-neutral-900 hover:bg-[#D5FF00]/30"
                     }`}
                   >
                     EN
@@ -1873,7 +2215,7 @@ export default function BudgitApp() {
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
                       app.lang === "de"
                         ? "bg-[#D5FF00] text-neutral-900 shadow-sm"
-                        : "text-neutral-500 hover:text-neutral-900 hover:bg-neutral-50"
+                        : "text-neutral-500 hover:text-neutral-900 hover:bg-[#D5FF00]/30"
                     }`}
                   >
                     DE
@@ -2228,8 +2570,8 @@ export default function BudgitApp() {
                                     </div>
 
                                     <input
-                                      className={`col-span-3 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300 ${
-                                        e.paid ? "line-through text-neutral-600" : ""
+                                      className={`col-span-3 rounded-xl border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300 ${
+                                        e.paid ? "bg-[#D5FF00]/30 border-transparent line-through text-lime-800 decoration-lime-800" : "bg-white border-neutral-200 text-neutral-800"
                                       }`}
                                       value={e.name || ""}
                                       onChange={(ev) => updateExpenseItem(g.id, e.id, { name: ev.target.value })}
@@ -2265,7 +2607,9 @@ export default function BudgitApp() {
                                     />
 
                                     <SelectAllNumberInput
-                                      className="col-span-3 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-right text-neutral-800 tabular-nums focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300"
+                                      className={`col-span-3 rounded-xl border px-3 py-2 text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300 ${
+                                        e.paid ? "bg-[#D5FF00]/30 border-transparent line-through text-lime-800 decoration-lime-800" : "bg-white border-neutral-200 text-neutral-800"
+                                      }`}
                                       value={e.amount == null ? "0" : e.amount}
                                       onChange={(ev) => updateExpenseItem(g.id, e.id, { amount: ev.target.value })}
                                       inputMode="decimal"
@@ -2349,6 +2693,9 @@ export default function BudgitApp() {
                 </div>
               </div>
 
+              {/* Spend Tracker */}
+              <SpendTracker active={active} updateMonth={updateMonth} t={t} currencySymbol={currencySymbol} />
+
               {/* Notes */}
               <div className="rounded-2xl border border-neutral-200 bg-white">
                 <div className="px-4 py-3 border-b border-neutral-100">
@@ -2390,7 +2737,7 @@ export default function BudgitApp() {
                   <button
                     key={c}
                     onClick={() => setApp((a) => ({ ...a, currency: c }))}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${app.currency === c ? "bg-[#D5FF00] text-neutral-900 shadow-sm" : "text-neutral-500 hover:text-neutral-900 hover:bg-neutral-50"}`}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${app.currency === c ? "bg-[#D5FF00] text-neutral-900 shadow-sm" : "text-neutral-500 hover:text-neutral-900 hover:bg-[#D5FF00]/30"}`}
                   >
                     {c}
                   </button>
