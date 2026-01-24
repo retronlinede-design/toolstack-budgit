@@ -1387,7 +1387,7 @@ function SpendTracker({ active, updateMonth, t, currencySymbol }) {
 
   const handleAdd = () => {
     const val = parseFloat(String(amount || "").replace(",", "."));
-    if (!val || isNaN(val)) return;
+    if (!val || isNaN(val) || !groupId) return;
 
     const newTransaction = {
       id: uid(),
@@ -1594,7 +1594,7 @@ function SpendTracker({ active, updateMonth, t, currencySymbol }) {
               filteredTransactions.map((t) => {
                 const group = expenseGroups.find((g) => g.id === t.groupId);
                 const item = group?.items?.find(i => i.id === t.itemId);
-                const label = item ? `${group.label}: ${item.name}` : (group?.label || "Unknown");
+                const label = item ? `${group?.label || "Unknown"}: ${item.name}` : (group?.label || "Unknown");
                 return (
                   <div key={t.id} className="flex items-center justify-between p-3 rounded-xl border border-neutral-100 bg-neutral-50/50">
                     <div>
