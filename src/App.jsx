@@ -455,6 +455,303 @@ function NoteEditorModal({ open, onClose, item, groupName, onSave, onClear, t })
   );
 }
 
+function InsightsModal({ open, onClose, active, t, currencySymbol }) {
+  const insightsData = useMemo(() => {
+    if (!active.transactions || active.transactions.length === 0) {
+      return null;
+    }
+
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const daysInMonth = monthEnd.getDate();
+    const daysPassed = now.getDate();
+    const daysRemaining = daysInMonth - daysPassed;
+
+    // Collect all items with their planned amounts
+    const itemStats = {};
+    (active.expenseGroups || []).forEach(group => {
+      (group.items || []).forEach(item => {
+        if (!itemStats[item.id]) {
+          itemStats[item.id] = {
+            id: item.id,
+            name: item.name || t("unnamed"),
+            groupLabel: group.label || t("unnamed"),
+            planned: toNumber(item.amount),
+            spent: 0,
+            transactions: 0,
+          };
+        }
+      });
+    });
+
+    // Sum transactions for current month
+    active.transactions.forEach(tx => {
+      const txDate = String(tx.dateISO || "").split("T")[0];
+      const txMonth = txDate.slice(0, 7);
+      const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+      
+      if (txMonth === currentMonth && tx.itemId && itemStats[tx.itemId]) {
+        itemStats[tx.itemId].spent += (tx.amountCents || 0) / 100;
+        itemStats[tx.itemId].transactions += 1;
+      }
+    });
+
+    const items = Object.values(itemStats);
+
+    // Calculate totals
+    const totalPlanned = items.reduce((sum, i) => sum + i.planned, 0);
+    const totalSpent = items.reduce((sum, i) => sum + i.spent, 0);
+    const totalRemaining = totalPlanned - totalSpent;
+
+    // Forecast month-end
+    const dailyAverage = daysPassed > 0 ? totalSpent / daysPassed : 0;
+    const forecastMonthEnd = Math.round(dailyAverage * daysInMonth * 100) / 100;
+    const forecastRemaining = totalPlanned - forecastMonthEnd;
+
+    // Find overspent/at-risk items
+    const riskItems = items
+      .map(item => ({
+        ...item,
+        remaining: item.planned - item.spent,
+        forecast: Math.round((dailyAverage * item.planned / totalPlanned) * daysInMonth * 100) / 100,
+        isForecastOverspent: (dailyAverage * item.planned / totalPlanned) * daysInMonth > item.planned,
+      }))
+      .filter(item => item.spent > item.planned || item.isForecastOverspent)
+      .sort((a, b) => {
+        const aOverage = Math.max(0, a.spent - a.planned);
+        const bOverage = Math.max(0, b.spent - b.planned);
+        return bOverage - aOverage;
+      })
+      .slice(0, 5);
+
+    // Generate quick win suggestions
+    const discretionaryItems = items
+      .filter(item => item.planned > 0)
+      .sort((a, b) => b.spent - a.spent);
+
+    const suggestions = [];
+
+    // Suggestion 1: Cut top spending category
+    if (discretionaryItems[0]) {
+      const item = discretionaryItems[0];
+      const tenPercent = Math.round(item.spent * 0.1 * 100) / 100;
+      suggestions.push({
+        title: `Reduce "${item.name}" by 10%`,
+        detail: `Current: ${currencySymbol}${item.spent.toFixed(2)} → Target: ${currencySymbol}${(item.spent - tenPercent).toFixed(2)} (Save ${currencySymbol}${tenPercent.toFixed(2)})`,
+      });
+    }
+
+    // Suggestion 2: Cut second top category
+    if (discretionaryItems[1]) {
+      const item = discretionaryItems[1];
+      const fifteenPercent = Math.round(item.spent * 0.15 * 100) / 100;
+      suggestions.push({
+        title: `Reduce "${item.name}" by 15%`,
+        detail: `Current: ${currencySymbol}${item.spent.toFixed(2)} → Target: ${currencySymbol}${(item.spent - fifteenPercent).toFixed(2)} (Save ${currencySymbol}${fifteenPercent.toFixed(2)})`,
+      });
+    }
+
+    // Suggestion 3: Pause/defer lowest priority
+    if (discretionaryItems[2]) {
+      const item = discretionaryItems[2];
+      suggestions.push({
+        title: `Pause "${item.name}" this month`,
+        detail: `Potential savings: ${currencySymbol}${item.spent.toFixed(2)}`,
+      });
+    }
+
+    // Suggestion 4: Based on forecast
+    if (forecastRemaining < 0) {
+      const needed = Math.abs(forecastRemaining);
+      suggestions.push({
+        title: `Reduce spending by ${currencySymbol}${needed.toFixed(2)}`,
+        detail: `To avoid overspending by month-end at current pace`,
+      });
+    } else if (forecastRemaining > totalPlanned * 0.2) {
+      suggestions.push({
+        title: `You're on track!`,
+        detail: `Forecast remaining: ${currencySymbol}${forecastRemaining.toFixed(2)}. Maintain current spending.`,
+      });
+    }
+
+    return {
+      totalPlanned,
+      totalSpent,
+      totalRemaining,
+      forecastMonthEnd,
+      forecastRemaining,
+      daysInMonth,
+      daysPassed,
+      riskItems,
+      suggestions,
+    };
+  }, [active, t, currencySymbol]);
+
+  const copyToClipboard = () => {
+    if (!insightsData) return;
+    
+    let text = "Budget Insights\n\n";
+    text += `Summary:\n`;
+    text += `Total Planned: ${currencySymbol}${insightsData.totalPlanned.toFixed(2)}\n`;
+    text += `Total Spent: ${currencySymbol}${insightsData.totalSpent.toFixed(2)}\n`;
+    text += `Total Remaining: ${currencySymbol}${insightsData.totalRemaining.toFixed(2)}\n`;
+    text += `Forecast Month-End: ${currencySymbol}${insightsData.forecastMonthEnd.toFixed(2)}\n`;
+    text += `Forecast Remaining: ${currencySymbol}${insightsData.forecastRemaining.toFixed(2)}\n\n`;
+
+    if (insightsData.riskItems.length > 0) {
+      text += `Risk Areas:\n`;
+      insightsData.riskItems.forEach(item => {
+        text += `- ${item.name}: Planned ${currencySymbol}${item.planned.toFixed(2)}, Spent ${currencySymbol}${item.spent.toFixed(2)}\n`;
+      });
+      text += "\n";
+    }
+
+    text += `Quick Wins:\n`;
+    insightsData.suggestions.forEach((s, i) => {
+      text += `${i + 1}. ${s.title} - ${s.detail}\n`;
+    });
+    text += "\nDisclaimer: Informational only; not financial advice.";
+
+    navigator.clipboard.writeText(text);
+  };
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8 print:hidden">
+      <div className="absolute inset-0 bg-neutral-900/40 backdrop-blur-sm transition-opacity" onClick={onClose} />
+      <div className="relative w-full max-w-2xl bg-white rounded-[32px] shadow-2xl overflow-hidden ring-1 ring-black/5 transform transition-all flex flex-col max-h-[90vh] overflow-y-auto">
+        <div className="px-8 pt-8 pb-6 bg-gradient-to-r from-lime-50 to-emerald-50 border-b border-neutral-100">
+          <div className="font-bold text-3xl text-neutral-900 tracking-tight">Budget Insights</div>
+          <div className="mt-2 h-1 w-24 rounded-full bg-[#D5FF00]" />
+          <div className="mt-3 text-sm text-neutral-600">Analysis of your budget plan vs actual spending</div>
+        </div>
+
+        <div className="p-8 space-y-8">
+          {!insightsData ? (
+            <div className="text-center py-8">
+              <div className="text-neutral-600 text-lg">{t("noTransactions")}</div>
+              <div className="text-sm text-neutral-500 mt-2">Add transactions to your Spend Tracker to get personalized insights.</div>
+            </div>
+          ) : (
+            <>
+              {/* Summary */}
+              <div>
+                <div className="font-bold text-lg text-neutral-900 mb-4">Summary</div>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                  <div className="rounded-xl bg-neutral-50 border border-neutral-100 p-4">
+                    <div className="text-xs text-neutral-600 font-medium">Planned</div>
+                    <div className="text-lg font-bold text-neutral-900 mt-1">{currencySymbol}{insightsData.totalPlanned.toFixed(2)}</div>
+                  </div>
+                  <div className="rounded-xl bg-neutral-50 border border-neutral-100 p-4">
+                    <div className="text-xs text-neutral-600 font-medium">Spent</div>
+                    <div className="text-lg font-bold text-neutral-900 mt-1">{currencySymbol}{insightsData.totalSpent.toFixed(2)}</div>
+                  </div>
+                  <div className="rounded-xl bg-neutral-50 border border-neutral-100 p-4">
+                    <div className="text-xs text-neutral-600 font-medium">Remaining</div>
+                    <div className={`text-lg font-bold mt-1 ${insightsData.totalRemaining >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                      {currencySymbol}{insightsData.totalRemaining.toFixed(2)}
+                    </div>
+                  </div>
+                  <div className="rounded-xl bg-neutral-50 border border-neutral-100 p-4">
+                    <div className="text-xs text-neutral-600 font-medium">Forecast</div>
+                    <div className="text-lg font-bold text-neutral-900 mt-1">{currencySymbol}{insightsData.forecastMonthEnd.toFixed(2)}</div>
+                  </div>
+                  <div className="rounded-xl bg-neutral-50 border border-neutral-100 p-4">
+                    <div className="text-xs text-neutral-600 font-medium">Forecast Remaining</div>
+                    <div className={`text-lg font-bold mt-1 ${insightsData.forecastRemaining >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                      {currencySymbol}{insightsData.forecastRemaining.toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+                <div className="text-xs text-neutral-500 mt-3">
+                  {insightsData.daysPassed} of {insightsData.daysInMonth} days ({Math.round((insightsData.daysPassed / insightsData.daysInMonth) * 100)}%)
+                </div>
+              </div>
+
+              {/* Risk Areas */}
+              {insightsData.riskItems.length > 0 && (
+                <div>
+                  <div className="font-bold text-lg text-neutral-900 mb-4">⚠️ Risk Areas (Overspent/Forecast)</div>
+                  <div className="space-y-3">
+                    {insightsData.riskItems.map(item => (
+                      <div key={item.id} className="rounded-xl border border-red-100 bg-red-50 p-4">
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <div className="font-medium text-neutral-900">{item.name}</div>
+                            <div className="text-xs text-neutral-600 mt-1">{item.groupLabel}</div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <div className="text-sm font-bold text-red-600">
+                              {item.spent > item.planned ? (
+                                <>Over by {currencySymbol}{(item.spent - item.planned).toFixed(2)}</>
+                              ) : (
+                                <>Forecast risk</>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 mt-3 text-xs">
+                          <div>
+                            <span className="text-neutral-600">Planned:</span> <span className="font-medium">{currencySymbol}{item.planned.toFixed(2)}</span>
+                          </div>
+                          <div>
+                            <span className="text-neutral-600">Spent:</span> <span className="font-medium">{currencySymbol}{item.spent.toFixed(2)}</span>
+                          </div>
+                          <div>
+                            <span className="text-neutral-600">Remaining:</span> <span className={`font-medium ${item.remaining >= 0 ? "text-emerald-600" : "text-red-600"}`}>{currencySymbol}{item.remaining.toFixed(2)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Quick Wins */}
+              <div>
+                <div className="font-bold text-lg text-neutral-900 mb-4">💡 Quick Wins & Suggestions</div>
+                <div className="space-y-3">
+                  {insightsData.suggestions.map((s, i) => (
+                    <div key={i} className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
+                      <div className="font-medium text-neutral-900">{s.title}</div>
+                      <div className="text-sm text-neutral-700 mt-1">{s.detail}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Disclaimer */}
+              <div className="rounded-xl border border-amber-100 bg-amber-50 p-4">
+                <div className="text-xs text-amber-900">
+                  <strong>Disclaimer:</strong> This analysis is informational only and not financial advice. Consult with a financial advisor for personalized guidance.
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="p-6 bg-neutral-50 border-t border-neutral-100 flex justify-between items-center">
+          <button
+            onClick={copyToClipboard}
+            disabled={!insightsData}
+            className="px-4 py-2 rounded-xl text-sm font-medium bg-[#D5FF00] text-neutral-900 hover:bg-[#c7f000] transition disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+          >
+            📋 Copy Insights
+          </button>
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded-xl text-sm font-medium text-neutral-600 hover:bg-neutral-100 transition"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function NotesPanel({ active, onJump, t }) {
   const notes = useMemo(() => {
     const list = [];
@@ -1676,6 +1973,7 @@ export default function BudgitApp() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [insightsOpen, setInsightsOpen] = useState(false);
 
   // Hide paid items (UI-only)
   const [hidePaid, setHidePaid] = useState(false);
@@ -2210,6 +2508,13 @@ export default function BudgitApp() {
         onImport={importJSON}
         t={t}
       />
+      <InsightsModal
+        open={insightsOpen}
+        onClose={() => setInsightsOpen(false)}
+        active={active}
+        t={t}
+        currencySymbol={currencySymbol}
+      />
 
       {previewOpen ? (
         <style>{`
@@ -2379,10 +2684,10 @@ export default function BudgitApp() {
 
           <div className="w-full sm:w-[520px] lg:w-[620px] mb-12 sm:mb-0">
             <div className="relative">
-              <div className="grid grid-cols-3 gap-2 pr-12">
+              <div className="grid grid-cols-4 gap-2 pr-12">
                 <ActionButton onClick={() => {}}>{t("hub")}</ActionButton>
                 <ActionButton onClick={openPreview}>{t("preview")}</ActionButton>
-
+                <ActionButton onClick={() => setInsightsOpen(true)}>Insights</ActionButton>
                 <ActionButton onClick={() => setExportModalOpen(true)}>{t("data")}</ActionButton>
               </div>
 
