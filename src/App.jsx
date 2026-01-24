@@ -364,6 +364,150 @@ function CalculatorIcon({ className = "" }) {
   );
 }
 
+function NoteIcon({ className = "" }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+    </svg>
+  );
+}
+
+function PinIcon({ className = "", filled }) {
+  return (
+    <svg viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <line x1="12" y1="17" x2="12" y2="22" />
+      <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" />
+    </svg>
+  );
+}
+
+function NoteEditorModal({ open, onClose, item, groupName, onSave, onClear, t }) {
+  const [text, setText] = useState("");
+  const [pinned, setPinned] = useState(false);
+
+  useEffect(() => {
+    if (open && item) {
+      setText(item.note || "");
+      setPinned(!!item.notePinned);
+    }
+  }, [open, item]);
+
+  if (!open || !item) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8 print:hidden">
+      <div className="absolute inset-0 bg-neutral-900/40 backdrop-blur-sm transition-opacity" onClick={onClose} />
+      <div className="relative w-full max-w-lg bg-white rounded-[32px] shadow-2xl overflow-hidden ring-1 ring-black/5 transform transition-all flex flex-col">
+        <div className="px-6 pt-6 pb-4">
+          <div className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-1">{groupName}</div>
+          <div className="font-bold text-2xl text-neutral-900 tracking-tight">{t("note")} — {item.name || t("unnamed")}</div>
+        </div>
+        
+        <div className="px-6 pb-6 space-y-4">
+          <textarea
+            className="w-full h-40 rounded-xl border border-neutral-200 p-4 bg-neutral-50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-[#D5FF00] focus:border-transparent resize-none"
+            placeholder={t("notesPlaceholder")}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            autoFocus
+          />
+          
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setPinned(!pinned)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition ${pinned ? "bg-[#D5FF00] text-neutral-900" : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"}`}
+            >
+              <PinIcon className="h-4 w-4" filled={pinned} />
+              {pinned ? "Pinned" : "Pin note"}
+            </button>
+          </div>
+        </div>
+
+        <div className="p-4 bg-neutral-50 border-t border-neutral-100 flex justify-between items-center">
+          <div>
+            {item.note && (
+              <button
+                onClick={() => {
+                  if (window.confirm("Clear this note?")) onClear();
+                }}
+                className="text-red-600 text-sm font-medium hover:underline px-2"
+              >
+                {t("clear")}
+              </button>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium text-neutral-600 hover:bg-neutral-200 transition">
+              {t("cancel")}
+            </button>
+            <button 
+              onClick={() => onSave(text, pinned)}
+              className="px-6 py-2 rounded-xl text-sm font-bold bg-[#D5FF00] text-neutral-900 shadow-sm hover:bg-[#c7f000] transition"
+            >
+              Save
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function NotesPanel({ active, onJump, t }) {
+  const notes = useMemo(() => {
+    const list = [];
+    (active.expenseGroups || []).forEach(g => {
+      (g.items || []).forEach(item => {
+        if (item.note && item.note.trim()) {
+          list.push({ ...item, groupLabel: g.label || t("unnamed"), groupId: g.id });
+        }
+      });
+    });
+    // Sort: Pinned first, then Group, then Item Name
+    return list.sort((a, b) => {
+      if (a.notePinned !== b.notePinned) return a.notePinned ? -1 : 1;
+      const gCmp = a.groupLabel.localeCompare(b.groupLabel);
+      if (gCmp !== 0) return gCmp;
+      return (a.name || "").localeCompare(b.name || "");
+    });
+  }, [active, t]);
+
+  if (notes.length === 0) return null;
+
+  return (
+    <div className="rounded-2xl border border-neutral-200 bg-white mt-6">
+      <div className="px-4 py-3 border-b border-neutral-100 font-semibold text-neutral-800 flex items-center gap-2">
+        <NoteIcon className="h-5 w-5 text-neutral-500" />
+        {t("notes")}
+      </div>
+      <div className="divide-y divide-neutral-100">
+        {notes.map(note => (
+          <div key={note.id} className="p-4 hover:bg-neutral-50 transition">
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  {note.notePinned && <PinIcon className="h-3 w-3 text-neutral-400" filled />}
+                  <span className="font-bold text-neutral-900 text-sm">{note.name || t("unnamed")}</span>
+                  <span className="text-xs text-neutral-500 bg-neutral-100 px-2 py-0.5 rounded-md">{note.groupLabel}</span>
+                </div>
+                <div className="text-sm text-neutral-700 whitespace-pre-wrap leading-relaxed">{note.note}</div>
+              </div>
+              <button
+                onClick={() => onJump(note.id)}
+                className="shrink-0 text-xs font-medium text-[#D5FF00] bg-neutral-900 px-3 py-1.5 rounded-lg hover:bg-neutral-700 transition"
+              >
+                Jump to item
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function CalendarIcon({ className = "" }) {
   return (
     <svg
@@ -863,11 +1007,14 @@ const normalizeExpenseItem = (x) => ({
   amount: x && x.amount != null ? x.amount : "0",
   dueDay: x && x.dueDay != null ? Number(x.dueDay) : null,
   paid: !!(x && x.paid),
+  note: x && typeof x.note === "string" ? x.note : "",
+  notePinned: !!(x && x.notePinned),
+  noteUpdatedAt: x && x.noteUpdatedAt ? x.noteUpdatedAt : null,
 });
 
 const normalizeTransaction = (x) => ({
   id: x && x.id ? x.id : uid(),
-  dateISO: x && x.dateISO ? x.dateISO : new Date().toISOString(),
+  dateISO: x && typeof x.dateISO === "string" && x.dateISO.length > 10 ? x.dateISO : new Date().toISOString(),
   amountCents: x && typeof x.amountCents === "number" ? x.amountCents : 0,
   groupId: x && (x.groupId || x.categoryId) ? (x.groupId || x.categoryId) : null,
   itemId: x && x.itemId ? x.itemId : null,
@@ -928,6 +1075,7 @@ const TRANSLATIONS = {
     income: "Income",
     addIncome: "+ Add income",
     totalIncome: "Total income",
+    totalExpenses: "Total expenses",
     expenses: "Expenses",
     addSection: "+ Add section",
     hidePaid: "Hide paid",
@@ -1073,6 +1221,7 @@ const TRANSLATIONS = {
     income: "Einkommen",
     addIncome: "+ Einkommen",
     totalIncome: "Gesamteinkommen",
+    totalExpenses: "Gesamtausgaben",
     expenses: "Ausgaben",
     addSection: "+ Abschnitt",
     hidePaid: "Bezahlte ausblenden",
@@ -1237,7 +1386,7 @@ function SpendTracker({ active, updateMonth, t, currencySymbol }) {
   };
 
   const handleAdd = () => {
-    const val = parseFloat(amount.replace(",", "."));
+    const val = parseFloat(String(amount || "").replace(",", "."));
     if (!val || isNaN(val)) return;
 
     const newTransaction = {
@@ -1246,7 +1395,7 @@ function SpendTracker({ active, updateMonth, t, currencySymbol }) {
       amountCents: Math.round(val * 100),
       groupId: groupId,
       itemId: itemId || null,
-      note: note.trim(),
+      note: (note || "").trim(),
       paymentMethod,
     };
 
@@ -1305,7 +1454,8 @@ function SpendTracker({ active, updateMonth, t, currencySymbol }) {
     const monthStr = now.toISOString().slice(0, 7); // YYYY-MM
 
     return transactions.filter((t) => {
-      const tDate = t.dateISO.split("T")[0];
+      if (!t) return false;
+      const tDate = String(t.dateISO || "").split("T")[0];
       if (filter === "today") return tDate === todayStr;
       return tDate.startsWith(monthStr);
     });
@@ -1319,9 +1469,9 @@ function SpendTracker({ active, updateMonth, t, currencySymbol }) {
       <div className="p-4 space-y-6">
         {/* Quick Add Form */}
         <div className="space-y-3 bg-neutral-50 p-3 rounded-xl border border-neutral-100">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
             <input
-              className="rounded-xl border border-neutral-200 px-3 py-2 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300"
+              className="sm:col-span-3 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300"
               placeholder={`${t("amount")} (${currencySymbol})`}
               type="number"
               inputMode="decimal"
@@ -1330,7 +1480,7 @@ function SpendTracker({ active, updateMonth, t, currencySymbol }) {
             />
             {/* Group Select */}
             <select
-              className="rounded-xl border border-neutral-200 px-3 py-2 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300"
+              className="sm:col-span-4 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300"
               value={groupId}
               onChange={handleGroupChange}
             >
@@ -1342,7 +1492,7 @@ function SpendTracker({ active, updateMonth, t, currencySymbol }) {
             </select>
             {/* Item Select */}
             <select
-              className="rounded-xl border border-neutral-200 px-3 py-2 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300 disabled:opacity-50"
+              className="sm:col-span-5 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300 disabled:opacity-50"
               value={itemId}
               onChange={(e) => setItemId(e.target.value)}
               disabled={!groupId}
@@ -1452,7 +1602,14 @@ function SpendTracker({ active, updateMonth, t, currencySymbol }) {
                         {label} <span className="text-neutral-400 font-normal">• {t.paymentMethod}</span>
                       </div>
                       <div className="text-xs text-neutral-500">
-                        {new Date(t.dateISO).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {(() => {
+                          try {
+                            const d = new Date(t.dateISO);
+                            return isNaN(d.getTime()) ? "??:??" : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                          } catch (e) {
+                            return "??:??";
+                          }
+                        })()}
                         {t.note && ` • ${t.note}`}
                       </div>
                     </div>
@@ -1528,6 +1685,10 @@ export default function BudgitApp() {
 
   // Auto-focus newly added items so you can type immediately over default values.
   const [lastAdded, setLastAdded] = useState(null);
+
+  // Note Modal State
+  const [noteModal, setNoteModal] = useState(null); // { groupId, itemId }
+  const [highlightItem, setHighlightItem] = useState(null);
 
   const notify = (msg) => {
     setToast(msg);
@@ -1712,6 +1873,31 @@ export default function BudgitApp() {
         return { ...g, items: (g.items || []).filter((it) => it.id !== itemId) };
       }),
     }));
+  };
+
+  const updateExpenseItemNote = (groupId, itemId, note, pinned) => {
+    updateMonth((cur) => ({
+      ...cur,
+      expenseGroups: (cur.expenseGroups || []).map((g) => {
+        if (g.id !== groupId) return g;
+        return {
+          ...g,
+          items: (g.items || []).map((it) => (it.id === itemId ? { ...it, note, notePinned: pinned, noteUpdatedAt: new Date().toISOString() } : it)),
+        };
+      }),
+    }));
+    setNoteModal(null);
+  };
+
+  const handleJumpTo = (itemId) => {
+    setHighlightItem(itemId);
+    setTimeout(() => {
+      const el = document.getElementById(`item-${itemId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }, 100);
+    setTimeout(() => setHighlightItem(null), 2000);
   };
 
   // Expense insert reorder: within section + between sections
@@ -1933,14 +2119,6 @@ export default function BudgitApp() {
   }, [netRemaining, incomeTotal]);
 
   // ---------------------------
-  // Notes
-  // ---------------------------
-
-  const updateNotes = (notes) => {
-    updateMonth((cur) => ({ ...cur, notes }));
-  };
-
-  // ---------------------------
   // Print preview computed
   // ---------------------------
 
@@ -2001,6 +2179,22 @@ export default function BudgitApp() {
           .print\\:p-0 { padding: 0 !important; }
         }
       `}</style>
+
+      {noteModal && (() => {
+        const g = active.expenseGroups.find(g => g.id === noteModal.groupId);
+        const item = g?.items.find(i => i.id === noteModal.itemId);
+        return (
+          <NoteEditorModal
+            open={!!noteModal}
+            onClose={() => setNoteModal(null)}
+            item={item}
+            groupName={g?.label}
+            onSave={(text, pinned) => updateExpenseItemNote(noteModal.groupId, noteModal.itemId, text, pinned)}
+            onClear={() => updateExpenseItemNote(noteModal.groupId, noteModal.itemId, "", false)}
+            t={t}
+          />
+        );
+      })()}
 
       <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} t={t} />
       <ExportModal
@@ -2293,7 +2487,7 @@ export default function BudgitApp() {
 
               <div className="mt-3">
                 <div className="flex items-end justify-between gap-3">
-                  <div className="text-3xl sm:text-4xl font-black tracking-tight text-neutral-800">{monthLabel(app.activeMonth, app.lang)}</div>
+                  <div className="text-3xl sm:text-4xl font-black tracking-tight text-neutral-600">{monthLabel(app.activeMonth, app.lang)}</div>
                   <div className="hidden sm:block text-xs text-neutral-500 font-medium tabular-nums">{app.activeMonth}</div>
                 </div>
                 <div className="mt-2 h-[2px] w-72 rounded-full bg-gradient-to-r from-[#D5FF00]/0 via-[#D5FF00] to-[#D5FF00]/0" />
@@ -2554,8 +2748,8 @@ export default function BudgitApp() {
                               <div className="text-sm text-neutral-700">{t("noItemsSection")}</div>
                             ) : (
                               itemsVisible.map((e, idx) => (
-                                <div key={e.id}>
-                                  <div className="grid grid-cols-12 gap-2 items-center rounded-2xl p-2 border border-transparent">
+                                <div key={e.id} id={`item-${e.id}`} className={`transition-colors duration-1000 rounded-2xl ${highlightItem === e.id ? "bg-[#D5FF00]/20" : ""}`}>
+                                  <div className="grid grid-cols-12 gap-2 items-center p-2 border border-transparent">
                                     <div
                                       className="col-span-1"
                                       draggable
@@ -2627,13 +2821,22 @@ export default function BudgitApp() {
                                       />
                                     </div>
 
-                                    <button
-                                      className="print:hidden col-span-1 h-10 rounded-xl border bg-red-50 hover:bg-red-100 text-red-700 border-red-200 px-3 shadow-sm"
-                                      title={t("removeTitle")}
-                                      onClick={() => deleteExpenseItem(g.id, e.id)}
-                                    >
-                                      ×
-                                    </button>
+                                    <div className="col-span-1 flex gap-1">
+                                      <button
+                                        className={`print:hidden h-10 w-10 rounded-xl border shadow-sm flex items-center justify-center transition ${e.note ? "bg-[#D5FF00] border-[#D5FF00] text-neutral-900" : "bg-white border-neutral-200 text-neutral-400 hover:text-neutral-600"}`}
+                                        title={t("note")}
+                                        onClick={() => setNoteModal({ groupId: g.id, itemId: e.id })}
+                                      >
+                                        <NoteIcon className="h-4 w-4" />
+                                      </button>
+                                      <button
+                                        className="print:hidden h-10 w-10 rounded-xl border bg-red-50 hover:bg-red-100 text-red-700 border-red-200 shadow-sm flex items-center justify-center"
+                                        title={t("removeTitle")}
+                                        onClick={() => deleteExpenseItem(g.id, e.id)}
+                                      >
+                                        ×
+                                      </button>
+                                    </div>
                                   </div>
 
                                   <InsertDropZone
@@ -2696,20 +2899,7 @@ export default function BudgitApp() {
               {/* Spend Tracker */}
               <SpendTracker active={active} updateMonth={updateMonth} t={t} currencySymbol={currencySymbol} />
 
-              {/* Notes */}
-              <div className="rounded-2xl border border-neutral-200 bg-white">
-                <div className="px-4 py-3 border-b border-neutral-100">
-                  <div className="font-semibold text-neutral-800">{t("notes")}</div>
-                </div>
-                <div className="p-4">
-                  <textarea
-                    className="w-full rounded-xl border border-neutral-200 px-3 py-2 bg-white min-h-[90px] text-neutral-800 focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300"
-                    value={active.notes || ""}
-                    onChange={(e) => updateNotes(e.target.value)}
-                    placeholder={t("notesPlaceholder")}
-                  />
-                </div>
-              </div>
+              <NotesPanel active={active} onJump={handleJumpTo} t={t} />
             </div>
           </div>
 
@@ -2754,6 +2944,13 @@ export default function BudgitApp() {
                 <div className="text-sm text-neutral-700">{t("totalIncome")}</div>
                 <div className="text-2xl font-semibold text-neutral-800 mt-1">
                   <Money value={incomeTotal} currency={app.currency} />
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-neutral-200 p-4">
+                <div className="text-sm text-neutral-700">{t("totalExpenses")}</div>
+                <div className="text-2xl font-semibold text-neutral-800 mt-1">
+                  <Money value={expensePlannedTotal} currency={app.currency} />
                 </div>
               </div>
 
