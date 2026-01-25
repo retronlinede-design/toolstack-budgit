@@ -401,6 +401,15 @@ function ChevronDownIcon({ className = "" }) {
   );
 }
 
+function SearchIcon({ className = "" }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  );
+}
+
 function NoteEditorModal({ open, onClose, item, groupName, onSave, onClear, t }) {
   const [text, setText] = useState("");
   const [pinned, setPinned] = useState(false);
@@ -1553,6 +1562,8 @@ const TRANSLATIONS = {
     noTransactions: "No transactions yet.",
     note: "Note",
     budgetLine: "Budget Line",
+    search: "Search",
+    searchPlaceholder: "Search items...",
   },
   de: {
     subtitle: "Monatliches persönliches Budgetierungstool",
@@ -1701,10 +1712,12 @@ const TRANSLATIONS = {
     noTransactions: "Noch keine Transaktionen.",
     note: "Notiz",
     budgetLine: "Budgetzeile",
+    search: "Suchen",
+    searchPlaceholder: "Elemente suchen...",
   }
 };
 
-function SpendTracker({ active, updateMonth, t, currencySymbol }) {
+function SpendTracker({ active, updateMonth, t, currencySymbol, searchTerm }) {
   const [isOpen, setIsOpen] = useState(() => lsGet("budgit_tracker_open") === "true");
   useEffect(() => lsSet("budgit_tracker_open", isOpen), [isOpen]);
   const [amount, setAmount] = useState("");
@@ -1807,17 +1820,32 @@ function SpendTracker({ active, updateMonth, t, currencySymbol }) {
 
   // Filtered Transactions
   const filteredTransactions = useMemo(() => {
+    if (searchTerm && searchTerm.trim()) {
+      const lower = searchTerm.toLowerCase();
+      return transactions.filter((tx) => {
+        const group = expenseGroups.find((g) => g.id === tx.groupId);
+        const item = group?.items?.find(i => i.id === tx.itemId);
+        const label = item ? item.name : group?.label;
+        
+        return (
+          (label || "").toLowerCase().includes(lower) ||
+          (tx.note || "").toLowerCase().includes(lower) ||
+          (tx.amountCents / 100).toString().includes(lower) ||
+          (tx.paymentMethod || "").toLowerCase().includes(lower)
+        );
+      });
+    }
+
     const now = new Date();
     const todayStr = now.toISOString().split("T")[0];
     const monthStr = now.toISOString().slice(0, 7); // YYYY-MM
-
     return transactions.filter((t) => {
       if (!t) return false;
       const tDate = String(t.dateISO || "").split("T")[0];
       if (filter === "today") return tDate === todayStr;
       return tDate.startsWith(monthStr);
     });
-  }, [transactions, filter]);
+  }, [transactions, filter, searchTerm, expenseGroups]);
 
   return (
     <div className="rounded-2xl border border-neutral-200 bg-white overflow-hidden">
@@ -1933,23 +1961,25 @@ function SpendTracker({ active, updateMonth, t, currencySymbol }) {
 
         {/* Recent Transactions */}
         <div>
-          <div className="flex items-center justify-between mb-3">
-            <div className="font-semibold text-neutral-800">{t("recentTransactions")}</div>
-            <div className="flex bg-neutral-100 rounded-lg p-1">
-              <button
-                onClick={() => setFilter("today")}
-                className={`px-3 py-1 rounded-md text-xs font-medium transition ${filter === "today" ? "bg-white shadow-sm text-neutral-900" : "text-neutral-500 hover:text-neutral-700"}`}
-              >
-                {t("today")}
-              </button>
-              <button
-                onClick={() => setFilter("month")}
-                className={`px-3 py-1 rounded-md text-xs font-medium transition ${filter === "month" ? "bg-white shadow-sm text-neutral-900" : "text-neutral-500 hover:text-neutral-700"}`}
-              >
-                {t("thisMonth")}
-              </button>
+          {!searchTerm && (
+            <div className="flex items-center justify-between mb-3">
+              <div className="font-semibold text-neutral-800">{t("recentTransactions")}</div>
+              <div className="flex bg-neutral-100 rounded-lg p-1">
+                <button
+                  onClick={() => setFilter("today")}
+                  className={`px-3 py-1 rounded-md text-xs font-medium transition ${filter === "today" ? "bg-white shadow-sm text-neutral-900" : "text-neutral-500 hover:text-neutral-700"}`}
+                >
+                  {t("today")}
+                </button>
+                <button
+                  onClick={() => setFilter("month")}
+                  className={`px-3 py-1 rounded-md text-xs font-medium transition ${filter === "month" ? "bg-white shadow-sm text-neutral-900" : "text-neutral-500 hover:text-neutral-700"}`}
+                >
+                  {t("thisMonth")}
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="space-y-2">
             {filteredTransactions.length === 0 ? (
@@ -2038,6 +2068,9 @@ export default function BudgitApp() {
   const [helpOpen, setHelpOpen] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [insightsOpen, setInsightsOpen] = useState(false);
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
 
   const [summaryOpen, setSummaryOpen] = useState(() => lsGet("budgit_summary_open") !== "false");
   useEffect(() => lsSet("budgit_summary_open", summaryOpen), [summaryOpen]);
@@ -2865,7 +2898,31 @@ export default function BudgitApp() {
 
               <div className="mt-3">
                 <div className="flex items-end justify-between gap-3">
-                  <div className="text-3xl sm:text-4xl font-black tracking-tight text-neutral-600">{monthLabel(app.activeMonth, app.lang)}</div>
+                  <div className="flex items-center gap-6">
+                    <div className="text-3xl sm:text-4xl font-black tracking-tight text-neutral-600">{monthLabel(app.activeMonth, app.lang)}</div>
+                    {searchOpen ? (
+                      <div className="relative flex items-center">
+                        <input 
+                          autoFocus
+                          className="h-9 pl-3 pr-8 rounded-xl text-xs font-medium border border-neutral-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#D5FF00] w-32 sm:w-48 transition-all"
+                          placeholder={t("searchPlaceholder")}
+                          value={searchTerm}
+                          onChange={e => setSearchTerm(e.target.value)}
+                          onKeyDown={e => { if(e.key === 'Escape') { setSearchOpen(false); setSearchTerm(""); } }}
+                        />
+                        <button 
+                          onClick={() => { setSearchOpen(false); setSearchTerm(""); }}
+                          className="absolute right-2 text-neutral-400 hover:text-neutral-600"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ) : (
+                      <button onClick={() => setSearchOpen(true)} title={t("search")} className="h-9 w-9 rounded-xl border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 shadow-sm flex items-center justify-center text-neutral-500 transition">
+                        <SearchIcon className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
                   <div className="hidden sm:block text-xs text-neutral-500 font-medium tabular-nums">{app.activeMonth}</div>
                 </div>
                 <div className="mt-2 h-[2px] w-72 rounded-full bg-gradient-to-r from-[#D5FF00]/0 via-[#D5FF00] to-[#D5FF00]/0" />
@@ -2883,36 +2940,38 @@ export default function BudgitApp() {
                 </div>
 
                 <div className="p-4 space-y-2">
-                  <InsertDropZone
-                    active={dropHint && dropHint.type === "incomeInsert" && dropHint.index === 0}
-                    onDragOver={(e) => {
-                      const p = readDragPayload(e);
-                      if (!p || p.type !== "income") return;
-                      e.preventDefault();
-                      setDropHint({ type: "incomeInsert", index: 0 });
-                    }}
-                    onDrop={(e) => {
-                      const p = readDragPayload(e);
-                      if (!p || p.type !== "income") return;
-                      e.preventDefault();
-                      moveIncomeInsert(p.itemId, 0);
-                      clearDragState();
-                    }}
-                  />
+                  {!searchTerm && (
+                    <InsertDropZone
+                      active={dropHint && dropHint.type === "incomeInsert" && dropHint.index === 0}
+                      onDragOver={(e) => {
+                        const p = readDragPayload(e);
+                        if (!p || p.type !== "income") return;
+                        e.preventDefault();
+                        setDropHint({ type: "incomeInsert", index: 0 });
+                      }}
+                      onDrop={(e) => {
+                        const p = readDragPayload(e);
+                        if (!p || p.type !== "income") return;
+                        e.preventDefault();
+                        moveIncomeInsert(p.itemId, 0);
+                        clearDragState();
+                      }}
+                    />
+                  )}
 
-                  {(active.incomes || []).length === 0 ? (
+                  {(active.incomes || []).filter(i => !searchTerm || (i.name || "").toLowerCase().includes(searchTerm.toLowerCase()) || (i.amount || "").toString().includes(searchTerm)).length === 0 ? (
                     <div className="text-sm text-neutral-700">{t("noIncome")}</div>
                   ) : (
-                    (active.incomes || []).map((i, idx) => (
+                    (active.incomes || []).filter(i => !searchTerm || (i.name || "").toLowerCase().includes(searchTerm.toLowerCase()) || (i.amount || "").toString().includes(searchTerm)).map((i, idx) => (
                       <div key={i.id}>
                         <div className="grid grid-cols-12 gap-2 items-center rounded-2xl p-2 border border-transparent">
                           <div
                             className="col-span-1"
-                            draggable
+                            draggable={!searchTerm}
                             onDragStart={(e) => setDragPayload({ type: "income", itemId: i.id }, e)}
                             onDragEnd={clearDragState}
                           >
-                            <DragHandle title={t("dragIncomeTitle")} />
+                            {!searchTerm && <DragHandle title={t("dragIncomeTitle")} />}
                           </div>
 
                           <input
@@ -2968,22 +3027,24 @@ export default function BudgitApp() {
                           </button>
                         </div>
 
-                        <InsertDropZone
-                          active={dropHint && dropHint.type === "incomeInsert" && dropHint.index === idx + 1}
-                          onDragOver={(e) => {
-                            const p = readDragPayload(e);
-                            if (!p || p.type !== "income") return;
-                            e.preventDefault();
-                            setDropHint({ type: "incomeInsert", index: idx + 1 });
-                          }}
-                          onDrop={(e) => {
-                            const p = readDragPayload(e);
-                            if (!p || p.type !== "income") return;
-                            e.preventDefault();
-                            moveIncomeInsert(p.itemId, idx + 1);
-                            clearDragState();
-                          }}
-                        />
+                        {!searchTerm && (
+                          <InsertDropZone
+                            active={dropHint && dropHint.type === "incomeInsert" && dropHint.index === idx + 1}
+                            onDragOver={(e) => {
+                              const p = readDragPayload(e);
+                              if (!p || p.type !== "income") return;
+                              e.preventDefault();
+                              setDropHint({ type: "incomeInsert", index: idx + 1 });
+                            }}
+                            onDrop={(e) => {
+                              const p = readDragPayload(e);
+                              if (!p || p.type !== "income") return;
+                              e.preventDefault();
+                              moveIncomeInsert(p.itemId, idx + 1);
+                              clearDragState();
+                            }}
+                          />
+                        )}
                       </div>
                     ))
                   )}
@@ -3018,26 +3079,43 @@ export default function BudgitApp() {
                 </div>
 
                 <div className="p-4 space-y-3">
-                  <InsertDropZone
-                    active={dropHint && dropHint.type === "groupInsert" && dropHint.index === 0}
-                    onDragOver={(e) => {
-                      const p = readDragPayload(e);
-                      if (!p || p.type !== "expenseGroup") return;
-                      e.preventDefault();
-                      setDropHint({ type: "groupInsert", index: 0 });
-                    }}
-                    onDrop={(e) => {
-                      const p = readDragPayload(e);
-                      if (!p || p.type !== "expenseGroup") return;
-                      e.preventDefault();
-                      moveExpenseGroupInsert(p.groupId, 0);
-                      clearDragState();
-                    }}
-                  />
+                  {!searchTerm && (
+                    <InsertDropZone
+                      active={dropHint && dropHint.type === "groupInsert" && dropHint.index === 0}
+                      onDragOver={(e) => {
+                        const p = readDragPayload(e);
+                        if (!p || p.type !== "expenseGroup") return;
+                        e.preventDefault();
+                        setDropHint({ type: "groupInsert", index: 0 });
+                      }}
+                      onDrop={(e) => {
+                        const p = readDragPayload(e);
+                        if (!p || p.type !== "expenseGroup") return;
+                        e.preventDefault();
+                        moveExpenseGroupInsert(p.groupId, 0);
+                        clearDragState();
+                      }}
+                    />
+                  )}
 
                   {(active.expenseGroups || []).map((g, gIdx) => {
                     const allItems = g.items || [];
-                    const itemsVisible = hidePaid ? allItems.filter((it) => !it.paid) : allItems;
+                    let itemsVisible = hidePaid ? allItems.filter((it) => !it.paid) : allItems;
+                    
+                    const matchesGroup = (g.label || "").toLowerCase().includes(searchTerm.toLowerCase());
+                    
+                    if (searchTerm.trim()) {
+                      if (!matchesGroup) {
+                        itemsVisible = itemsVisible.filter(i => 
+                          (i.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          (i.amount || "").toString().includes(searchTerm) ||
+                          (i.note || "").toLowerCase().includes(searchTerm.toLowerCase())
+                        );
+                      }
+                    }
+
+                    if (itemsVisible.length === 0 && !matchesGroup && searchTerm.trim()) return null;
+
                     const itemsCount = allItems.length;
 
                     return (
@@ -3048,11 +3126,11 @@ export default function BudgitApp() {
                             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                               <div className="flex items-center gap-2">
                                 <div
-                                  draggable
+                                  draggable={!searchTerm}
                                   onDragStart={(e) => setDragPayload({ type: "expenseGroup", groupId: g.id }, e)}
                                   onDragEnd={clearDragState}
                                 >
-                                  <DragHandle title={t("dragSectionTitle")} />
+                                  {!searchTerm && <DragHandle title={t("dragSectionTitle")} />}
                                 </div>
 
                                 <input
@@ -3105,22 +3183,24 @@ export default function BudgitApp() {
                         </div>
 
                           <div className="p-3 space-y-2">
-                            <InsertDropZone
-                              active={dropHint && dropHint.type === "expenseInsert" && dropHint.groupId === g.id && dropHint.index === 0}
-                              onDragOver={(e) => {
-                                const p = readDragPayload(e);
-                                if (!p || p.type !== "expense") return;
-                                e.preventDefault();
-                                setDropHint({ type: "expenseInsert", groupId: g.id, index: 0 });
-                              }}
-                              onDrop={(e) => {
-                                const p = readDragPayload(e);
-                                if (!p || p.type !== "expense") return;
-                                e.preventDefault();
-                                moveExpenseInsert(p.fromGroupId, p.itemId, g.id, 0);
-                                clearDragState();
-                              }}
-                            />
+                            {!searchTerm && (
+                              <InsertDropZone
+                                active={dropHint && dropHint.type === "expenseInsert" && dropHint.groupId === g.id && dropHint.index === 0}
+                                onDragOver={(e) => {
+                                  const p = readDragPayload(e);
+                                  if (!p || p.type !== "expense") return;
+                                  e.preventDefault();
+                                  setDropHint({ type: "expenseInsert", groupId: g.id, index: 0 });
+                                }}
+                                onDrop={(e) => {
+                                  const p = readDragPayload(e);
+                                  if (!p || p.type !== "expense") return;
+                                  e.preventDefault();
+                                  moveExpenseInsert(p.fromGroupId, p.itemId, g.id, 0);
+                                  clearDragState();
+                                }}
+                              />
+                            )}
 
                             {itemsVisible.length === 0 ? (
                               <div className="text-sm text-neutral-700">{t("noItemsSection")}</div>
@@ -3130,11 +3210,11 @@ export default function BudgitApp() {
                                   <div className="grid grid-cols-12 gap-2 items-center p-2 border border-transparent">
                                     <div
                                       className="col-span-1"
-                                      draggable
+                                      draggable={!searchTerm}
                                       onDragStart={(ev) => setDragPayload({ type: "expense", fromGroupId: g.id, itemId: e.id }, ev)}
                                       onDragEnd={clearDragState}
                                     >
-                                      <DragHandle title={t("dragExpenseTitle")} />
+                                      {!searchTerm && <DragHandle title={t("dragExpenseTitle")} />}
                                     </div>
 
                                     <div className="col-span-1">
@@ -3217,43 +3297,47 @@ export default function BudgitApp() {
                                     </div>
                                   </div>
 
-                                  <InsertDropZone
-                                    active={dropHint && dropHint.type === "expenseInsert" && dropHint.groupId === g.id && dropHint.index === idx + 1}
-                                    onDragOver={(ev) => {
-                                      const p = readDragPayload(ev);
-                                      if (!p || p.type !== "expense") return;
-                                      ev.preventDefault();
-                                      setDropHint({ type: "expenseInsert", groupId: g.id, index: idx + 1 });
-                                    }}
-                                    onDrop={(ev) => {
-                                      const p = readDragPayload(ev);
-                                      if (!p || p.type !== "expense") return;
-                                      ev.preventDefault();
-                                      moveExpenseInsert(p.fromGroupId, p.itemId, g.id, idx + 1);
-                                      clearDragState();
-                                    }}
-                                  />
+                                  {!searchTerm && (
+                                    <InsertDropZone
+                                      active={dropHint && dropHint.type === "expenseInsert" && dropHint.groupId === g.id && dropHint.index === idx + 1}
+                                      onDragOver={(ev) => {
+                                        const p = readDragPayload(ev);
+                                        if (!p || p.type !== "expense") return;
+                                        ev.preventDefault();
+                                        setDropHint({ type: "expenseInsert", groupId: g.id, index: idx + 1 });
+                                      }}
+                                      onDrop={(ev) => {
+                                        const p = readDragPayload(ev);
+                                        if (!p || p.type !== "expense") return;
+                                        ev.preventDefault();
+                                        moveExpenseInsert(p.fromGroupId, p.itemId, g.id, idx + 1);
+                                        clearDragState();
+                                      }}
+                                    />
+                                  )}
                                 </div>
                               ))
                             )}
                           </div>
                         </div>
-                        <InsertDropZone
-                          active={dropHint && dropHint.type === "groupInsert" && dropHint.index === gIdx + 1}
-                          onDragOver={(e) => {
-                            const p = readDragPayload(e);
-                            if (!p || p.type !== "expenseGroup") return;
-                            e.preventDefault();
-                            setDropHint({ type: "groupInsert", index: gIdx + 1 });
-                          }}
-                          onDrop={(e) => {
-                            const p = readDragPayload(e);
-                            if (!p || p.type !== "expenseGroup") return;
-                            e.preventDefault();
-                            moveExpenseGroupInsert(p.groupId, gIdx + 1);
-                            clearDragState();
-                          }}
-                        />
+                        {!searchTerm && (
+                          <InsertDropZone
+                            active={dropHint && dropHint.type === "groupInsert" && dropHint.index === gIdx + 1}
+                            onDragOver={(e) => {
+                              const p = readDragPayload(e);
+                              if (!p || p.type !== "expenseGroup") return;
+                              e.preventDefault();
+                              setDropHint({ type: "groupInsert", index: gIdx + 1 });
+                            }}
+                            onDrop={(e) => {
+                              const p = readDragPayload(e);
+                              if (!p || p.type !== "expenseGroup") return;
+                              e.preventDefault();
+                              moveExpenseGroupInsert(p.groupId, gIdx + 1);
+                              clearDragState();
+                            }}
+                          />
+                        )}
                       </div>
                     );
                   })}
@@ -3275,7 +3359,7 @@ export default function BudgitApp() {
               </div>
 
               {/* Spend Tracker */}
-              <SpendTracker active={active} updateMonth={updateMonth} t={t} currencySymbol={currencySymbol} />
+              <SpendTracker active={active} updateMonth={updateMonth} t={t} currencySymbol={currencySymbol} searchTerm={searchTerm} />
 
               <NotesPanel active={active} onJump={handleJumpTo} t={t} />
             </div>
