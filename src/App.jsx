@@ -22,6 +22,7 @@
 */
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import budgitLogo from "./assets/budgit-graffiti.png";
+import budgitSub from "./assets/budgit-sub.png";
 
 // ToolStack Budgit — Simple monthly budgeting tool (free)
 // - Runs fully in-browser
@@ -388,6 +389,14 @@ function PinIcon({ className = "", filled }) {
     <svg viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
       <line x1="12" y1="17" x2="12" y2="22" />
       <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" />
+    </svg>
+  );
+}
+
+function ChevronDownIcon({ className = "" }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <polyline points="6 9 12 15 18 9" />
     </svg>
   );
 }
@@ -763,6 +772,8 @@ function InsightsModal({ open, onClose, active, t, currencySymbol }) {
 }
 
 function NotesPanel({ active, onJump, t }) {
+  const [isOpen, setIsOpen] = useState(() => lsGet("budgit_notes_open") !== "false");
+  useEffect(() => lsSet("budgit_notes_open", isOpen), [isOpen]);
   const notes = useMemo(() => {
     const list = [];
     (active.expenseGroups || []).forEach(g => {
@@ -784,33 +795,42 @@ function NotesPanel({ active, onJump, t }) {
   if (notes.length === 0) return null;
 
   return (
-    <div className="rounded-2xl border border-neutral-200 bg-white mt-6">
-      <div className="px-4 py-3 border-b border-neutral-100 font-semibold text-neutral-800 flex items-center gap-2">
-        <NoteIcon className="h-5 w-5 text-neutral-500" />
-        {t("notes")}
-      </div>
-      <div className="divide-y divide-neutral-100">
-        {notes.map(note => (
-          <div key={note.id} className="p-4 hover:bg-neutral-50 transition">
-            <div className="flex items-start justify-between gap-4">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  {note.notePinned && <PinIcon className="h-3 w-3 text-neutral-400" filled />}
-                  <span className="font-bold text-neutral-900 text-sm">{note.name || t("unnamed")}</span>
-                  <span className="text-xs text-neutral-500 bg-neutral-100 px-2 py-0.5 rounded-md">{note.groupLabel}</span>
+    <div className="rounded-2xl border border-neutral-200 bg-white mt-6 overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-full px-4 py-3 border-b border-neutral-100 font-semibold text-neutral-800 flex items-center justify-between transition ${isOpen ? "bg-[#D5FF00]" : "bg-white hover:bg-[#D5FF00]/30"}`}
+      >
+        <div className="flex items-center gap-2">
+          <NoteIcon className="h-5 w-5 text-neutral-500" />
+          {t("notes")}
+        </div>
+        <ChevronDownIcon className={`h-5 w-5 text-neutral-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+      </button>
+      {isOpen && (
+        <div className="divide-y divide-neutral-100">
+          {notes.map(note => (
+            <div key={note.id} className="p-4 hover:bg-neutral-50 transition">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    {note.notePinned && <PinIcon className="h-3 w-3 text-neutral-400" filled />}
+                    <span className="font-bold text-neutral-900 text-sm">{note.name || t("unnamed")}</span>
+                    <span className="text-xs text-neutral-500 bg-neutral-100 px-2 py-0.5 rounded-md">{note.groupLabel}</span>
+                  </div>
+                  <div className="text-sm text-neutral-700 whitespace-pre-wrap leading-relaxed">{note.note}</div>
                 </div>
-                <div className="text-sm text-neutral-700 whitespace-pre-wrap leading-relaxed">{note.note}</div>
+                <button
+                  onClick={() => onJump(note.id)}
+                  className="shrink-0 text-xs font-medium text-[#D5FF00] bg-neutral-900 px-3 py-1.5 rounded-lg hover:bg-neutral-700 transition"
+                >
+                  Jump to item
+                </button>
               </div>
-              <button
-                onClick={() => onJump(note.id)}
-                className="shrink-0 text-xs font-medium text-[#D5FF00] bg-neutral-900 px-3 py-1.5 rounded-lg hover:bg-neutral-700 transition"
-              >
-                Jump to item
-              </button>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -1091,103 +1111,124 @@ function TogglePill({ on, labelOn = "On", labelOff = "Off", onClick, title }) {
 }
 
 /** ToolStack — Help Pack v1 (shared modal) */
-function HelpModal({ open, onClose, t }) {
-  if (!open) return null;
-
-  const CloseIcon = () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-  );
-
-  const Section = ({ title, children }) => (
-    <div className="rounded-2xl bg-[#D5FF00]/30 p-5 border border-neutral-100">
-      <div className="font-bold text-neutral-900 text-sm mb-2">{title}</div>
-      <div className="text-sm text-neutral-600 leading-relaxed space-y-2">
-        {children}
+function HelpItem({ title, children, defaultOpen = false }) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+  return (
+    <div className="border-b border-neutral-100 last:border-0">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full py-4 flex items-center justify-between text-left group"
+      >
+        <span className="font-bold text-neutral-800 group-hover:text-neutral-900 transition-colors">{title}</span>
+        <div className={`h-8 w-8 rounded-full flex items-center justify-center transition-colors ${isOpen ? "bg-[#D5FF00] text-neutral-900" : "bg-neutral-50 text-neutral-400 group-hover:bg-neutral-100"}`}>
+          <ChevronDownIcon className={`h-5 w-5 transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`} />
+        </div>
+      </button>
+      <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? "max-h-96 opacity-100 mb-4" : "max-h-0 opacity-0"}`}>
+        <div className="text-sm text-neutral-600 leading-relaxed space-y-2 pr-4">
+          {children}
+        </div>
       </div>
     </div>
   );
+}
+
+function HelpModal({ open, onClose, t }) {
+  if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8 print:hidden">
-      <div className="absolute inset-0 bg-neutral-900/40 backdrop-blur-sm transition-opacity" onClick={onClose} />
-      <div className="relative w-full max-w-2xl bg-white rounded-[32px] shadow-2xl overflow-hidden ring-1 ring-black/5 transform transition-all flex flex-col max-h-[85vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 print:hidden">
+      <div className="absolute inset-0 bg-neutral-900/60 backdrop-blur-sm transition-opacity" onClick={onClose} />
+      <div className="relative w-full max-w-2xl bg-white rounded-[32px] shadow-2xl overflow-hidden ring-1 ring-black/5 transform transition-all flex flex-col max-h-[90vh]">
         
-        <div className="px-8 pt-8 pb-6 flex items-start justify-between shrink-0">
-          <div>
-            <div className="inline-block">
-              <div className="font-bold text-3xl text-neutral-900 tracking-tight">{t("helpTitle")}</div>
-              <div className="mt-2 h-1 w-full rounded-full bg-[#D5FF00]" />
-            </div>
-            <div className="text-base text-neutral-500 mt-3 font-medium">{t("helpSubtitle")}</div>
+        {/* Header */}
+        <div className="relative px-8 pt-10 pb-8 bg-neutral-50 border-b border-neutral-100">
+          <div className="absolute top-6 right-6">
+            <button
+              onClick={onClose}
+              className="h-10 w-10 rounded-full bg-white border border-neutral-200 hover:bg-[#D5FF00] hover:border-[#D5FF00] hover:text-neutral-900 flex items-center justify-center text-neutral-500 transition-all shadow-sm"
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
           </div>
-          <button
-            onClick={onClose}
-            className="h-10 w-10 rounded-full bg-neutral-100 hover:bg-[#D5FF00] hover:text-neutral-900 flex items-center justify-center text-neutral-600 transition shrink-0"
-          >
-            <CloseIcon />
-          </button>
+          <div className="w-16 h-16 rounded-2xl bg-[#D5FF00] flex items-center justify-center mb-6 shadow-sm text-neutral-900">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </div>
+          <h2 className="text-3xl font-black text-neutral-900 tracking-tight">{t("helpTitle")}</h2>
+          <p className="text-neutral-500 mt-2 font-medium max-w-md">{t("helpSubtitle")}</p>
         </div>
 
-        <div className="px-8 pb-8 overflow-y-auto">
-          <div className="space-y-4">
-            <Section title={t("autosave")}>
-              <p>
-                {t("autosaveDesc")}
-                <span className="ml-2 font-mono text-xs bg-white border border-neutral-200 rounded-lg px-2 py-1 text-neutral-500">{LS_KEY}</span>
-              </p>
-              <p className="text-orange-600/80 font-medium text-xs bg-orange-50 p-2 rounded-lg border border-orange-100 inline-block">
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto px-8 py-2">
+          <HelpItem title={t("autosave")} defaultOpen>
+            <p>
+              {t("autosaveDesc")}
+              <span className="ml-2 font-mono text-xs bg-neutral-100 border border-neutral-200 rounded px-1.5 py-0.5 text-neutral-600">{LS_KEY}</span>
+            </p>
+            <div className="mt-3 flex gap-3 p-3 bg-amber-50 border border-amber-100 rounded-xl">
+              <div className="shrink-0 text-amber-500 mt-0.5">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              </div>
+              <p className="text-xs text-amber-800 font-medium leading-relaxed">
                 {t("autosaveWarn")}
               </p>
-            </Section>
+            </div>
+          </HelpItem>
 
-            <Section title={t("bestPractice")}>
-              <ul className="list-disc pl-4 space-y-1 marker:text-neutral-400">
-                <li>
-                  {t("bp1")} <span className="font-semibold text-neutral-800">{t("data")}</span> {t("bp1b")}
-                </li>
-                <li>{t("bp2")}</li>
-                <li>
-                  {t("bp3")} <span className="font-semibold text-neutral-800">{t("import")}</span> {t("bp3b")}
-                </li>
-              </ul>
-            </Section>
+          <HelpItem title={t("bestPractice")}>
+            <ul className="space-y-3">
+              <li className="flex gap-3">
+                <div className="h-5 w-5 rounded-full bg-[#D5FF00]/50 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">1</div>
+                <span>{t("bp1")} <span className="font-bold text-neutral-900 bg-neutral-100 px-1.5 rounded">{t("data")}</span> {t("bp1b")}</span>
+              </li>
+              <li className="flex gap-3">
+                <div className="h-5 w-5 rounded-full bg-[#D5FF00]/50 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">2</div>
+                <span>{t("bp2")}</span>
+              </li>
+              <li className="flex gap-3">
+                <div className="h-5 w-5 rounded-full bg-[#D5FF00]/50 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">3</div>
+                <span>{t("bp3")} <span className="font-bold text-neutral-900 bg-neutral-100 px-1.5 rounded">{t("import")}</span> {t("bp3b")}</span>
+              </li>
+            </ul>
+          </HelpItem>
 
-            <Section title={t("reordering")}>
-              <p>
-                {t("reorderingDesc")} <span className="font-semibold text-neutral-800">⋮⋮</span> {t("reorderingDesc2")}
-              </p>
-            </Section>
+          <HelpItem title={t("reordering")}>
+            <p>
+              {t("reorderingDesc")} <span className="inline-flex items-center justify-center h-6 w-6 rounded bg-neutral-100 border border-neutral-200 text-neutral-600 mx-1 align-middle">⋮⋮</span> {t("reorderingDesc2")}
+            </p>
+          </HelpItem>
 
-            <Section title={t("paidItems")}>
-              <p>{t("paidItemsDesc")}</p>
-            </Section>
+          <HelpItem title={t("paidItems")}>
+            <p>{t("paidItemsDesc")}</p>
+          </HelpItem>
 
-            <Section title={t("sectionsHelp")}>
-              <p>{t("sectionsHelpDesc")}</p>
-            </Section>
+          <HelpItem title={t("sectionsHelp")}>
+            <p>{t("sectionsHelpDesc")}</p>
+          </HelpItem>
 
-            <Section title={t("dueDatesHelp")}>
-              <p>{t("dueDatesHelpDesc")}</p>
-            </Section>
+          <HelpItem title={t("dueDatesHelp")}>
+            <p>{t("dueDatesHelpDesc")}</p>
+          </HelpItem>
 
-            <Section title={t("copyingHelp")}>
-              <p>{t("copyingHelpDesc")}</p>
-            </Section>
+          <HelpItem title={t("copyingHelp")}>
+            <p>{t("copyingHelpDesc")}</p>
+          </HelpItem>
 
-            <Section title={t("printing")}>
-              <p>
-                {t("printingDesc")} <span className="font-semibold text-neutral-800">{t("preview")}</span> {t("printingDesc2")} <span className="font-semibold text-neutral-800">{t("printSave")}</span> {t("printingDesc3")}
-              </p>
-            </Section>
+          <HelpItem title={t("printing")}>
+            <p>
+              {t("printingDesc")} <span className="font-bold text-neutral-900">{t("preview")}</span> {t("printingDesc2")} <span className="font-bold text-neutral-900">{t("printSave")}</span> {t("printingDesc3")}
+            </p>
+          </HelpItem>
 
-            <Section title={t("privacy")}>
-              <p>{t("privacyDesc")}</p>
-            </Section>
-          </div>
+          <HelpItem title={t("privacy")}>
+            <p>{t("privacyDesc")}</p>
+          </HelpItem>
         </div>
 
-        <div className="mt-8 pt-6 border-t border-neutral-100 text-xs text-neutral-400 font-medium text-center">
-          {t("footer")}
+        {/* Footer */}
+        <div className="p-6 border-t border-neutral-100 bg-neutral-50 text-center">
+          <div className="text-xs font-bold text-neutral-400 uppercase tracking-widest">{t("footer")}</div>
         </div>
       </div>
     </div>
@@ -1664,6 +1705,8 @@ const TRANSLATIONS = {
 };
 
 function SpendTracker({ active, updateMonth, t, currencySymbol }) {
+  const [isOpen, setIsOpen] = useState(() => lsGet("budgit_tracker_open") === "true");
+  useEffect(() => lsSet("budgit_tracker_open", isOpen), [isOpen]);
   const [amount, setAmount] = useState("");
   const [groupId, setGroupId] = useState("");
   const [itemId, setItemId] = useState("");
@@ -1777,11 +1820,17 @@ function SpendTracker({ active, updateMonth, t, currencySymbol }) {
   }, [transactions, filter]);
 
   return (
-    <div className="rounded-2xl border border-neutral-200 bg-white">
-      <div className="px-4 py-3 border-b border-neutral-100 font-semibold text-neutral-800">
-        {t("spendTracker")}
-      </div>
-      <div className="p-4 space-y-6">
+    <div className="rounded-2xl border border-neutral-200 bg-white overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-full px-4 py-3 border-b border-neutral-100 font-semibold text-neutral-800 flex items-center justify-between transition ${isOpen ? "bg-[#D5FF00]" : "bg-white hover:bg-[#D5FF00]/30"}`}
+      >
+        <span>{t("spendTracker")}</span>
+        <ChevronDownIcon className={`h-5 w-5 text-neutral-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+      </button>
+      {isOpen && (
+        <div className="p-4 space-y-6">
         {/* Quick Add Form */}
         <div className="space-y-3 bg-neutral-50 p-3 rounded-xl border border-neutral-100">
           <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
@@ -1946,7 +1995,8 @@ function SpendTracker({ active, updateMonth, t, currencySymbol }) {
             )}
           </div>
         </div>
-      </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1988,6 +2038,9 @@ export default function BudgitApp() {
   const [helpOpen, setHelpOpen] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [insightsOpen, setInsightsOpen] = useState(false);
+
+  const [summaryOpen, setSummaryOpen] = useState(() => lsGet("budgit_summary_open") !== "false");
+  useEffect(() => lsSet("budgit_summary_open", summaryOpen), [summaryOpen]);
 
   // Hide paid items (UI-only)
   const [hidePaid, setHidePaid] = useState(false);
@@ -2691,8 +2744,13 @@ export default function BudgitApp() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
           <div className="md:col-span-2">
             {/* Master heading style */}
-            <div className="relative">
-              <img src={budgitLogo} alt="BudgIt" className="h-24 sm:h-32 w-auto select-none" />
+            <div className="relative flex flex-wrap items-center gap-3 w-full">
+              <img src={budgitLogo} alt="BudgIt" className="h-24 sm:h-32 w-auto select-none shrink-0" />
+              <img
+                src={budgitSub}
+                alt="BudgIt Subheading"
+                className="h-24 sm:h-32 w-auto object-contain max-w-[90%] select-none md:mx-auto"
+              />
             </div>
           </div>
 
@@ -3263,11 +3321,17 @@ export default function BudgitApp() {
               </div>
             </div>
 
-            <div className="rounded-2xl bg-white shadow-sm border border-neutral-200 print:shadow-none">
-              <div className="px-4 py-3 border-b border-neutral-100">
-                <div className="font-semibold text-neutral-800">{t("summary")}</div>
-              </div>
-            <div className="p-4 space-y-4">
+            <div className="rounded-2xl bg-white shadow-sm border border-neutral-200 print:shadow-none overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setSummaryOpen(!summaryOpen)}
+                className="w-full px-4 py-3 border-b border-neutral-100 font-semibold text-neutral-800 flex items-center justify-between bg-white hover:bg-neutral-50 transition"
+              >
+                <span>{t("summary")}</span>
+                <ChevronDownIcon className={`h-5 w-5 text-neutral-400 transition-transform ${summaryOpen ? "rotate-180" : ""}`} />
+              </button>
+              {summaryOpen && (
+                <div className="p-4 space-y-4">
               <div className="rounded-2xl border border-neutral-200 p-4">
                 <div className="text-sm text-neutral-700">{t("totalIncome")}</div>
                 <div className="text-2xl font-semibold text-neutral-800 mt-1">
@@ -3323,6 +3387,7 @@ export default function BudgitApp() {
 
               <div className="text-xs text-neutral-600">{t("tip")}</div>
             </div>
+              )}
           </div>
           </div>
         </div>
