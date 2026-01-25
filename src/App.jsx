@@ -1120,24 +1120,12 @@ function TogglePill({ on, labelOn = "On", labelOff = "Off", onClick, title }) {
 }
 
 /** ToolStack — Help Pack v1 (shared modal) */
-function HelpItem({ title, children, defaultOpen = false }) {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
+function HelpItem({ title, children }) {
   return (
-    <div className="border-b border-neutral-100 last:border-0">
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full py-4 flex items-center justify-between text-left group"
-      >
-        <span className="font-bold text-neutral-800 group-hover:text-neutral-900 transition-colors">{title}</span>
-        <div className={`h-8 w-8 rounded-full flex items-center justify-center transition-colors ${isOpen ? "bg-[#D5FF00] text-neutral-900" : "bg-neutral-50 text-neutral-400 group-hover:bg-neutral-100"}`}>
-          <ChevronDownIcon className={`h-5 w-5 transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`} />
-        </div>
-      </button>
-      <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? "max-h-96 opacity-100 mb-4" : "max-h-0 opacity-0"}`}>
-        <div className="text-sm text-neutral-600 leading-relaxed space-y-2 pr-4">
-          {children}
-        </div>
+    <div className="border-b border-neutral-100 last:border-0 py-6">
+      <h3 className="font-bold text-neutral-900 text-lg mb-3">{title}</h3>
+      <div className="text-sm text-neutral-600 leading-relaxed space-y-2">
+        {children}
       </div>
     </div>
   );
@@ -1161,11 +1149,15 @@ function HelpModal({ open, onClose, t }) {
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
-          <div className="w-16 h-16 rounded-2xl bg-[#D5FF00] flex items-center justify-center mb-6 shadow-sm text-neutral-900">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <div className="flex items-center gap-6">
+            <div className="w-16 h-16 rounded-2xl bg-[#D5FF00] flex items-center justify-center shadow-sm text-neutral-900 shrink-0">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            </div>
+            <div>
+              <h2 className="text-3xl font-black text-neutral-900 tracking-tight">{t("helpTitle")}</h2>
+              <p className="text-neutral-500 mt-2 font-medium max-w-md">{t("helpSubtitle")}</p>
+            </div>
           </div>
-          <h2 className="text-3xl font-black text-neutral-900 tracking-tight">{t("helpTitle")}</h2>
-          <p className="text-neutral-500 mt-2 font-medium max-w-md">{t("helpSubtitle")}</p>
         </div>
 
         {/* Content */}
@@ -1348,6 +1340,26 @@ function ExportModal({ open, onClose, onPreview, onPrint, onBackup, onImport, t 
   );
 }
 
+function BankBalance({ balance, onUpdate, currencySymbol, t }) {
+  return (
+    <div className="rounded-2xl bg-white shadow-sm border border-neutral-200 p-4 print:hidden">
+      <label htmlFor="bank-balance-input" className="text-sm text-neutral-700 font-medium">{t("currentBalance")}</label>
+      <div className="relative mt-2">
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500 font-semibold">{currencySymbol}</span>
+        <SelectAllNumberInput
+          id="bank-balance-input"
+          className="w-full rounded-xl border border-neutral-200 pl-8 pr-3 py-2 bg-white text-right text-neutral-800 font-semibold text-2xl tabular-nums focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300"
+          value={balance}
+          onChange={onUpdate}
+          placeholder="0.00"
+          title={t("currentBalance")}
+          inputMode="decimal"
+        />
+      </div>
+    </div>
+  );
+}
+
 // ---------------------------
 // Data normalization / migration
 // ---------------------------
@@ -1383,7 +1395,7 @@ const normalizeTransaction = (x) => ({
 // - Legacy: { expenses: [] }
 // - New: { expenseGroups: [{ id, label, items: [] }] }
 function normalizeMonthData(monthData) {
-  const m = monthData || { incomes: [], expenses: [], notes: "", transactions: [] };
+  const m = monthData || { incomes: [], expenses: [], notes: "", transactions: [], bankBalance: "" };
 
   const incomes = Array.isArray(m.incomes) ? m.incomes.map(normalizeIncomeItem) : [];
   const transactions = Array.isArray(m.transactions) ? m.transactions.map(normalizeTransaction) : [];
@@ -1402,6 +1414,7 @@ function normalizeMonthData(monthData) {
       expenseGroups: groups.length ? groups : [{ id: uid(), label: "General", items: [] }],
       notes: typeof m.notes === "string" ? m.notes : "",
       transactions,
+      bankBalance: m.bankBalance != null ? m.bankBalance : "",
     };
   }
 
@@ -1411,6 +1424,7 @@ function normalizeMonthData(monthData) {
     expenseGroups: [{ id: uid(), label: "General", items: legacyExpenses }],
     notes: typeof m.notes === "string" ? m.notes : "",
     transactions,
+    bankBalance: m.bankBalance != null ? m.bankBalance : "",
   };
 }
 
@@ -1564,6 +1578,9 @@ const TRANSLATIONS = {
     budgetLine: "Budget Line",
     search: "Search",
     searchPlaceholder: "Search items...",
+    currentBalance: "Current Bank Balance",
+    projectedBalance: "Projected Balance",
+    projectedBalanceDesc: "Bank Balance - Remaining",
   },
   de: {
     subtitle: "Monatliches persönliches Budgetierungstool",
@@ -1714,6 +1731,9 @@ const TRANSLATIONS = {
     budgetLine: "Budgetzeile",
     search: "Suchen",
     searchPlaceholder: "Elemente suchen...",
+    currentBalance: "Aktueller Kontostand",
+    projectedBalance: "Voraussichtlicher Kontostand",
+    projectedBalanceDesc: "Kontostand - Verbleibend",
   }
 };
 
@@ -2508,6 +2528,9 @@ export default function BudgitApp() {
     return groups.reduce((sum, g) => sum + groupRemainingTotal(g), 0);
   }, [active.expenseGroups]);
 
+  const bankBalance = useMemo(() => toNumber(active.bankBalance), [active.bankBalance]);
+  const projectedBalance = useMemo(() => bankBalance - expenseRemainingTotal, [bankBalance, expenseRemainingTotal]);
+
   const expensePaidTotal = useMemo(() => {
     const groups = active.expenseGroups || [];
     return groups.reduce((sum, g) => sum + groupPaidTotal(g), 0);
@@ -2775,57 +2798,62 @@ export default function BudgitApp() {
 
       <div className="max-w-5xl mx-auto px-4 py-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
-          <div className="md:col-span-2">
+          <div>
             {/* Master heading style */}
             <div className="relative flex flex-wrap items-center gap-3 w-full">
               <img src={budgitLogo} alt="BudgIt" className="h-24 sm:h-32 w-auto select-none shrink-0" />
-              <img
-                src={budgitSub}
-                alt="BudgIt Subheading"
-                className="hidden sm:block h-24 sm:h-32 w-auto object-contain max-w-[90%] select-none md:mx-auto"
-              />
             </div>
           </div>
 
-          <div className="relative flex justify-end gap-2 pt-2 mb-12 md:mb-0">
-            <div className="flex items-center gap-2">
-              <ActionButton onClick={() => {}}>{t("hub")}</ActionButton>
-              <ActionButton onClick={openPreview}>{t("preview")}</ActionButton>
-              <ActionButton onClick={() => setExportModalOpen(true)}>{t("data")}</ActionButton>
-            </div>
+          <div className="hidden md:flex justify-center">
+            <img
+              src={budgitSub}
+              alt="BudgIt Subheading"
+              className="h-24 sm:h-32 w-auto object-contain max-w-[90%] select-none"
+            />
+          </div>
 
-            <button
-              type="button"
-              title="Help"
-              onClick={() => setHelpOpen(true)}
-              className="print:hidden h-9 w-9 rounded-xl border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 shadow-sm flex items-center justify-center font-bold text-neutral-800 text-sm"
-              aria-label="Help"
-            >
-              ?
-            </button>
+          <div className="flex flex-col items-end">
+            <div className="relative flex justify-end gap-2 pt-2 mb-12 md:mb-0 w-full">
+              <div className="flex items-center gap-2">
+                <ActionButton onClick={() => {}}>{t("hub")}</ActionButton>
+                <ActionButton onClick={openPreview}>{t("preview")}</ActionButton>
+                <ActionButton onClick={() => setExportModalOpen(true)}>{t("data")}</ActionButton>
+              </div>
 
-            <div className="print:hidden absolute right-0 top-12">
-              <div className="flex items-center gap-1 p-1 bg-white border border-neutral-200 rounded-xl w-fit shadow-sm">
-                <button
-                  onClick={() => setLang("en")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-                    app.lang === "en"
-                      ? "bg-[#D5FF00] text-neutral-900 shadow-sm"
-                      : "text-neutral-500 hover:text-neutral-900 hover:bg-[#D5FF00]/30"
-                  }`}
-                >
-                  EN
-                </button>
-                <button
-                  onClick={() => setLang("de")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-                    app.lang === "de"
-                      ? "bg-[#D5FF00] text-neutral-900 shadow-sm"
-                      : "text-neutral-500 hover:text-neutral-900 hover:bg-[#D5FF00]/30"
-                  }`}
-                >
-                  DE
-                </button>
+              <button
+                type="button"
+                title="Help"
+                onClick={() => setHelpOpen(true)}
+                className="print:hidden h-9 w-9 rounded-xl border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 shadow-sm flex items-center justify-center font-bold text-neutral-800 text-sm"
+                aria-label="Help"
+              >
+                ?
+              </button>
+
+              <div className="print:hidden absolute right-0 top-12">
+                <div className="flex items-center gap-1 p-1 bg-white border border-neutral-200 rounded-xl w-fit shadow-sm">
+                  <button
+                    onClick={() => setLang("en")}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                      app.lang === "en"
+                        ? "bg-[#D5FF00] text-neutral-900 shadow-sm"
+                        : "text-neutral-500 hover:text-neutral-900 hover:bg-[#D5FF00]/30"
+                    }`}
+                  >
+                    EN
+                  </button>
+                  <button
+                    onClick={() => setLang("de")}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                      app.lang === "de"
+                        ? "bg-[#D5FF00] text-neutral-900 shadow-sm"
+                        : "text-neutral-500 hover:text-neutral-900 hover:bg-[#D5FF00]/30"
+                    }`}
+                  >
+                    DE
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -3405,6 +3433,13 @@ export default function BudgitApp() {
               </div>
             </div>
 
+            <BankBalance
+              balance={active.bankBalance}
+              onUpdate={(e) => updateMonth(cur => ({ ...cur, bankBalance: e.target.value }))}
+              currencySymbol={currencySymbol}
+              t={t}
+            />
+
             <div className="rounded-2xl bg-white shadow-sm border border-neutral-200 print:shadow-none overflow-hidden">
               <button
                 type="button"
@@ -3450,6 +3485,18 @@ export default function BudgitApp() {
                   {t("savingsRate")}: <span className="font-medium">{savingsRate.toFixed(1)}%</span>
                 </div>
               </div>
+
+              {bankBalance > 0 && (
+                <div className={`rounded-2xl border p-4 ${projectedBalance >= 0 ? "border-emerald-200" : "border-red-200"}`}>
+                  <div className="text-sm text-neutral-700">{t("projectedBalance")}</div>
+                  <div className="text-2xl font-semibold text-neutral-800 mt-1">
+                    <Money value={projectedBalance} currency={app.currency} />
+                  </div>
+                  <div className="text-xs text-neutral-600 mt-2">
+                    {t("projectedBalanceDesc")}
+                  </div>
+                </div>
+              )}
 
               <div className="rounded-2xl border border-neutral-200 p-4">
                 <div className="text-sm text-neutral-700">{t("quickView")}</div>
