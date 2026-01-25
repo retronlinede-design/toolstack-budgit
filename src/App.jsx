@@ -2749,7 +2749,7 @@ export default function BudgitApp() {
               <img
                 src={budgitSub}
                 alt="BudgIt Subheading"
-                className="h-24 sm:h-32 w-auto object-contain max-w-[90%] select-none md:mx-auto"
+                className="hidden sm:block h-24 sm:h-32 w-auto object-contain max-w-[90%] select-none md:mx-auto"
               />
             </div>
           </div>
