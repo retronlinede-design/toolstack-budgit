@@ -3003,7 +3003,7 @@ export default function BudgitApp() {
                           </div>
 
                           <input
-                            className="col-span-6 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300"
+                            className="col-span-7 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300"
                             value={i.name || ""}
                             onChange={(e) => updateIncome(i.id, { name: e.target.value })}
                             placeholder={t("incomeName")}
@@ -3038,7 +3038,7 @@ export default function BudgitApp() {
                           />
 
                           <SelectAllNumberInput
-                            className="col-span-4 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-right text-neutral-800 tabular-nums focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300"
+                            className="col-span-3 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-right text-neutral-800 tabular-nums focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300"
                             value={i.amount == null ? "0" : i.amount}
                             onChange={(e) => updateIncome(i.id, { amount: e.target.value })}
                             inputMode="decimal"
@@ -3250,7 +3250,7 @@ export default function BudgitApp() {
                                     </div>
 
                                     <input
-                                      className={`col-span-3 rounded-xl border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300 ${
+                                      className={`col-span-4 rounded-xl border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300 ${
                                         e.paid ? "bg-white border-neutral-200 line-through text-neutral-400 decoration-[#D5FF00] decoration-2" : "bg-white border-neutral-200 text-neutral-800"
                                       }`}
                                       value={e.name || ""}
@@ -3287,7 +3287,7 @@ export default function BudgitApp() {
                                     />
 
                                     <SelectAllNumberInput
-                                      className={`col-span-3 rounded-xl border px-3 py-2 text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300 ${
+                                      className={`col-span-2 rounded-xl border px-3 py-2 text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300 ${
                                         e.paid ? "bg-white border-neutral-200 line-through text-neutral-400 decoration-[#D5FF00] decoration-2" : "bg-white border-neutral-200 text-neutral-800"
                                       }`}
                                       value={e.amount == null ? "0" : e.amount}
