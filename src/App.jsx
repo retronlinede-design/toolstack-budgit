@@ -1162,68 +1162,94 @@ function HelpModal({ open, onClose, t }) {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-8 py-2">
-          <HelpItem title={t("autosave")} defaultOpen>
+          <HelpItem title="About BudgIt">
             <p>
-              {t("autosaveDesc")}
-              <span className="ml-2 font-mono text-xs bg-neutral-100 border border-neutral-200 rounded px-1.5 py-0.5 text-neutral-600">{LS_KEY}</span>
+              BudgIt is a local-first budgeting tool built to help you plan, organise, and print structured monthly budgets. It allows you to group expenses into custom sections, calculate totals automatically, and generate a clean printable overview.
             </p>
-            <div className="mt-3 flex gap-3 p-3 bg-amber-50 border border-amber-100 rounded-xl">
-              <div className="shrink-0 text-amber-500 mt-0.5">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-              </div>
-              <p className="text-xs text-amber-800 font-medium leading-relaxed">
-                {t("autosaveWarn")}
-              </p>
-            </div>
+            <p>
+              All data is stored directly in your browser. There are no accounts, no cloud storage, and no automatic data transmission.
+            </p>
           </HelpItem>
 
-          <HelpItem title={t("bestPractice")}>
-            <ul className="space-y-3">
-              <li className="flex gap-3">
-                <div className="h-5 w-5 rounded-full bg-[#D5FF00]/50 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">1</div>
-                <span>{t("bp1")} <span className="font-bold text-neutral-900 bg-neutral-100 px-1.5 rounded">{t("data")}</span> {t("bp1b")}</span>
+          <HelpItem title="How BudgIt Works">
+            <p>BudgIt follows a simple structured workflow:</p>
+            <ol className="list-decimal list-outside pl-5 space-y-3 mt-3">
+              <li>
+                <strong>Enter Your Income</strong>
+                <p>Start by entering your total monthly income.</p>
               </li>
-              <li className="flex gap-3">
-                <div className="h-5 w-5 rounded-full bg-[#D5FF00]/50 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">2</div>
-                <span>{t("bp2")}</span>
+              <li>
+                <strong>Create Expense Groups</strong>
+                <p>Organise your expenses into custom sections (e.g., Housing, Transport, Insurance, Food).</p>
               </li>
-              <li className="flex gap-3">
-                <div className="h-5 w-5 rounded-full bg-[#D5FF00]/50 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">3</div>
-                <span>{t("bp3")} <span className="font-bold text-neutral-900 bg-neutral-100 px-1.5 rounded">{t("import")}</span> {t("bp3b")}</span>
+              <li>
+                <strong>Add Expense Items</strong>
+                <p>Add individual items inside each group. Totals update automatically.</p>
               </li>
+              <li>
+                <strong>Review Your Balance</strong>
+                <p>BudgIt calculates:</p>
+                <ul className="list-disc list-outside pl-5 mt-1">
+                  <li>Section subtotals</li>
+                  <li>Total expenses</li>
+                  <li>Remaining balance (Income − Expenses)</li>
+                </ul>
+              </li>
+              <li>
+                <strong>Preview & Print</strong>
+                <p>Use Preview to generate a clean print-ready budget sheet. Print or Save as PDF if required.</p>
+              </li>
+              <li>
+                <strong>Export a Backup</strong>
+                <p>After major updates, export a JSON backup to secure your data.</p>
+              </li>
+            </ol>
+          </HelpItem>
+
+          <HelpItem title="How Your Data Is Saved">
+            <p>Your data is saved locally in this browser using secure local storage.</p>
+            <p>This means:</p>
+            <ul className="list-disc list-inside space-y-1 pl-2">
+              <li>Your data stays on this device</li>
+              <li>Clearing browser data will remove your budget</li>
+              <li>Incognito/private mode will not retain data</li>
+              <li>Data does not automatically sync across devices</li>
+            </ul>
+            <p className="mt-2">For long-term safety, regular backups are essential.</p>
+          </HelpItem>
+
+          <HelpItem title="Backup & Restore">
+            <p><strong>Export</strong> downloads a full JSON backup of your current budget.</p>
+            <p><strong>Import</strong> restores a previously exported JSON file. Importing replaces the current budget data in the app.</p>
+            <p className="mt-2">Recommended routine:</p>
+            <ul className="list-disc list-inside space-y-1 pl-2">
+              <li>Export weekly</li>
+              <li>Export after major edits</li>
+              <li>Store backups in two locations (e.g., Downloads + Drive/USB)</li>
             </ul>
           </HelpItem>
 
-          <HelpItem title={t("reordering")}>
+          <HelpItem title="Buttons Explained">
+            <ul className="space-y-3">
+              <li><strong>Preview</strong> – Opens the print-ready version of your budget.</li>
+              <li><strong>Print / Save PDF</strong> – Prints only the preview sheet. You can select “Save as PDF” in your browser.</li>
+              <li><strong>Export</strong> – Downloads a JSON backup file.</li>
+              <li><strong>Import</strong> – Restores your budget from a JSON backup file.</li>
+            </ul>
+          </HelpItem>
+
+          <HelpItem title="Technical Storage Keys (Advanced)">
+            <p>App data key:</p>
+            <p><code className="text-xs bg-neutral-100 border border-neutral-200 rounded p-1 font-mono text-neutral-600">toolstack.budgit.v1</code></p>
+            <p className="mt-2">Shared profile key:</p>
+            <p><code className="text-xs bg-neutral-100 border border-neutral-200 rounded p-1 font-mono text-neutral-600">toolstack.profile.v1</code></p>
+          </HelpItem>
+
+          <HelpItem title="Important Notes">
             <p>
-              {t("reorderingDesc")} <span className="inline-flex items-center justify-center h-6 w-6 rounded bg-neutral-100 border border-neutral-200 text-neutral-600 mx-1 align-middle">⋮⋮</span> {t("reorderingDesc2")}
+              BudgIt is a financial planning tool. All totals depend on the accuracy of the amounts you enter.
             </p>
-          </HelpItem>
-
-          <HelpItem title={t("paidItems")}>
-            <p>{t("paidItemsDesc")}</p>
-          </HelpItem>
-
-          <HelpItem title={t("sectionsHelp")}>
-            <p>{t("sectionsHelpDesc")}</p>
-          </HelpItem>
-
-          <HelpItem title={t("dueDatesHelp")}>
-            <p>{t("dueDatesHelpDesc")}</p>
-          </HelpItem>
-
-          <HelpItem title={t("copyingHelp")}>
-            <p>{t("copyingHelpDesc")}</p>
-          </HelpItem>
-
-          <HelpItem title={t("printing")}>
-            <p>
-              {t("printingDesc")} <span className="font-bold text-neutral-900">{t("preview")}</span> {t("printingDesc2")} <span className="font-bold text-neutral-900">{t("printSave")}</span> {t("printingDesc3")}
-            </p>
-          </HelpItem>
-
-          <HelpItem title={t("privacy")}>
-            <p>{t("privacyDesc")}</p>
+            <p>This app does not provide financial, tax, or accounting advice.</p>
           </HelpItem>
         </div>
 
@@ -2700,7 +2726,7 @@ export default function BudgitApp() {
                       ) : (
                         previewIncomes.map((i) => (
                           <div key={i.id} className="flex items-center justify-between gap-3">
-                            <div className="text-neutral-800">{i.name || t("unnamed")}</div>
+                            <div className="text-neutral-800 break-words">{i.name || t("unnamed")}</div>
                             <div className="font-semibold text-neutral-800">
                               <Money value={toNumber(i.amount)} currency={app.currency} />
                             </div>
@@ -2740,11 +2766,11 @@ export default function BudgitApp() {
                                   const info = dueInfo(app.activeMonth, e.dueDay, app.lang);
                                   return (
                                     <div key={e.id} className="flex items-center justify-between gap-3">
-                                      <div className="text-neutral-800">
+                                      <div className="text-neutral-800 break-words">
                                         {e.paid ? "✓ " : ""}
                                         {e.name || t("unnamed")}
                                         {info ? (
-                                          <span className="text-neutral-600" title={info.title}>
+                                          <span className="text-neutral-600" title={info.title} style={{ whiteSpace: 'nowrap' }}>
                                             {" "}({t("due")} {info.display})
                                           </span>
                                         ) : null}
