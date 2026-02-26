@@ -1276,7 +1276,8 @@ function ExportModal({ open, onClose, onPreview, onPrint, onBackup, onImport, t 
     Print: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>,
     Download: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
     Upload: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>,
-    Close: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    Close: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
+    Mail: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
   };
 
   const ActionRow = ({ icon, label, sub, onClick, file }) => {
@@ -1319,12 +1320,22 @@ function ExportModal({ open, onClose, onPreview, onPrint, onBackup, onImport, t 
     );
   };
 
+  const handleEmail = () => {
+    const today = new Date().toISOString().split('T')[0];
+    const subject = encodeURIComponent(`BudgIt Export Pack – ${today}`);
+    const body = encodeURIComponent("Attached: PDF export from BudgIt (please attach the downloaded PDF file).\nExports are generated locally on your device. No data is uploaded automatically.");
+    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8 print:hidden">
       <div className="absolute inset-0 bg-neutral-900/40 backdrop-blur-sm transition-opacity" onClick={onClose} />
       <div className="relative w-full max-w-sm bg-white rounded-[32px] shadow-2xl overflow-hidden ring-1 ring-black/5 transform transition-all">
         <div className="px-6 pt-6 pb-4 flex items-center justify-between">
-          <div className="font-bold text-2xl text-neutral-900 tracking-tight">{t("exportTitle")}</div>
+          <div>
+            <div className="font-bold text-2xl text-neutral-900 tracking-tight">Export Pack</div>
+            <div className="text-sm text-neutral-500 font-medium mt-1">Save, share, or back up your data.</div>
+          </div>
           <button
             onClick={onClose}
             className="h-8 w-8 rounded-full bg-neutral-100 hover:bg-[#D5FF00] hover:text-neutral-900 flex items-center justify-center text-neutral-600 transition"
@@ -1335,28 +1346,34 @@ function ExportModal({ open, onClose, onPreview, onPrint, onBackup, onImport, t 
         
         <div className="px-4 pb-6 flex flex-col gap-2">
           <ActionRow
-            icon={<Icons.Preview />}
-            label={t("preview")}
-            sub="View before printing"
-            onClick={() => { onClose(); onPreview(); }}
+            icon={<Icons.Download />}
+            label="Download PDF"
+            sub="Save as PDF"
+            onClick={() => { onClose(); onPrint(); }}
           />
           <ActionRow
             icon={<Icons.Print />}
-            label={t("printSave")}
-            sub="Save as PDF or Print"
+            label="Print / Save PDF"
+            sub="Prints preview sheet only"
             onClick={() => { onClose(); onPrint(); }}
+          />
+          <ActionRow
+            icon={<Icons.Mail />}
+            label="Create Email Draft"
+            sub="Share via email"
+            onClick={handleEmail}
           />
           <div className="h-px bg-neutral-100 my-2 mx-4" />
           <ActionRow
             icon={<Icons.Download />}
-            label={t("backup")}
-            sub="Download JSON file"
+            label="Download JSON"
+            sub="Backup your data"
             onClick={() => { onClose(); onBackup(); }}
           />
           <ActionRow
             icon={<Icons.Upload />}
-            label={t("import")}
-            sub="Restore from backup"
+            label="Import JSON"
+            sub="Import replaces current app data. Export first if unsure."
             file
             onImport={onImport}
           />
