@@ -84,7 +84,7 @@ const monthLabel = (ym, lang = "en") => {
   const d = new Date(Number(y), Number(m) - 1, 1);
   return d.toLocaleDateString(lang === "de" ? "de-DE" : "en-US", { year: "numeric", month: "long" });
 };
-
+ 
 const safeParse = (s, fallback) => {
   try {
     const v = JSON.parse(s);
@@ -475,7 +475,7 @@ function NoteEditorModal({ open, onClose, item, groupName, onSave, onClear, t })
               className="px-6 py-2 rounded-xl text-sm font-bold bg-[#D5FF00] text-neutral-900 shadow-sm hover:bg-[#c7f000] transition"
             >
               Save
-            </button>
+            </button> 
           </div>
         </div>
       </div>
@@ -1162,94 +1162,88 @@ function HelpModal({ open, onClose, t }) {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-8 py-2">
-          <HelpItem title="About BudgIt">
-            <p>
-              BudgIt is a local-first budgeting tool built to help you plan, organise, and print structured monthly budgets. It allows you to group expenses into custom sections, calculate totals automatically, and generate a clean printable overview.
-            </p>
-            <p>
-              All data is stored directly in your browser. There are no accounts, no cloud storage, and no automatic data transmission.
-            </p>
+          <HelpItem title={t("help_about_title")}>
+            <p>{t("help_about_p1")}</p>
+            <p>{t("help_about_p2")}</p>
           </HelpItem>
 
-          <HelpItem title="How BudgIt Works">
-            <p>BudgIt follows a simple structured workflow:</p>
+          <HelpItem title={t("help_how_title")}>
+            <p>{t("help_how_intro")}</p>
             <ol className="list-decimal list-outside pl-5 space-y-3 mt-3">
               <li>
-                <strong>Enter Your Income</strong>
-                <p>Start by entering your total monthly income.</p>
+                <strong>{t("help_how_step1_title")}</strong>
+                <p>{t("help_how_step1_desc")}</p>
               </li>
               <li>
-                <strong>Create Expense Groups</strong>
-                <p>Organise your expenses into custom sections (e.g., Housing, Transport, Insurance, Food).</p>
+                <strong>{t("help_how_step2_title")}</strong>
+                <p>{t("help_how_step2_desc")}</p>
               </li>
               <li>
-                <strong>Add Expense Items</strong>
-                <p>Add individual items inside each group. Totals update automatically.</p>
+                <strong>{t("help_how_step3_title")}</strong>
+                <p>{t("help_how_step3_desc")}</p>
               </li>
               <li>
-                <strong>Review Your Balance</strong>
-                <p>BudgIt calculates:</p>
+                <strong>{t("help_how_step4_title")}</strong>
+                <p>{t("help_how_step4_desc")}</p>
                 <ul className="list-disc list-outside pl-5 mt-1">
-                  <li>Section subtotals</li>
-                  <li>Total expenses</li>
-                  <li>Remaining balance (Income − Expenses)</li>
+                  <li>{t("help_how_step4_li1")}</li>
+                  <li>{t("help_how_step4_li2")}</li>
+                  <li>{t("help_how_step4_li3")}</li>
                 </ul>
               </li>
               <li>
-                <strong>Preview & Print</strong>
-                <p>Use Preview to generate a clean print-ready budget sheet. Print or Save as PDF if required.</p>
+                <strong>{t("help_how_step5_title")}</strong>
+                <p>{t("help_how_step5_desc")}</p>
               </li>
               <li>
-                <strong>Export a Backup</strong>
-                <p>After major updates, export a JSON backup to secure your data.</p>
+                <strong>{t("help_how_step6_title")}</strong>
+                <p>{t("help_how_step6_desc")}</p>
               </li>
             </ol>
           </HelpItem>
 
-          <HelpItem title="How Your Data Is Saved">
-            <p>Your data is saved locally in this browser using secure local storage.</p>
-            <p>This means:</p>
+          <HelpItem title={t("help_data_title")}>
+            <p>{t("help_data_p1")}</p>
+            <p>{t("help_data_p2")}</p>
             <ul className="list-disc list-inside space-y-1 pl-2">
-              <li>Your data stays on this device</li>
-              <li>Clearing browser data will remove your budget</li>
-              <li>Incognito/private mode will not retain data</li>
-              <li>Data does not automatically sync across devices</li>
+              <li>{t("help_data_li1")}</li>
+              <li>{t("help_data_li2")}</li>
+              <li>{t("help_data_li3")}</li>
+              <li>{t("help_data_li4")}</li>
             </ul>
-            <p className="mt-2">For long-term safety, regular backups are essential.</p>
+            <p className="mt-2">{t("help_data_p3")}</p>
           </HelpItem>
 
-          <HelpItem title="Backup & Restore">
-            <p><strong>Export</strong> downloads a full JSON backup of your current budget.</p>
-            <p><strong>Import</strong> restores a previously exported JSON file. Importing replaces the current budget data in the app.</p>
-            <p className="mt-2">Recommended routine:</p>
+          <HelpItem title={t("help_backup_title")}>
+            <p dangerouslySetInnerHTML={{ __html: t("help_backup_p1") }} />
+            <p dangerouslySetInnerHTML={{ __html: t("help_backup_p2") }} />
+            <p className="mt-2">{t("help_backup_p3")}</p>
             <ul className="list-disc list-inside space-y-1 pl-2">
-              <li>Export weekly</li>
-              <li>Export after major edits</li>
-              <li>Store backups in two locations (e.g., Downloads + Drive/USB)</li>
+              <li>{t("help_backup_li1")}</li>
+              <li>{t("help_backup_li2")}</li>
+              <li>{t("help_backup_li3")}</li>
             </ul>
           </HelpItem>
 
-          <HelpItem title="Buttons Explained">
+          <HelpItem title={t("help_buttons_title")}>
             <ul className="space-y-3">
-              <li><strong>Preview</strong> – Opens the print-ready version of your budget.</li>
-              <li><strong>Print / Save PDF</strong> – Prints only the preview sheet. You can select “Save as PDF” in your browser.</li>
-              <li><strong>Export</strong> – Downloads a JSON backup file.</li>
-              <li><strong>Import</strong> – Restores your budget from a JSON backup file.</li>
+              <li dangerouslySetInnerHTML={{ __html: t("help_buttons_li1") }} />
+              <li dangerouslySetInnerHTML={{ __html: t("help_buttons_li2") }} />
+              <li dangerouslySetInnerHTML={{ __html: t("help_buttons_li3") }} />
+              <li dangerouslySetInnerHTML={{ __html: t("help_buttons_li4") }} />
             </ul>
           </HelpItem>
 
-          <HelpItem title="Technical Storage Keys (Advanced)">
-            <p>App data key:</p>
+          <HelpItem title={t("help_tech_title")}>
+            <p>{t("help_tech_p1")}</p>
             <p><code className="text-xs bg-neutral-100 border border-neutral-200 rounded p-1 font-mono text-neutral-600">toolstack.budgit.v1</code></p>
-            <p className="mt-2">Shared profile key:</p>
+            <p className="mt-2">{t("help_tech_p2")}</p>
             <p><code className="text-xs bg-neutral-100 border border-neutral-200 rounded p-1 font-mono text-neutral-600">toolstack.profile.v1</code></p>
           </HelpItem>
 
-          <HelpItem title="Important Notes">
-            <p>
-              BudgIt is a financial planning tool. All totals depend on the accuracy of the amounts you enter.
-            </p>
-            <p>This app does not provide financial, tax, or accounting advice.</p>
+          <HelpItem title={t("help_notes_title")}>
+            <p>{t("help_notes_p1")}</p>
+            <p>{t("help_notes_p2")}</p>
           </HelpItem>
         </div>
 
@@ -1322,19 +1316,19 @@ function ExportModal({ open, onClose, onPreview, onPrint, onBackup, onImport, t 
 
   const handleEmail = () => {
     const today = new Date().toISOString().split('T')[0];
-    const subject = encodeURIComponent(`BudgIt Export Pack – ${today}`);
-    const body = encodeURIComponent("Attached: PDF export from BudgIt (please attach the downloaded PDF file).\nExports are generated locally on your device. No data is uploaded automatically.");
+    const subject = encodeURIComponent(t("email_subject", { today }));
+    const body = encodeURIComponent(t("email_body"));
     window.location.href = `mailto:?subject=${subject}&body=${body}`;
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8 print:hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8 print:hidden"> 
       <div className="absolute inset-0 bg-neutral-900/40 backdrop-blur-sm transition-opacity" onClick={onClose} />
       <div className="relative w-full max-w-sm bg-white rounded-[32px] shadow-2xl overflow-hidden ring-1 ring-black/5 transform transition-all">
         <div className="px-6 pt-6 pb-4 flex items-center justify-between">
           <div>
-            <div className="font-bold text-2xl text-neutral-900 tracking-tight">Export Pack</div>
-            <div className="text-sm text-neutral-500 font-medium mt-1">Save, share, or back up your data.</div>
+            <div className="font-bold text-2xl text-neutral-900 tracking-tight">{t("export_title")}</div>
+            <div className="text-sm text-neutral-500 font-medium mt-1">{t("export_subtitle")}</div>
           </div>
           <button
             onClick={onClose}
@@ -1347,40 +1341,40 @@ function ExportModal({ open, onClose, onPreview, onPrint, onBackup, onImport, t 
         <div className="px-4 pb-6 flex flex-col gap-2">
           <ActionRow
             icon={<Icons.Download />}
-            label="Download PDF"
-            sub="Save as PDF"
+            label={t("export_download_pdf_label")}
+            sub={t("export_download_pdf_sub")}
             onClick={() => { onClose(); onPrint(); }}
           />
           <ActionRow
             icon={<Icons.Print />}
-            label="Print / Save PDF"
-            sub="Prints preview sheet only"
+            label={t("export_print_pdf_label")}
+            sub={t("export_print_pdf_sub")}
             onClick={() => { onClose(); onPrint(); }}
           />
           <ActionRow
             icon={<Icons.Mail />}
-            label="Create Email Draft"
-            sub="Share via email"
+            label={t("export_email_label")}
+            sub={t("export_email_sub")}
             onClick={handleEmail}
           />
           <div className="h-px bg-neutral-100 my-2 mx-4" />
           <ActionRow
             icon={<Icons.Download />}
-            label="Download JSON"
-            sub="Backup your data"
+            label={t("export_download_json_label")}
+            sub={t("export_download_json_sub")}
             onClick={() => { onClose(); onBackup(); }}
           />
           <ActionRow
             icon={<Icons.Upload />}
-            label="Import JSON"
-            sub="Import replaces current app data. Export first if unsure."
+            label={t("export_import_json_label")}
+            sub={t("export_import_json_sub")}
             file
             onImport={onImport}
           />
         </div>
       </div>
     </div>
-  );
+  ); 
 }
 
 function BankBalance({ balance, onUpdate, currencySymbol, t }) {
@@ -1624,6 +1618,66 @@ const TRANSLATIONS = {
     currentBalance: "Current Bank Balance",
     projectedBalance: "Projected Balance",
     projectedBalanceDesc: "Bank Balance - Remaining",
+    help_about_title: "About BudgIt",
+    help_about_p1: "BudgIt is a local-first budgeting tool built to help you plan, organise, and print structured monthly budgets. It allows you to group expenses into custom sections, calculate totals automatically, and generate a clean printable overview.",
+    help_about_p2: "All data is stored directly in your browser. There are no accounts, no cloud storage, and no automatic data transmission.",
+    help_how_title: "How BudgIt Works",
+    help_how_intro: "BudgIt follows a simple structured workflow:",
+    help_how_step1_title: "Enter Your Income",
+    help_how_step1_desc: "Start by entering your total monthly income.",
+    help_how_step2_title: "Create Expense Groups",
+    help_how_step2_desc: "Organise your expenses into custom sections (e.g., Housing, Transport, Insurance, Food).",
+    help_how_step3_title: "Add Expense Items",
+    help_how_step3_desc: "Add individual items inside each group. Totals update automatically.",
+    help_how_step4_title: "Review Your Balance",
+    help_how_step4_desc: "BudgIt calculates:",
+    help_how_step4_li1: "Section subtotals",
+    help_how_step4_li2: "Total expenses",
+    help_how_step4_li3: "Remaining balance (Income − Expenses)",
+    help_how_step5_title: "Preview & Print",
+    help_how_step5_desc: "Use Preview to generate a clean print-ready budget sheet. Print or Save as PDF if required.",
+    help_how_step6_title: "Export a Backup",
+    help_how_step6_desc: "After major updates, export a JSON backup to secure your data.",
+    help_data_title: "How Your Data Is Saved",
+    help_data_p1: "Your data is saved locally in this browser using secure local storage.",
+    help_data_p2: "This means:",
+    help_data_li1: "Your data stays on this device",
+    help_data_li2: "Clearing browser data will remove your budget",
+    help_data_li3: "Incognito/private mode will not retain data",
+    help_data_li4: "Data does not automatically sync across devices",
+    help_data_p3: "For long-term safety, regular backups are essential.",
+    help_backup_title: "Backup & Restore",
+    help_backup_p1: "<strong>Export</strong> downloads a full JSON backup of your current budget.",
+    help_backup_p2: "<strong>Import</strong> restores a previously exported JSON file. Importing replaces the current budget data in the app.",
+    help_backup_p3: "Recommended routine:",
+    help_backup_li1: "Export weekly",
+    help_backup_li2: "Export after major edits",
+    help_backup_li3: "Store backups in two locations (e.g., Downloads + Drive/USB)",
+    help_buttons_title: "Buttons Explained",
+    help_buttons_li1: "<strong>Preview</strong> – Opens the print-ready version of your budget.",
+    help_buttons_li2: "<strong>Print / Save PDF</strong> – Prints only the preview sheet. You can select “Save as PDF” in your browser.",
+    help_buttons_li3: "<strong>Export</strong> – Downloads a JSON backup file.",
+    help_buttons_li4: "<strong>Import</strong> – Restores your budget from a JSON backup file.",
+    help_tech_title: "Technical Storage Keys (Advanced)",
+    help_tech_p1: "App data key:",
+    help_tech_p2: "Shared profile key:",
+    help_notes_title: "Important Notes",
+    help_notes_p1: "BudgIt is a financial planning tool. All totals depend on the accuracy of the amounts you enter.",
+    help_notes_p2: "This app does not provide financial, tax, or accounting advice.",    
+    email_subject: "BudgIt Export Pack – {today}",
+    email_body: "Attached: PDF export from BudgIt (please attach the downloaded PDF file).\nExports are generated locally on your device. No data is uploaded automatically.",
+    export_title: "Export Pack",
+    export_subtitle: "Save, share, or back up your data.",
+    export_download_pdf_label: "Download PDF",
+    export_download_pdf_sub: "Save as PDF",
+    export_print_pdf_label: "Print / Save PDF",
+    export_print_pdf_sub: "Prints preview sheet only",
+    export_email_label: "Create Email Draft",
+    export_email_sub: "Share via email",
+    export_download_json_label: "Download JSON",
+    export_download_json_sub: "Backup your data",
+    export_import_json_label: "Import JSON",
+    export_import_json_sub: "Import replaces current app data. Export first if unsure.",
   },
   de: {
     subtitle: "Monatliches persönliches Budgetierungstool",
@@ -1777,6 +1831,66 @@ const TRANSLATIONS = {
     currentBalance: "Aktueller Kontostand",
     projectedBalance: "Voraussichtlicher Kontostand",
     projectedBalanceDesc: "Kontostand - Verbleibend",
+    help_about_title: "Über BudgIt",
+    help_about_p1: "BudgIt ist ein lokales Budgetierungstool, das Ihnen hilft, strukturierte monatliche Budgets zu planen, zu organisieren und zu drucken. Sie können Ausgaben in benutzerdefinierte Abschnitte gruppieren, Summen automatisch berechnen und eine saubere druckbare Übersicht erstellen.",
+    help_about_p2: "Alle Daten werden direkt in Ihrem Browser gespeichert. Es gibt keine Konten, keine Cloud-Speicherung und keine automatische Datenübertragung.",
+    help_how_title: "Wie BudgIt funktioniert",
+    help_how_intro: "BudgIt folgt einem einfachen strukturierten Arbeitsablauf:",
+    help_how_step1_title: "Geben Sie Ihr Einkommen ein",
+    help_how_step1_desc: "Beginnen Sie mit der Eingabe Ihres gesamten monatlichen Einkommens.",
+    help_how_step2_title: "Ausgabengruppen erstellen",
+    help_how_step2_desc: "Organisieren Sie Ihre Ausgaben in benutzerdefinierten Abschnitten (z. B. Wohnen, Transport, Versicherung, Essen).",
+    help_how_step3_title: "Ausgabenelemente hinzufügen",
+    help_how_step3_desc: "Fügen Sie einzelne Elemente in jede Gruppe ein. Die Summen werden automatisch aktualisiert.",
+    help_how_step4_title: "Überprüfen Sie Ihren Kontostand",
+    help_how_step4_desc: "BudgIt berechnet:",
+    help_how_step4_li1: "Zwischensummen der Abschnitte",
+    help_how_step4_li2: "Gesamtausgaben",
+    help_how_step4_li3: "Verbleibender Saldo (Einkommen − Ausgaben)",
+    help_how_step5_title: "Vorschau & Drucken",
+    help_how_step5_desc: "Verwenden Sie die Vorschau, um ein sauberes, druckfertiges Budgetblatt zu erstellen. Drucken oder speichern Sie es bei Bedarf als PDF.",
+    help_how_step6_title: "Sicherung exportieren",
+    help_how_step6_desc: "Exportieren Sie nach größeren Aktualisierungen eine JSON-Sicherung, um Ihre Daten zu sichern.",
+    help_data_title: "Wie Ihre Daten gespeichert werden",
+    help_data_p1: "Ihre Daten werden lokal in diesem Browser unter Verwendung von sicherem lokalen Speicher gespeichert.",
+    help_data_p2: "Das bedeutet:",
+    help_data_li1: "Ihre Daten bleiben auf diesem Gerät",
+    help_data_li2: "Das Löschen von Browserdaten entfernt Ihr Budget",
+    help_data_li3: "Im Inkognito-/Privatmodus werden keine Daten gespeichert",
+    help_data_li4: "Daten werden nicht automatisch zwischen Geräten synchronisiert",
+    help_data_p3: "Für langfristige Sicherheit sind regelmäßige Sicherungen unerlässlich.",
+    help_backup_title: "Sichern & Wiederherstellen",
+    help_backup_p1: "<strong>Export</strong> lädt eine vollständige JSON-Sicherung Ihres aktuellen Budgets herunter.",
+    help_backup_p2: "<strong>Import</strong> stellt eine zuvor exportierte JSON-Datei wieder her. Der Import ersetzt die aktuellen Budgetdaten in der App.",
+    help_backup_p3: "Empfohlene Routine:",
+    help_backup_li1: "Wöchentlich exportieren",
+    help_backup_li2: "Nach größeren Bearbeitungen exportieren",
+    help_backup_li3: "Sicherungen an zwei Orten speichern (z. B. Downloads + Drive/USB)",
+    help_buttons_title: "Erklärung der Schaltflächen",
+    help_buttons_li1: "<strong>Vorschau</strong> – Öffnet die druckfertige Version Ihres Budgets.",
+    help_buttons_li2: "<strong>Drucken / PDF speichern</strong> – Druckt nur das Vorschaublatt. Sie können in Ihrem Browser „Als PDF speichern“ auswählen.",
+    help_buttons_li3: "<strong>Export</strong> – Lädt eine JSON-Sicherungsdatei herunter.",
+    help_buttons_li4: "<strong>Import</strong> – Stellt Ihr Budget aus einer JSON-Sicherungsdatei wieder her.",
+    help_tech_title: "Technische Speicherschlüssel (Erweitert)",
+    help_tech_p1: "App-Daten-Schlüssel:",
+    help_tech_p2: "Geteilter Profilschlüssel:",
+    help_notes_title: "Wichtige Hinweise",
+    help_notes_p1: "BudgIt ist ein Finanzplanungstool. Alle Summen hängen von der Genauigkeit der von Ihnen eingegebenen Beträge ab.",
+    help_notes_p2: "Diese App bietet keine finanzielle, steuerliche oder buchhalterische Beratung.",    
+    email_subject: "BudgIt Export-Paket – {today}",
+    email_body: "Anbei: PDF-Export von BudgIt (bitte die heruntergeladene PDF-Datei anhängen).\nExporte werden lokal auf Ihrem Gerät generiert. Es werden keine Daten automatisch hochgeladen.",
+    export_title: "Export-Paket",
+    export_subtitle: "Speichern, teilen oder sichern Sie Ihre Daten.",
+    export_download_pdf_label: "PDF herunterladen",
+    export_download_pdf_sub: "Als PDF speichern",
+    export_print_pdf_label: "Drucken / PDF speichern",
+    export_print_pdf_sub: "Druckt nur das Vorschaublatt",
+    export_email_label: "E-Mail-Entwurf erstellen",
+    export_email_sub: "Per E-Mail teilen",
+    export_download_json_label: "JSON herunterladen",
+    export_download_json_sub: "Sichern Sie Ihre Daten",
+    export_import_json_label: "JSON importieren",
+    export_import_json_sub: "Der Import ersetzt die aktuellen App-Daten. Im Zweifelsfall zuerst exportieren.",
   }
 };
 
@@ -2685,18 +2799,20 @@ export default function BudgitApp() {
       {previewOpen ? (
         <style>{`
           @media print {
+            @page { margin: 5mm; size: auto; }
+            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             body * { visibility: hidden !important; }
             #budgit-print-preview, #budgit-print-preview * { visibility: visible !important; }
-            #budgit-print-preview { position: absolute !important; left: 0; top: 0; width: 100%; }
+            #budgit-print-preview { position: absolute !important; left: 0; top: 0; width: 100%; margin: 0 !important; padding: 0 !important; }
           }
         `}</style>
       ) : null}
 
       {previewOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8 print:p-0">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8 print:p-0 print:static print:block print:h-auto">
           <div className="absolute inset-0 bg-neutral-900/40 backdrop-blur-sm transition-opacity print:hidden" onClick={() => setPreviewOpen(false)} />
 
-          <div className="relative w-full max-w-4xl bg-white rounded-[32px] shadow-2xl overflow-hidden ring-1 ring-black/5 transform transition-all flex flex-col max-h-[90vh] print:max-h-none print:rounded-none print:shadow-none print:overflow-visible">
+          <div className="relative w-full max-w-4xl bg-white rounded-[32px] shadow-2xl overflow-hidden ring-1 ring-black/5 transform transition-all flex flex-col max-h-[90vh] print:max-h-none print:rounded-none print:shadow-none print:overflow-visible print:static print:w-full print:max-w-none print:transform-none">
             
             <div className="px-8 pt-8 pb-6 flex items-start justify-between shrink-0 print:hidden">
               <div>
@@ -2725,34 +2841,34 @@ export default function BudgitApp() {
 
             <div className="overflow-y-auto p-8 pt-0 print:p-0 print:overflow-visible">
               <div id="budgit-print-preview" className="p-8 border border-neutral-100 rounded-2xl bg-white print:border-none print:p-0 print:rounded-none">
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start justify-between gap-4 print:gap-2">
                   <div>
-                    <div className="text-2xl font-semibold text-neutral-800">Budgit</div>
-                    <div className="text-sm text-neutral-700">{monthLabel(app.activeMonth, app.lang)}</div>
-                    <div className="mt-3 h-[2px] w-64 rounded-full bg-gradient-to-r from-lime-400/0 via-lime-400 to-emerald-400/0" />
+                    <img src={budgitLogo} alt="BudgIt" className="h-16 w-auto object-contain mb-2 print:h-20 print:mb-2" />
+                    <div className="text-sm text-neutral-700 print:text-4xl print:font-bold print:text-neutral-900">{monthLabel(app.activeMonth, app.lang)}</div>
+                    <div className="mt-3 h-[2px] w-64 rounded-full bg-gradient-to-r from-lime-400/0 via-lime-400 to-emerald-400/0 print:mt-2 print:h-[2px]" />
                   </div>
-                  <div className="text-sm text-neutral-700">{t("generated")}: {new Date().toLocaleString()}</div>
+                  <div className="text-xs text-neutral-500 print:text-[10px]">{t("generated")}: {new Date().toLocaleString()}</div>
                 </div>
 
-                <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="mt-6 grid grid-cols-2 gap-6 print:mt-3 print:gap-4">
                   <div className="rounded-2xl border border-neutral-200">
-                    <div className="px-4 py-3 border-b border-neutral-100 font-semibold text-neutral-800">{t("income")}</div>
-                    <div className="p-4 space-y-2">
+                    <div className="px-4 py-3 border-b border-neutral-100 font-bold text-xl text-neutral-900 print:text-3xl print:py-3 print:px-4">{t("income")}</div>
+                    <div className="p-4 space-y-2 print:p-2 print:space-y-1">
                       {previewIncomes.length === 0 ? (
-                        <div className="text-sm text-neutral-700">{t("noIncome")}</div>
+                        <div className="text-sm text-neutral-700 print:text-xs">{t("noIncome")}</div>
                       ) : (
                         previewIncomes.map((i) => (
-                          <div key={i.id} className="flex items-center justify-between gap-3">
-                            <div className="text-neutral-800 break-words">{i.name || t("unnamed")}</div>
+                          <div key={i.id} className="flex items-center justify-between gap-3 print:text-xs">
+                            <div className="text-neutral-800 break-words font-medium">{i.name || t("unnamed")}</div>
                             <div className="font-semibold text-neutral-800">
                               <Money value={toNumber(i.amount)} currency={app.currency} />
                             </div>
                           </div>
                         ))
                       )}
-                      <div className="pt-3 mt-3 border-t border-neutral-100 flex items-center justify-between">
-                        <div className="font-semibold text-neutral-800">{t("totalIncome")}</div>
-                        <div className="font-semibold text-neutral-800">
+                      <div className="pt-3 mt-3 border-t border-neutral-100 flex items-center justify-between print:pt-2 print:mt-2">
+                        <div className="font-semibold text-neutral-800 print:text-sm">{t("totalIncome")}</div>
+                        <div className="font-semibold text-neutral-800 print:text-sm">
                           <Money value={incomeTotal} currency={app.currency} />
                         </div>
                       </div>
@@ -2760,30 +2876,30 @@ export default function BudgitApp() {
                   </div>
 
                   <div className="rounded-2xl border border-neutral-200">
-                    <div className="px-4 py-3 border-b border-neutral-100 font-semibold text-neutral-800">{t("expenses")}</div>
-                    <div className="p-4 space-y-4">
+                    <div className="px-4 py-3 border-b border-neutral-100 font-bold text-xl text-neutral-900 print:text-3xl print:py-3 print:px-4">{t("expenses")}</div>
+                    <div className="p-4 space-y-4 print:p-2 print:space-y-2">
                       {previewGroups.length === 0 ? (
-                        <div className="text-sm text-neutral-700">{t("noExpenses")}</div>
+                        <div className="text-sm text-neutral-700 print:text-xs">{t("noExpenses")}</div>
                       ) : (
                         previewGroups.map((g) => (
-                          <div key={g.id} className="rounded-2xl border border-neutral-200">
-                            <div className="px-3 py-2 border-b border-neutral-100 flex items-center justify-between">
-                              <div className="font-semibold text-neutral-800">{String((g.label || "General")).trim()}</div>
-                              <div className="text-sm text-neutral-700">
+                          <div key={g.id} className="rounded-2xl border border-neutral-200 print:rounded-lg">
+                            <div className="px-3 py-2 border-b border-neutral-100 flex items-center justify-between bg-neutral-50 print:bg-neutral-100 print:py-1 print:px-2">
+                              <div className="font-semibold text-neutral-800 print:text-xs">{String((g.label || "General")).trim()}</div>
+                              <div className="text-sm text-neutral-700 print:text-[10px]">
                                 {t("remainingExpenses")}: <span className="font-semibold text-neutral-800">{currencySymbol}{groupRemainingTotal(g).toFixed(2)}</span>
                                 <span className="text-neutral-400"> • </span>
                                 Planned: <span className="font-medium">{currencySymbol}{groupPlannedTotal(g).toFixed(2)}</span>
                               </div>
                             </div>
-                            <div className="p-3 space-y-2">
+                            <div className="p-3 space-y-2 print:p-2 print:space-y-1">
                               {(g.items || []).length === 0 ? (
-                                <div className="text-sm text-neutral-700">No items.</div>
+                                <div className="text-sm text-neutral-700 print:text-xs">No items.</div>
                               ) : (
                                 (g.items || []).map((e) => {
                                   const info = dueInfo(app.activeMonth, e.dueDay, app.lang);
                                   return (
-                                    <div key={e.id} className="flex items-center justify-between gap-3">
-                                      <div className="text-neutral-800 break-words">
+                                    <div key={e.id} className="flex items-center justify-between gap-3 print:text-xs">
+                                      <div className="text-neutral-800 break-words font-medium">
                                         {e.paid ? "✓ " : ""}
                                         {e.name || t("unnamed")}
                                         {info ? (
@@ -2804,12 +2920,12 @@ export default function BudgitApp() {
                         ))
                       )}
 
-                      <div className="pt-3 mt-2 border-t border-neutral-100 flex items-center justify-between">
+                      <div className="pt-3 mt-2 border-t border-neutral-100 flex items-center justify-between print:pt-2 print:mt-1">
                         <div>
-                          <div className="font-semibold text-neutral-800">{t("remainingExpenses")}</div>
-                          <div className="text-xs text-neutral-600">{t("plannedExpenses")}: {currencySymbol}{expensePlannedTotal.toFixed(2)}</div>
+                          <div className="font-semibold text-neutral-800 print:text-sm">{t("remainingExpenses")}</div>
+                          <div className="text-xs text-neutral-600 print:text-[10px]">{t("plannedExpenses")}: {currencySymbol}{expensePlannedTotal.toFixed(2)}</div>
                         </div>
-                        <div className="font-semibold text-neutral-800">
+                        <div className="font-semibold text-neutral-800 print:text-sm">
                           <Money value={expenseRemainingTotal} currency={app.currency} />
                         </div>
                       </div>
@@ -2817,20 +2933,20 @@ export default function BudgitApp() {
                   </div>
                 </div>
 
-                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="mt-6 grid grid-cols-2 gap-6 break-inside-avoid print:mt-3 print:gap-4">
                   <div className={`rounded-2xl border p-4 ${netRemaining >= 0 ? "border-[#D5FF00]" : "border-red-200"}`}>
-                    <div className="text-sm text-neutral-700">{t("netRemaining")}</div>
-                    <div className="text-2xl font-semibold text-neutral-800 mt-1">
+                    <div className="text-sm text-neutral-700 print:text-xs">{t("netRemaining")}</div>
+                    <div className="text-2xl font-semibold text-neutral-800 mt-1 print:text-xl">
                       <Money value={netRemaining} currency={app.currency} />
                     </div>
-                    <div className="text-xs text-neutral-700 mt-2">
+                    <div className="text-xs text-neutral-700 mt-2 print:text-[10px]">
                       {t("savingsRate")}: <span className="font-medium">{savingsRate.toFixed(1)}%</span>
                     </div>
                   </div>
 
                   <div className="rounded-2xl border border-neutral-200 p-4">
-                    <div className="text-sm text-neutral-700">{t("notes")}</div>
-                    <div className="mt-2 whitespace-pre-wrap text-neutral-800 text-sm">{String(active.notes || "").trim() ? active.notes : t("none")}</div>
+                    <div className="text-sm text-neutral-700 print:text-xs">{t("notes")}</div>
+                    <div className="mt-2 whitespace-pre-wrap text-neutral-800 text-sm print:text-xs">{String(active.notes || "").trim() ? active.notes : t("none")}</div>
                   </div>
                 </div>
               </div>
@@ -3004,7 +3120,7 @@ export default function BudgitApp() {
               {/* Income */}
               <div className="rounded-2xl border border-neutral-200 bg-white">
                 <div className="px-4 py-3 border-b border-neutral-100 flex items-center justify-between">
-                  <div className="font-semibold text-neutral-800">{t("income")}</div>
+                  <div className="font-bold text-xl text-neutral-900">{t("income")}</div>
                   <SmallButton tone="primary" onClick={addIncome}>
                     {t("addIncome")}
                   </SmallButton>
@@ -3035,9 +3151,9 @@ export default function BudgitApp() {
                   ) : (
                     (active.incomes || []).filter(i => !searchTerm || (i.name || "").toLowerCase().includes(searchTerm.toLowerCase()) || (i.amount || "").toString().includes(searchTerm)).map((i, idx) => (
                       <div key={i.id}>
-                        <div className="grid grid-cols-12 gap-2 items-center rounded-2xl p-2 border border-transparent">
+                        <div className="grid grid-cols-[1fr_80px_40px] sm:grid-cols-12 gap-2 items-center rounded-2xl p-2 border border-transparent">
                           <div
-                            className="col-span-1"
+                            className="hidden sm:block col-span-1"
                             draggable={!searchTerm}
                             onDragStart={(e) => setDragPayload({ type: "income", itemId: i.id }, e)}
                             onDragEnd={clearDragState}
@@ -3046,7 +3162,7 @@ export default function BudgitApp() {
                           </div>
 
                           <input
-                            className="col-span-7 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300"
+                            className="w-full sm:col-span-7 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-neutral-800 text-sm focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300"
                             value={i.name || ""}
                             onChange={(e) => updateIncome(i.id, { name: e.target.value })}
                             placeholder={t("incomeName")}
@@ -3081,7 +3197,7 @@ export default function BudgitApp() {
                           />
 
                           <SelectAllNumberInput
-                            className="col-span-3 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-right text-neutral-800 tabular-nums focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300"
+                            className="w-full sm:col-span-3 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-right text-neutral-800 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300"
                             value={i.amount == null ? "0" : i.amount}
                             onChange={(e) => updateIncome(i.id, { amount: e.target.value })}
                             inputMode="decimal"
@@ -3090,7 +3206,7 @@ export default function BudgitApp() {
                           />
 
                           <button
-                            className="print:hidden col-span-1 h-10 rounded-xl border bg-red-50 hover:bg-red-100 text-red-700 border-red-200 px-3 shadow-sm"
+                            className="print:hidden w-full h-10 rounded-xl border bg-red-50 hover:bg-red-100 text-red-700 border-red-200 flex items-center justify-center shadow-sm sm:col-span-1"
                             title={t("removeTitle")}
                             onClick={() => deleteIncome(i.id)}
                           >
@@ -3134,7 +3250,7 @@ export default function BudgitApp() {
               {/* Expenses */}
               <div className="rounded-2xl border border-neutral-200 bg-white">
                 <div className="px-4 py-3 border-b border-neutral-100 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="font-semibold text-neutral-800">{t("expenses")}</div>
+                  <div className="font-bold text-xl text-neutral-900">{t("expenses")}</div>
                   <div className="grid grid-cols-2 sm:grid-cols-2 gap-2 w-full sm:w-auto">
                     <MiniActionButton tone="primary" onClick={addExpenseGroup}>
                       {t("addSection")}
@@ -3191,8 +3307,8 @@ export default function BudgitApp() {
 
                     return (
                       <div key={g.id}>
-                        <div className="rounded-2xl border border-neutral-200 overflow-hidden">
-                        <div className="px-3 py-3 border-b border-neutral-100">
+                        <div className="rounded-2xl border border-neutral-200 overflow-hidden shadow-sm">
+                        <div className="px-3 py-3 border-b border-neutral-100 bg-neutral-50">
                           <div className="flex flex-col gap-3">
                             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                               <div className="flex items-center gap-2">
@@ -3205,7 +3321,7 @@ export default function BudgitApp() {
                                 </div>
 
                                 <input
-                                  className="w-[240px] max-w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 font-semibold text-neutral-800 focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300"
+                                  className="flex-1 min-w-[140px] sm:w-[240px] sm:flex-none rounded-xl border border-neutral-200 bg-white px-3 py-2 font-semibold text-neutral-800 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300"
                                   value={g.label == null ? "" : g.label}
                                   onChange={(e) => updateExpenseGroupLabel(g.id, e.target.value)}
                                   onBlur={() => normalizeExpenseGroupLabel(g.id)}
@@ -3278,9 +3394,9 @@ export default function BudgitApp() {
                             ) : (
                               itemsVisible.map((e, idx) => (
                                 <div key={e.id} id={`item-${e.id}`} className={`transition-colors duration-1000 rounded-2xl ${highlightItem === e.id ? "bg-[#D5FF00]/20" : ""}`}>
-                                  <div className="grid grid-cols-12 gap-2 items-center p-2 border border-transparent">
+                                  <div className="grid grid-cols-6 sm:grid-cols-12 gap-2 items-center p-2 border border-transparent">
                                     <div
-                                      className="col-span-1"
+                                      className="hidden sm:block sm:col-span-1"
                                       draggable={!searchTerm}
                                       onDragStart={(ev) => setDragPayload({ type: "expense", fromGroupId: g.id, itemId: e.id }, ev)}
                                       onDragEnd={clearDragState}
@@ -3288,12 +3404,12 @@ export default function BudgitApp() {
                                       {!searchTerm && <DragHandle title={t("dragExpenseTitle")} />}
                                     </div>
 
-                                    <div className="col-span-1">
+                                    <div className="col-span-1 sm:col-span-1 flex justify-center sm:justify-start">
                                       <PaidCheck checked={!!e.paid} onChange={(v) => updateExpenseItem(g.id, e.id, { paid: !!v })} />
                                     </div>
 
                                     <input
-                                      className={`col-span-4 rounded-xl border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300 ${
+                                      className={`col-span-3 sm:col-span-4 rounded-xl border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300 ${
                                         e.paid ? "bg-white border-neutral-200 line-through text-neutral-400 decoration-[#D5FF00] decoration-2" : "bg-white border-neutral-200 text-neutral-800"
                                       }`}
                                       value={e.name || ""}
@@ -3330,7 +3446,7 @@ export default function BudgitApp() {
                                     />
 
                                     <SelectAllNumberInput
-                                      className={`col-span-2 rounded-xl border px-3 py-2 text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300 ${
+                                      className={`col-span-2 sm:col-span-2 rounded-xl border px-3 py-2 text-right text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300 ${
                                         e.paid ? "bg-white border-neutral-200 line-through text-neutral-400 decoration-[#D5FF00] decoration-2" : "bg-white border-neutral-200 text-neutral-800"
                                       }`}
                                       value={e.amount == null ? "0" : e.amount}
@@ -3340,7 +3456,7 @@ export default function BudgitApp() {
                                       title={t("amount")}
                                     />
 
-                                    <div className="col-span-3">
+                                    <div className="col-span-4 sm:col-span-3">
                                       <DuePicker
                                         ym={app.activeMonth}
                                         value={e.dueDay}
@@ -3350,7 +3466,7 @@ export default function BudgitApp() {
                                       />
                                     </div>
 
-                                    <div className="col-span-1 flex gap-1">
+                                    <div className="col-span-2 sm:col-span-1 flex gap-1 justify-end sm:justify-start">
                                       <button
                                         className={`print:hidden h-10 w-10 rounded-xl border shadow-sm flex items-center justify-center transition ${e.note ? "bg-[#D5FF00] border-[#D5FF00] text-neutral-900" : "bg-white border-neutral-200 text-neutral-400 hover:text-neutral-600"}`}
                                         title={t("note")}
