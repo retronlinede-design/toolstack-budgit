@@ -365,16 +365,6 @@ function CalculatorIcon({ className = "" }) {
   );
 }
 
-function InsightsIcon({ className = "" }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <path d="M12 2a7 7 0 0 0-7 7c0 3.04 1.63 5.58 4 6.72V20a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-4.28c2.37-1.14 4-3.68 4-6.72a7 7 0 0 0-7-7z" />
-      <path d="M9 21h6" />
-      <path d="M12 1v1" />
-    </svg>
-  );
-}
-
 function NoteIcon({ className = "" }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -477,303 +467,6 @@ function NoteEditorModal({ open, onClose, item, groupName, onSave, onClear, t })
               Save
             </button> 
           </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function InsightsModal({ open, onClose, active, t, currencySymbol }) {
-  const insightsData = useMemo(() => {
-    if (!active.transactions || active.transactions.length === 0) {
-      return null;
-    }
-
-    const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    const daysInMonth = monthEnd.getDate();
-    const daysPassed = now.getDate();
-    const daysRemaining = daysInMonth - daysPassed;
-
-    // Collect all items with their planned amounts
-    const itemStats = {};
-    (active.expenseGroups || []).forEach(group => {
-      (group.items || []).forEach(item => {
-        if (!itemStats[item.id]) {
-          itemStats[item.id] = {
-            id: item.id,
-            name: item.name || t("unnamed"),
-            groupLabel: group.label || t("unnamed"),
-            planned: toNumber(item.amount),
-            spent: 0,
-            transactions: 0,
-          };
-        }
-      });
-    });
-
-    // Sum transactions for current month
-    active.transactions.forEach(tx => {
-      const txDate = String(tx.dateISO || "").split("T")[0];
-      const txMonth = txDate.slice(0, 7);
-      const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-      
-      if (txMonth === currentMonth && tx.itemId && itemStats[tx.itemId]) {
-        itemStats[tx.itemId].spent += (tx.amountCents || 0) / 100;
-        itemStats[tx.itemId].transactions += 1;
-      }
-    });
-
-    const items = Object.values(itemStats);
-
-    // Calculate totals
-    const totalPlanned = items.reduce((sum, i) => sum + i.planned, 0);
-    const totalSpent = items.reduce((sum, i) => sum + i.spent, 0);
-    const totalRemaining = totalPlanned - totalSpent;
-
-    // Forecast month-end
-    const dailyAverage = daysPassed > 0 ? totalSpent / daysPassed : 0;
-    const forecastMonthEnd = Math.round(dailyAverage * daysInMonth * 100) / 100;
-    const forecastRemaining = totalPlanned - forecastMonthEnd;
-
-    // Find overspent/at-risk items
-    const riskItems = items
-      .map(item => ({
-        ...item,
-        remaining: item.planned - item.spent,
-        forecast: Math.round((dailyAverage * item.planned / totalPlanned) * daysInMonth * 100) / 100,
-        isForecastOverspent: (dailyAverage * item.planned / totalPlanned) * daysInMonth > item.planned,
-      }))
-      .filter(item => item.spent > item.planned || item.isForecastOverspent)
-      .sort((a, b) => {
-        const aOverage = Math.max(0, a.spent - a.planned);
-        const bOverage = Math.max(0, b.spent - b.planned);
-        return bOverage - aOverage;
-      })
-      .slice(0, 5);
-
-    // Generate quick win suggestions
-    const discretionaryItems = items
-      .filter(item => item.planned > 0)
-      .sort((a, b) => b.spent - a.spent);
-
-    const suggestions = [];
-
-    // Suggestion 1: Cut top spending category
-    if (discretionaryItems[0]) {
-      const item = discretionaryItems[0];
-      const tenPercent = Math.round(item.spent * 0.1 * 100) / 100;
-      suggestions.push({
-        title: `Reduce "${item.name}" by 10%`,
-        detail: `Current: ${currencySymbol}${item.spent.toFixed(2)} → Target: ${currencySymbol}${(item.spent - tenPercent).toFixed(2)} (Save ${currencySymbol}${tenPercent.toFixed(2)})`,
-      });
-    }
-
-    // Suggestion 2: Cut second top category
-    if (discretionaryItems[1]) {
-      const item = discretionaryItems[1];
-      const fifteenPercent = Math.round(item.spent * 0.15 * 100) / 100;
-      suggestions.push({
-        title: `Reduce "${item.name}" by 15%`,
-        detail: `Current: ${currencySymbol}${item.spent.toFixed(2)} → Target: ${currencySymbol}${(item.spent - fifteenPercent).toFixed(2)} (Save ${currencySymbol}${fifteenPercent.toFixed(2)})`,
-      });
-    }
-
-    // Suggestion 3: Pause/defer lowest priority
-    if (discretionaryItems[2]) {
-      const item = discretionaryItems[2];
-      suggestions.push({
-        title: `Pause "${item.name}" this month`,
-        detail: `Potential savings: ${currencySymbol}${item.spent.toFixed(2)}`,
-      });
-    }
-
-    // Suggestion 4: Based on forecast
-    if (forecastRemaining < 0) {
-      const needed = Math.abs(forecastRemaining);
-      suggestions.push({
-        title: `Reduce spending by ${currencySymbol}${needed.toFixed(2)}`,
-        detail: `To avoid overspending by month-end at current pace`,
-      });
-    } else if (forecastRemaining > totalPlanned * 0.2) {
-      suggestions.push({
-        title: `You're on track!`,
-        detail: `Forecast remaining: ${currencySymbol}${forecastRemaining.toFixed(2)}. Maintain current spending.`,
-      });
-    }
-
-    return {
-      totalPlanned,
-      totalSpent,
-      totalRemaining,
-      forecastMonthEnd,
-      forecastRemaining,
-      daysInMonth,
-      daysPassed,
-      riskItems,
-      suggestions,
-    };
-  }, [active, t, currencySymbol]);
-
-  const copyToClipboard = () => {
-    if (!insightsData) return;
-    
-    let text = "Budget Insights\n\n";
-    text += `Summary:\n`;
-    text += `Total Planned: ${currencySymbol}${insightsData.totalPlanned.toFixed(2)}\n`;
-    text += `Total Spent: ${currencySymbol}${insightsData.totalSpent.toFixed(2)}\n`;
-    text += `Total Remaining: ${currencySymbol}${insightsData.totalRemaining.toFixed(2)}\n`;
-    text += `Forecast Month-End: ${currencySymbol}${insightsData.forecastMonthEnd.toFixed(2)}\n`;
-    text += `Forecast Remaining: ${currencySymbol}${insightsData.forecastRemaining.toFixed(2)}\n\n`;
-
-    if (insightsData.riskItems.length > 0) {
-      text += `Risk Areas:\n`;
-      insightsData.riskItems.forEach(item => {
-        text += `- ${item.name}: Planned ${currencySymbol}${item.planned.toFixed(2)}, Spent ${currencySymbol}${item.spent.toFixed(2)}\n`;
-      });
-      text += "\n";
-    }
-
-    text += `Quick Wins:\n`;
-    insightsData.suggestions.forEach((s, i) => {
-      text += `${i + 1}. ${s.title} - ${s.detail}\n`;
-    });
-    text += "\nDisclaimer: Informational only; not financial advice.";
-
-    navigator.clipboard.writeText(text);
-  };
-
-  if (!open) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8 print:hidden">
-      <div className="absolute inset-0 bg-neutral-900/40 backdrop-blur-sm transition-opacity" onClick={onClose} />
-      <div className="relative w-full max-w-2xl bg-white rounded-[32px] shadow-2xl overflow-hidden ring-1 ring-black/5 transform transition-all flex flex-col max-h-[90vh] overflow-y-auto">
-        <div className="px-8 pt-8 pb-6 bg-gradient-to-r from-lime-50 to-emerald-50 border-b border-neutral-100">
-          <div className="font-bold text-3xl text-neutral-900 tracking-tight">Budget Insights</div>
-          <div className="mt-2 h-1 w-24 rounded-full bg-[#D5FF00]" />
-          <div className="mt-3 text-sm text-neutral-600">Analysis of your budget plan vs actual spending</div>
-        </div>
-
-        <div className="p-8 space-y-8">
-          {!insightsData ? (
-            <div className="text-center py-8">
-              <div className="text-neutral-600 text-lg">{t("noTransactions")}</div>
-              <div className="text-sm text-neutral-500 mt-2">Add transactions to your Spend Tracker to get personalized insights.</div>
-            </div>
-          ) : (
-            <>
-              {/* Summary */}
-              <div>
-                <div className="font-bold text-lg text-neutral-900 mb-4">Summary</div>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                  <div className="rounded-xl bg-neutral-50 border border-neutral-100 p-4">
-                    <div className="text-xs text-neutral-600 font-medium">Planned</div>
-                    <div className="text-lg font-bold text-neutral-900 mt-1">{currencySymbol}{insightsData.totalPlanned.toFixed(2)}</div>
-                  </div>
-                  <div className="rounded-xl bg-neutral-50 border border-neutral-100 p-4">
-                    <div className="text-xs text-neutral-600 font-medium">Spent</div>
-                    <div className="text-lg font-bold text-neutral-900 mt-1">{currencySymbol}{insightsData.totalSpent.toFixed(2)}</div>
-                  </div>
-                  <div className="rounded-xl bg-neutral-50 border border-neutral-100 p-4">
-                    <div className="text-xs text-neutral-600 font-medium">Remaining</div>
-                    <div className={`text-lg font-bold mt-1 ${insightsData.totalRemaining >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-                      {currencySymbol}{insightsData.totalRemaining.toFixed(2)}
-                    </div>
-                  </div>
-                  <div className="rounded-xl bg-neutral-50 border border-neutral-100 p-4">
-                    <div className="text-xs text-neutral-600 font-medium">Forecast</div>
-                    <div className="text-lg font-bold text-neutral-900 mt-1">{currencySymbol}{insightsData.forecastMonthEnd.toFixed(2)}</div>
-                  </div>
-                  <div className="rounded-xl bg-neutral-50 border border-neutral-100 p-4">
-                    <div className="text-xs text-neutral-600 font-medium">Forecast Remaining</div>
-                    <div className={`text-lg font-bold mt-1 ${insightsData.forecastRemaining >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-                      {currencySymbol}{insightsData.forecastRemaining.toFixed(2)}
-                    </div>
-                  </div>
-                </div>
-                <div className="text-xs text-neutral-500 mt-3">
-                  {insightsData.daysPassed} of {insightsData.daysInMonth} days ({Math.round((insightsData.daysPassed / insightsData.daysInMonth) * 100)}%)
-                </div>
-              </div>
-
-              {/* Risk Areas */}
-              {insightsData.riskItems.length > 0 && (
-                <div>
-                  <div className="font-bold text-lg text-neutral-900 mb-4">⚠️ Risk Areas (Overspent/Forecast)</div>
-                  <div className="space-y-3">
-                    {insightsData.riskItems.map(item => (
-                      <div key={item.id} className="rounded-xl border border-red-100 bg-red-50 p-4">
-                        <div className="flex items-start justify-between gap-4">
-                          <div>
-                            <div className="font-medium text-neutral-900">{item.name}</div>
-                            <div className="text-xs text-neutral-600 mt-1">{item.groupLabel}</div>
-                          </div>
-                          <div className="text-right shrink-0">
-                            <div className="text-sm font-bold text-red-600">
-                              {item.spent > item.planned ? (
-                                <>Over by {currencySymbol}{(item.spent - item.planned).toFixed(2)}</>
-                              ) : (
-                                <>Forecast risk</>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2 mt-3 text-xs">
-                          <div>
-                            <span className="text-neutral-600">Planned:</span> <span className="font-medium">{currencySymbol}{item.planned.toFixed(2)}</span>
-                          </div>
-                          <div>
-                            <span className="text-neutral-600">Spent:</span> <span className="font-medium">{currencySymbol}{item.spent.toFixed(2)}</span>
-                          </div>
-                          <div>
-                            <span className="text-neutral-600">Remaining:</span> <span className={`font-medium ${item.remaining >= 0 ? "text-emerald-600" : "text-red-600"}`}>{currencySymbol}{item.remaining.toFixed(2)}</span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Quick Wins */}
-              <div>
-                <div className="font-bold text-lg text-neutral-900 mb-4">💡 Quick Wins & Suggestions</div>
-                <div className="space-y-3">
-                  {insightsData.suggestions.map((s, i) => (
-                    <div key={i} className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
-                      <div className="font-medium text-neutral-900">{s.title}</div>
-                      <div className="text-sm text-neutral-700 mt-1">{s.detail}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Disclaimer */}
-              <div className="rounded-xl border border-amber-100 bg-amber-50 p-4">
-                <div className="text-xs text-amber-900">
-                  <strong>Disclaimer:</strong> This analysis is informational only and not financial advice. Consult with a financial advisor for personalized guidance.
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-
-        <div className="p-6 bg-neutral-50 border-t border-neutral-100 flex justify-between items-center">
-          <button
-            onClick={copyToClipboard}
-            disabled={!insightsData}
-            className="px-4 py-2 rounded-xl text-sm font-medium bg-[#D5FF00] text-neutral-900 hover:bg-[#c7f000] transition disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-          >
-            📋 Copy Insights
-          </button>
-          <button
-            onClick={onClose}
-            className="px-4 py-2 rounded-xl text-sm font-medium text-neutral-600 hover:bg-neutral-100 transition"
-          >
-            Close
-          </button>
         </div>
       </div>
     </div>
@@ -978,7 +671,7 @@ function DuePicker({ ym, value, onChange, lang = "en", t }) {
         type="button"
         title={btnTitle}
         onClick={() => setOpen((v) => !v)}
-        className={`w-full h-10 rounded-xl border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 shadow-sm px-3 text-neutral-800 text-sm flex items-center justify-between gap-2 focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300 ${
+        className={`w-full h-10 rounded-xl border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 shadow-sm px-3 text-neutral-800 text-sm flex items-center justify-between gap-2 focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 focus:border-neutral-300 ${
           info ? "font-medium" : "text-neutral-500"
         }`}
       >
@@ -1087,7 +780,7 @@ function DuePicker({ ym, value, onChange, lang = "en", t }) {
 function InsertDropZone({ active, onDragOver, onDrop }) {
   return (
     <div
-      className={`print:hidden h-3 rounded-xl transition-colors duration-200 ${active ? "bg-lime-300 ring-2 ring-lime-100" : "bg-transparent"}`}
+      className={`print:hidden h-3 rounded-xl transition-colors duration-200 ${active ? "bg-[#D5FF00]/50 ring-2 ring-[#D5FF00]/20" : "bg-transparent"}`}
       onDragOver={onDragOver}
       onDrop={onDrop}
     />
@@ -1385,7 +1078,7 @@ function BankBalance({ balance, onUpdate, currencySymbol, t }) {
         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500 font-semibold">{currencySymbol}</span>
         <SelectAllNumberInput
           id="bank-balance-input"
-          className="w-full rounded-xl border border-neutral-200 pl-8 pr-3 py-2 bg-white text-right text-neutral-800 font-semibold text-2xl tabular-nums focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300"
+          className="w-full rounded-xl border border-neutral-200 pl-8 pr-3 py-2 bg-white text-right text-neutral-800 font-semibold text-2xl tabular-nums focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 focus:border-neutral-300"
           value={balance}
           onChange={onUpdate}
           placeholder="0.00"
@@ -1894,320 +1587,6 @@ const TRANSLATIONS = {
   }
 };
 
-function SpendTracker({ active, updateMonth, t, currencySymbol, searchTerm }) {
-  const [isOpen, setIsOpen] = useState(() => lsGet("budgit_tracker_open") === "true");
-  useEffect(() => lsSet("budgit_tracker_open", isOpen), [isOpen]);
-  const [amount, setAmount] = useState("");
-  const [groupId, setGroupId] = useState("");
-  const [itemId, setItemId] = useState("");
-  const [note, setNote] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("Card");
-  const [filter, setFilter] = useState("today"); // 'today' | 'month'
-
-  const expenseGroups = active.expenseGroups || [];
-  const transactions = active.transactions || [];
-
-  // Default group/item selection
-  useEffect(() => {
-    if (!groupId && expenseGroups.length > 0) {
-      const firstG = expenseGroups[0];
-      setGroupId(firstG.id);
-      if (firstG.items && firstG.items.length > 0) {
-        setItemId(firstG.items[0].id);
-      }
-    }
-  }, [expenseGroups, groupId]);
-
-  const handleGroupChange = (e) => {
-    const newGid = e.target.value;
-    setGroupId(newGid);
-    const g = expenseGroups.find((x) => x.id === newGid);
-    if (g && g.items && g.items.length > 0) {
-      setItemId(g.items[0].id);
-    } else {
-      setItemId("");
-    }
-  };
-
-  const handleAdd = () => {
-    try {
-      const val = parseFloat(String(amount || "").replace(",", "."));
-      if (!val || isNaN(val) || !groupId) return;
-
-      const newTransaction = {
-        id: uid(),
-        dateISO: new Date().toISOString(),
-        amountCents: Math.round(val * 100),
-        groupId: groupId,
-        itemId: itemId || null,
-        note: (note || "").trim(),
-        paymentMethod,
-      };
-
-      updateMonth((cur) => ({
-        ...cur,
-        transactions: [newTransaction, ...(cur.transactions || [])],
-      }));
-
-      setAmount("");
-      setNote("");
-    } catch (err) {
-      console.error("Error adding transaction:", err);
-    }
-  };
-
-  const handleDelete = (id) => {
-    if (!window.confirm(t("removeTitle") + "?")) return;
-    updateMonth((cur) => ({
-      ...cur,
-      transactions: (cur.transactions || []).filter((t) => t.id !== id),
-    }));
-  };
-
-  // Summary Calculations
-  const summaryData = useMemo(() => {
-    return expenseGroups.map((g) => {
-      const groupItems = g.items || [];
-      
-      // Calculate per-item stats
-      const itemsWithStats = groupItems.map((item) => {
-        const planned = toNumber(item.amount);
-        const spentCents = transactions
-          .filter((t) => t.itemId === item.id)
-          .reduce((sum, t) => sum + t.amountCents, 0);
-        const spent = spentCents / 100;
-        return { ...item, planned, spent, remaining: planned - spent };
-      });
-
-      // Group rollup
-      const groupPlanned = itemsWithStats.reduce((s, i) => s + i.planned, 0);
-      const groupSpentItems = itemsWithStats.reduce((s, i) => s + i.spent, 0);
-      // Include transactions that have matching groupId but NO itemId (legacy or general)
-      const groupGeneralSpentCents = transactions.filter(t => t.groupId === g.id && !t.itemId).reduce((s, t) => s + t.amountCents, 0);
-      const totalGroupSpent = groupSpentItems + (groupGeneralSpentCents / 100);
-
-      return {
-        id: g.id,
-        label: g.label || t("unnamed"),
-        items: itemsWithStats,
-        rollup: { planned: groupPlanned, spent: totalGroupSpent, remaining: groupPlanned - totalGroupSpent }
-      };
-    });
-  }, [expenseGroups, transactions, t]);
-
-  // Filtered Transactions
-  const filteredTransactions = useMemo(() => {
-    if (searchTerm && searchTerm.trim()) {
-      const lower = searchTerm.toLowerCase();
-      return transactions.filter((tx) => {
-        const group = expenseGroups.find((g) => g.id === tx.groupId);
-        const item = group?.items?.find(i => i.id === tx.itemId);
-        const label = item ? item.name : group?.label;
-        
-        return (
-          (label || "").toLowerCase().includes(lower) ||
-          (tx.note || "").toLowerCase().includes(lower) ||
-          (tx.amountCents / 100).toString().includes(lower) ||
-          (tx.paymentMethod || "").toLowerCase().includes(lower)
-        );
-      });
-    }
-
-    const now = new Date();
-    const todayStr = now.toISOString().split("T")[0];
-    const monthStr = now.toISOString().slice(0, 7); // YYYY-MM
-    return transactions.filter((t) => {
-      if (!t) return false;
-      const tDate = String(t.dateISO || "").split("T")[0];
-      if (filter === "today") return tDate === todayStr;
-      return tDate.startsWith(monthStr);
-    });
-  }, [transactions, filter, searchTerm, expenseGroups]);
-
-  return (
-    <div className="rounded-2xl border border-neutral-200 bg-white overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className={`w-full px-4 py-3 border-b border-neutral-100 font-semibold text-neutral-800 flex items-center justify-between transition ${isOpen ? "bg-[#D5FF00]" : "bg-white hover:bg-[#D5FF00]/30"}`}
-      >
-        <span>{t("spendTracker")}</span>
-        <ChevronDownIcon className={`h-5 w-5 text-neutral-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
-      </button>
-      {isOpen && (
-        <div className="p-4 space-y-6">
-        {/* Quick Add Form */}
-        <div className="space-y-3 bg-neutral-50 p-3 rounded-xl border border-neutral-100">
-          <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
-            <input
-              className="sm:col-span-3 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300"
-              placeholder={`${t("amount")} (${currencySymbol})`}
-              type="number"
-              inputMode="decimal"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-            />
-            {/* Group Select */}
-            <select
-              className="sm:col-span-4 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300"
-              value={groupId}
-              onChange={handleGroupChange}
-            >
-              {expenseGroups.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.label || t("unnamed")}
-                </option>
-              ))}
-            </select>
-            {/* Item Select */}
-            <select
-              className="sm:col-span-5 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300 disabled:opacity-50"
-              value={itemId}
-              onChange={(e) => setItemId(e.target.value)}
-              disabled={!groupId}
-            >
-              {(expenseGroups.find(g => g.id === groupId)?.items || []).map((item) => (
-                <option key={item.id} value={item.id}>{item.name || t("unnamed")}</option>
-              ))}
-            </select>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <input
-              className="sm:col-span-1 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300"
-              placeholder={t("note")}
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-            />
-            <select
-              className="sm:col-span-1 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-neutral-800 focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300"
-              value={paymentMethod}
-              onChange={(e) => setPaymentMethod(e.target.value)}
-            >
-              <option value="Card">{t("card")}</option>
-              <option value="Cash">{t("cash")}</option>
-              <option value="Other">{t("other")}</option>
-            </select>
-            <button
-              onClick={handleAdd}
-              className="sm:col-span-1 rounded-xl bg-[#D5FF00]/30 hover:bg-[#D5FF00]/50 border border-[#D5FF00]/30 text-neutral-800 font-medium py-2 transition shadow-sm"
-            >
-              {t("addTransaction")}
-            </button>
-          </div>
-        </div>
-
-        {/* Summary Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead>
-              <tr className="text-neutral-500 border-b border-neutral-100">
-                <th className="pb-2 font-medium">{t("budgetLine")}</th>
-                <th className="pb-2 font-medium text-right">{t("plannedExpenses")}</th>
-                <th className="pb-2 font-medium text-right">{t("spent")}</th>
-                <th className="pb-2 font-medium text-right">{t("remaining")}</th>
-              </tr>
-            </thead>
-            <tbody className="text-neutral-800">
-              {summaryData.map((group) => (
-                <React.Fragment key={group.id}>
-                  {/* Group Header / Rollup */}
-                  <tr className="bg-neutral-50/80 font-semibold text-xs text-neutral-600">
-                    <td className="py-2 pl-2 rounded-l-lg">{group.label}</td>
-                    <td className="py-2 text-right tabular-nums">{currencySymbol}{group.rollup.planned.toFixed(2)}</td>
-                    <td className="py-2 text-right tabular-nums">{currencySymbol}{group.rollup.spent.toFixed(2)}</td>
-                    <td className={`py-2 text-right tabular-nums pr-2 rounded-r-lg ${group.rollup.remaining < 0 ? "text-red-600" : "text-emerald-600"}`}>
-                      {currencySymbol}{group.rollup.remaining.toFixed(2)}
-                    </td>
-                  </tr>
-                  {/* Items */}
-                  {group.items.map(item => (
-                    <tr key={item.id} className="border-b border-neutral-50 last:border-0">
-                      <td className="py-2 pl-6">{item.name || t("unnamed")}</td>
-                      <td className="py-2 text-right tabular-nums text-neutral-500">{currencySymbol}{item.planned.toFixed(2)}</td>
-                      <td className="py-2 text-right tabular-nums">{currencySymbol}{item.spent.toFixed(2)}</td>
-                      <td className={`py-2 text-right tabular-nums font-medium ${item.remaining < 0 ? "text-red-600" : "text-emerald-600"}`}>
-                        {currencySymbol}{item.remaining.toFixed(2)}
-                      </td>
-                    </tr>
-                  ))}
-                </React.Fragment>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Recent Transactions */}
-        <div>
-          {!searchTerm && (
-            <div className="flex items-center justify-between mb-3">
-              <div className="font-semibold text-neutral-800">{t("recentTransactions")}</div>
-              <div className="flex bg-neutral-100 rounded-lg p-1">
-                <button
-                  onClick={() => setFilter("today")}
-                  className={`px-3 py-1 rounded-md text-xs font-medium transition ${filter === "today" ? "bg-white shadow-sm text-neutral-900" : "text-neutral-500 hover:text-neutral-700"}`}
-                >
-                  {t("today")}
-                </button>
-                <button
-                  onClick={() => setFilter("month")}
-                  className={`px-3 py-1 rounded-md text-xs font-medium transition ${filter === "month" ? "bg-white shadow-sm text-neutral-900" : "text-neutral-500 hover:text-neutral-700"}`}
-                >
-                  {t("thisMonth")}
-                </button>
-              </div>
-            </div>
-          )}
-
-          <div className="space-y-2">
-            {filteredTransactions.length === 0 ? (
-              <div className="text-sm text-neutral-500 text-center py-4">{t("noTransactions")}</div>
-            ) : (
-              filteredTransactions.map((tx) => {
-                const group = expenseGroups.find((g) => g.id === tx.groupId);
-                const item = group?.items?.find(i => i.id === tx.itemId);
-                const label = item ? `${group?.label || "Unknown"}: ${item.name}` : (group?.label || "Unknown");
-                return (
-                  <div key={tx.id} className="flex items-center justify-between p-3 rounded-xl border border-neutral-100 bg-neutral-50/50">
-                    <div>
-                      <div className="text-sm font-medium text-neutral-900">
-                        {label} <span className="text-neutral-400 font-normal">• {tx.paymentMethod}</span>
-                      </div>
-                      <div className="text-xs text-neutral-500">
-                        {(() => {
-                          try {
-                            const d = new Date(tx.dateISO);
-                            return isNaN(d.getTime()) ? "??:??" : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                          } catch (e) {
-                            return "??:??";
-                          }
-                        })()}
-                        {tx.note && ` • ${tx.note}`}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="font-semibold text-neutral-900 tabular-nums">
-                        {currencySymbol}{(tx.amountCents / 100).toFixed(2)}
-                      </div>
-                      <button
-                        onClick={() => handleDelete(tx.id)}
-                        className="text-neutral-400 hover:text-red-600 transition px-1"
-                        title={t("removeTitle")}
-                      >
-                        ×
-                      </button>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ---------------------------
 // App
 // ---------------------------
@@ -2244,7 +1623,6 @@ export default function BudgitApp() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
-  const [insightsOpen, setInsightsOpen] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
@@ -2788,13 +2166,6 @@ export default function BudgitApp() {
         onImport={importJSON}
         t={t}
       />
-      <InsightsModal
-        open={insightsOpen}
-        onClose={() => setInsightsOpen(false)}
-        active={active}
-        t={t}
-        currencySymbol={currencySymbol}
-      />
 
       {previewOpen ? (
         <style>{`
@@ -2839,18 +2210,18 @@ export default function BudgitApp() {
               </div>
             </div>
 
-            <div className="overflow-y-auto p-8 pt-0 print:p-0 print:overflow-visible">
-              <div id="budgit-print-preview" className="p-8 border border-neutral-100 rounded-2xl bg-white print:border-none print:p-0 print:rounded-none">
+            <div className="overflow-y-auto p-4 pt-0 sm:p-8 sm:pt-0 print:p-0 print:overflow-visible">
+              <div id="budgit-print-preview" className="p-4 sm:p-8 border border-neutral-100 rounded-2xl bg-white print:border-none print:p-0 print:rounded-none">
                 <div className="flex items-start justify-between gap-4 print:gap-2">
                   <div>
                     <img src={budgitLogo} alt="BudgIt" className="h-16 w-auto object-contain mb-2 print:h-20 print:mb-2" />
                     <div className="text-sm text-neutral-700 print:text-4xl print:font-bold print:text-neutral-900">{monthLabel(app.activeMonth, app.lang)}</div>
-                    <div className="mt-3 h-[2px] w-64 rounded-full bg-gradient-to-r from-lime-400/0 via-lime-400 to-emerald-400/0 print:mt-2 print:h-[2px]" />
+                    <div className="mt-3 h-[2px] w-64 rounded-full bg-gradient-to-r from-[#D5FF00]/0 via-[#D5FF00] to-[#D5FF00]/0 print:mt-2 print:h-[2px]" />
                   </div>
                   <div className="text-xs text-neutral-500 print:text-[10px]">{t("generated")}: {new Date().toLocaleString()}</div>
                 </div>
 
-                <div className="mt-6 grid grid-cols-2 gap-6 print:mt-3 print:gap-4">
+                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6 print:grid-cols-2 print:mt-3 print:gap-4">
                   <div className="rounded-2xl border border-neutral-200">
                     <div className="px-4 py-3 border-b border-neutral-100 font-bold text-xl text-neutral-900 print:text-3xl print:py-3 print:px-4">{t("income")}</div>
                     <div className="p-4 space-y-2 print:p-2 print:space-y-1">
@@ -2933,7 +2304,7 @@ export default function BudgitApp() {
                   </div>
                 </div>
 
-                <div className="mt-6 grid grid-cols-2 gap-6 break-inside-avoid print:mt-3 print:gap-4">
+                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6 break-inside-avoid print:grid-cols-2 print:mt-3 print:gap-4">
                   <div className={`rounded-2xl border p-4 ${netRemaining >= 0 ? "border-[#D5FF00]" : "border-red-200"}`}>
                     <div className="text-sm text-neutral-700 print:text-xs">{t("netRemaining")}</div>
                     <div className="text-2xl font-semibold text-neutral-800 mt-1 print:text-xl">
@@ -3162,7 +2533,7 @@ export default function BudgitApp() {
                           </div>
 
                           <input
-                            className="w-full sm:col-span-7 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-neutral-800 text-sm focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300"
+                    className="w-full sm:col-span-7 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-neutral-800 text-sm focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 focus:border-neutral-300"
                             value={i.name || ""}
                             onChange={(e) => updateIncome(i.id, { name: e.target.value })}
                             placeholder={t("incomeName")}
@@ -3197,7 +2568,7 @@ export default function BudgitApp() {
                           />
 
                           <SelectAllNumberInput
-                            className="w-full sm:col-span-3 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-right text-neutral-800 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300"
+                    className="w-full sm:col-span-3 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-right text-neutral-800 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 focus:border-neutral-300"
                             value={i.amount == null ? "0" : i.amount}
                             onChange={(e) => updateIncome(i.id, { amount: e.target.value })}
                             inputMode="decimal"
@@ -3321,7 +2692,7 @@ export default function BudgitApp() {
                                 </div>
 
                                 <input
-                                  className="flex-1 min-w-[140px] sm:w-[240px] sm:flex-none rounded-xl border border-neutral-200 bg-white px-3 py-2 font-semibold text-neutral-800 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300"
+                                  className="flex-1 min-w-[140px] sm:w-[240px] sm:flex-none rounded-xl border border-neutral-200 bg-white px-3 py-2 font-semibold text-neutral-800 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 focus:border-neutral-300"
                                   value={g.label == null ? "" : g.label}
                                   onChange={(e) => updateExpenseGroupLabel(g.id, e.target.value)}
                                   onBlur={() => normalizeExpenseGroupLabel(g.id)}
@@ -3409,7 +2780,7 @@ export default function BudgitApp() {
                                     </div>
 
                                     <input
-                                      className={`col-span-3 sm:col-span-4 rounded-xl border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300 ${
+                                      className={`col-span-3 sm:col-span-4 rounded-xl border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 focus:border-neutral-300 ${
                                         e.paid ? "bg-white border-neutral-200 line-through text-neutral-400 decoration-[#D5FF00] decoration-2" : "bg-white border-neutral-200 text-neutral-800"
                                       }`}
                                       value={e.name || ""}
@@ -3446,7 +2817,7 @@ export default function BudgitApp() {
                                     />
 
                                     <SelectAllNumberInput
-                                      className={`col-span-2 sm:col-span-2 rounded-xl border px-3 py-2 text-right text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-lime-400/25 focus:border-neutral-300 ${
+                                      className={`col-span-2 sm:col-span-2 rounded-xl border px-3 py-2 text-right text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 focus:border-neutral-300 ${
                                         e.paid ? "bg-white border-neutral-200 line-through text-neutral-400 decoration-[#D5FF00] decoration-2" : "bg-white border-neutral-200 text-neutral-800"
                                       }`}
                                       value={e.amount == null ? "0" : e.amount}
@@ -3545,9 +2916,6 @@ export default function BudgitApp() {
                 </div>
               </div>
 
-              {/* Spend Tracker */}
-              <SpendTracker active={active} updateMonth={updateMonth} t={t} currencySymbol={currencySymbol} searchTerm={searchTerm} />
-
               <NotesPanel active={active} onJump={handleJumpTo} t={t} />
             </div>
           </div>
@@ -3555,14 +2923,6 @@ export default function BudgitApp() {
           {/* Summary */}
           <div className="flex flex-col gap-3">
             <div className="flex justify-end gap-2 print:hidden">
-              <button
-                type="button"
-                onClick={() => setInsightsOpen(true)}
-                className="h-10 w-10 rounded-xl border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 shadow-sm flex items-center justify-center text-neutral-600 transition"
-                title={t("insights")}
-              >
-                <InsightsIcon className="h-5 w-5" />
-              </button>
               <button
                 type="button"
                 onClick={() => {
@@ -3646,7 +3006,7 @@ export default function BudgitApp() {
               </div>
 
               {bankBalance > 0 && (
-                <div className={`rounded-2xl border p-4 ${projectedBalance >= 0 ? "border-emerald-200" : "border-red-200"}`}>
+                <div className={`rounded-2xl border p-4 ${projectedBalance >= 0 ? "border-[#D5FF00]/50" : "border-red-200"}`}>
                   <div className="text-sm text-neutral-700">{t("projectedBalance")}</div>
                   <div className="text-2xl font-semibold text-neutral-800 mt-1">
                     <Money value={projectedBalance} currency={app.currency} />
