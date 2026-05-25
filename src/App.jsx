@@ -274,6 +274,8 @@ const CURRENCIES = {
   ZAR: "R",
 };
 
+const INCOME_STATUSES = ["expected", "received", "delayed", "cancelled"];
+
 function Money({ value, currency = "EUR" }) {
   const v = Number(value) || 0;
   const sign = v < 0 ? "-" : "";
@@ -313,13 +315,14 @@ function PaidCheck({ checked, onChange }) {
   );
 }
 
-function SelectAllNumberInput({ className = "", value, onChange, placeholder, inputMode = "decimal", title }) {
+function SelectAllNumberInput({ className = "", value, onChange, onKeyDown, placeholder, inputMode = "decimal", title }) {
   // Click/focus selects all so you can type immediately over defaults.
   return (
     <input
       className={className}
       value={value == null ? "0" : value}
       onChange={onChange}
+      onKeyDown={onKeyDown}
       placeholder={placeholder}
       inputMode={inputMode}
       title={title}
@@ -1074,25 +1077,39 @@ function ExportModal({ open, onClose, onPreview, onPrint, onBackup, onImport, t 
 
 function BalanceCheck({
   balance,
-  pendingMoneyIn,
-  pendingMoneyLabel,
-  reserve,
+  pendingIncomeEntries,
+  overdraftLimit,
   onBalanceUpdate,
-  onPendingMoneyUpdate,
-  onPendingMoneyLabelUpdate,
-  onReserveUpdate,
+  onAddPendingIncome,
+  onDeletePendingIncome,
+  onOverdraftLimitUpdate,
   remainingExpenses,
   currency,
   currencySymbol,
   t,
 }) {
+  const [draftLabel, setDraftLabel] = useState("");
+  const [draftAmount, setDraftAmount] = useState("");
   const currentBalance = toNumber(balance);
-  const pendingAmount = toNumber(pendingMoneyIn);
-  const reserveAmount = toNumber(reserve);
-  const projectedBalance = currentBalance + pendingAmount;
-  const finalAfterExpenses = projectedBalance - remainingExpenses;
-  const finalAfterReserve = finalAfterExpenses - reserveAmount;
-  const isShort = finalAfterReserve < 0;
+  const pendingEntries = Array.isArray(pendingIncomeEntries) ? pendingIncomeEntries : [];
+  const totalPendingMoneyIn = pendingEntries.reduce((sum, entry) => sum + toNumber(entry.amount), 0);
+  const projectedAfterMoneyIn = currentBalance + totalPendingMoneyIn;
+  const projectedBalance = projectedAfterMoneyIn - remainingExpenses;
+  const overdraftAmount = toNumber(overdraftLimit);
+  const availableWithOverdraft = projectedBalance + overdraftAmount;
+  const isShort = availableWithOverdraft < 0;
+  const canAddPending = !!String(draftLabel || "").trim() || toNumber(draftAmount) !== 0;
+
+  const addPendingEntry = () => {
+    if (!canAddPending) return;
+    onAddPendingIncome({
+      id: uid(),
+      label: String(draftLabel || "").trim() || t("pendingIncomeFallback"),
+      amount: draftAmount,
+    });
+    setDraftLabel("");
+    setDraftAmount("");
+  };
 
   return (
     <div className={`rounded-2xl bg-white shadow-sm border p-4 print:hidden ${isShort ? "border-red-200" : "border-neutral-200"}`}>
@@ -1123,45 +1140,77 @@ function BalanceCheck({
           </div>
         </label>
 
-        <label htmlFor="pending-money-input" className="block">
-          <span className="text-xs text-neutral-600 font-medium">{t("pendingMoneyIn")}</span>
-          <div className="relative mt-1">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500 font-semibold">{currencySymbol}</span>
+        <div>
+          <div className="text-xs text-neutral-600 font-medium">{t("pendingMoneyIn")}</div>
+          <div className="mt-1 grid grid-cols-[1fr_82px_36px] gap-1.5">
+            <input
+              className="min-w-0 rounded-lg border border-neutral-200 px-2 py-1.5 bg-white text-neutral-800 text-xs focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 focus:border-neutral-300"
+              value={draftLabel}
+              onChange={(e) => setDraftLabel(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") addPendingEntry();
+              }}
+              placeholder={t("pendingIncomeLabelPlaceholder")}
+              title={t("pendingIncomeLabel")}
+            />
             <SelectAllNumberInput
-              id="pending-money-input"
-              className="w-full rounded-xl border border-neutral-200 pl-8 pr-3 py-2 bg-white text-right text-neutral-800 font-semibold text-lg tabular-nums focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 focus:border-neutral-300"
-              value={pendingMoneyIn}
-              onChange={onPendingMoneyUpdate}
-              placeholder="0.00"
-              title={t("pendingMoneyIn")}
+              className="min-w-0 rounded-lg border border-neutral-200 px-2 py-1.5 bg-white text-right text-neutral-800 text-xs tabular-nums focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 focus:border-neutral-300"
+              value={draftAmount}
+              onChange={(e) => setDraftAmount(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") addPendingEntry();
+              }}
+              placeholder="0"
+              title={t("amount")}
               inputMode="decimal"
             />
+            <button
+              type="button"
+              onClick={addPendingEntry}
+              disabled={!canAddPending}
+              className="h-8 rounded-lg border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 text-neutral-700 text-sm font-bold disabled:opacity-40 disabled:cursor-not-allowed"
+              title={t("addPendingIncome")}
+            >
+              +
+            </button>
           </div>
-        </label>
 
-        <label htmlFor="pending-money-label-input" className="block">
-          <span className="text-xs text-neutral-600 font-medium">{t("pendingMoneyLabel")}</span>
-          <input
-            id="pending-money-label-input"
-            className="mt-1 w-full rounded-xl border border-neutral-200 px-3 py-2 bg-white text-neutral-800 text-sm focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 focus:border-neutral-300"
-            value={pendingMoneyLabel || ""}
-            onChange={onPendingMoneyLabelUpdate}
-            placeholder={t("pendingMoneyPlaceholder")}
-            title={t("pendingMoneyLabel")}
-          />
-        </label>
+          {pendingEntries.length ? (
+            <div className="mt-2 max-h-56 overflow-y-auto pr-1 space-y-1">
+              {pendingEntries.map((entry) => (
+                <div key={entry.id} className="flex items-center gap-2 text-xs leading-5">
+                  <span className="min-w-0 flex-1 truncate text-neutral-700">{entry.label || t("pendingIncomeFallback")}</span>
+                  <span className="w-16 text-right tabular-nums font-medium text-neutral-800">{currencySymbol}{toNumber(entry.amount).toFixed(2)}</span>
+                  <button
+                    type="button"
+                    onClick={() => onDeletePendingIncome(entry.id)}
+                    className="h-5 w-5 shrink-0 rounded-md text-neutral-400 hover:text-red-700 hover:bg-red-50"
+                    title={t("removeTitle")}
+                  >
+                    x
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : null}
 
-        <label htmlFor="bank-reserve-input" className="block">
-          <span className="text-xs text-neutral-600 font-medium">{t("reserveAmount")}</span>
+          <div className="mt-2 flex items-center justify-between text-xs">
+            <span className="text-neutral-600">{t("pendingMoneyTotal")}</span>
+            <span className="font-semibold text-neutral-900"><Money value={totalPendingMoneyIn} currency={currency} /></span>
+          </div>
+        </div>
+
+        <label htmlFor="overdraft-limit-input" className="block">
+          <span className="text-xs text-neutral-600 font-medium">{t("overdraftLimit")}</span>
           <div className="relative mt-1">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500 font-semibold">{currencySymbol}</span>
             <SelectAllNumberInput
-              id="bank-reserve-input"
+              id="overdraft-limit-input"
               className="w-full rounded-xl border border-neutral-200 pl-8 pr-3 py-2 bg-white text-right text-neutral-800 font-semibold text-lg tabular-nums focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 focus:border-neutral-300"
-              value={reserve}
-              onChange={onReserveUpdate}
+              value={overdraftLimit}
+              onChange={onOverdraftLimitUpdate}
               placeholder="0.00"
-              title={t("reserveAmount")}
+              title={t("overdraftLimit")}
               inputMode="decimal"
             />
           </div>
@@ -1175,19 +1224,19 @@ function BalanceCheck({
         </div>
         <div className="flex items-center justify-between gap-3">
           <span className="text-neutral-600">{t("projectedAfterMoneyIn")}</span>
-          <span className="font-semibold text-neutral-800"><Money value={projectedBalance} currency={currency} /></span>
+          <span className="font-semibold text-neutral-800"><Money value={projectedAfterMoneyIn} currency={currency} /></span>
         </div>
         <div className="flex items-center justify-between gap-3">
           <span className="text-neutral-600">{t("remainingExpenses")}</span>
           <span className="font-semibold text-neutral-800"><Money value={remainingExpenses} currency={currency} /></span>
         </div>
         <div className="flex items-center justify-between gap-3">
-          <span className="text-neutral-600">{t("finalAfterExpenses")}</span>
-          <span className={`font-semibold ${finalAfterExpenses < 0 ? "text-red-700" : "text-neutral-800"}`}><Money value={finalAfterExpenses} currency={currency} /></span>
+          <span className="text-neutral-600">{t("projectedBalance")}</span>
+          <span className={`font-semibold ${projectedBalance < 0 ? "text-red-700" : "text-neutral-800"}`}><Money value={projectedBalance} currency={currency} /></span>
         </div>
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-neutral-600">{t("finalAfterReserve")}</span>
-          <span className={`font-bold ${isShort ? "text-red-700" : "text-neutral-900"}`}><Money value={finalAfterReserve} currency={currency} /></span>
+        <div className="flex items-center justify-between gap-3 text-xs">
+          <span className="text-neutral-500">{t("availableWithOverdraft")}</span>
+          <span className={`font-medium ${isShort ? "text-red-700" : "text-neutral-600"}`}><Money value={availableWithOverdraft} currency={currency} /></span>
         </div>
       </div>
     </div>
@@ -1201,6 +1250,15 @@ function BalanceCheck({
 const normalizeIncomeItem = (x) => ({
   id: x && x.id ? x.id : uid(),
   name: x && typeof x.name === "string" ? x.name : "",
+  amount: x && x.amount != null ? x.amount : "0",
+  date: x && typeof x.date === "string" ? x.date : "",
+  status: x && INCOME_STATUSES.includes(x.status) ? x.status : "expected",
+  notes: x && typeof x.notes === "string" ? x.notes : "",
+});
+
+const normalizePendingIncomeEntry = (x) => ({
+  id: x && x.id ? x.id : uid(),
+  label: x && typeof x.label === "string" ? x.label : "",
   amount: x && x.amount != null ? x.amount : "0",
 });
 
@@ -1229,10 +1287,16 @@ const normalizeTransaction = (x) => ({
 // - Legacy: { expenses: [] }
 // - New: { expenseGroups: [{ id, label, items: [] }] }
 function normalizeMonthData(monthData) {
-  const m = monthData || { incomes: [], expenses: [], notes: "", transactions: [], bankBalance: "", bankReserve: "", pendingMoneyIn: "", pendingMoneyLabel: "" };
+  const m = monthData || { incomes: [], expenses: [], notes: "", transactions: [], bankBalance: "", overdraftLimit: "", pendingIncomeEntries: [], pendingMoneyIn: "", pendingMoneyLabel: "" };
 
   const incomes = Array.isArray(m.incomes) ? m.incomes.map(normalizeIncomeItem) : [];
   const transactions = Array.isArray(m.transactions) ? m.transactions.map(normalizeTransaction) : [];
+  const legacyPendingAmount = m.pendingMoneyIn != null ? m.pendingMoneyIn : "";
+  const pendingIncomeEntries = Array.isArray(m.pendingIncomeEntries)
+    ? m.pendingIncomeEntries.map(normalizePendingIncomeEntry)
+    : toNumber(legacyPendingAmount) !== 0
+      ? [normalizePendingIncomeEntry({ label: m.pendingMoneyLabel || "Pending", amount: legacyPendingAmount })]
+      : [];
 
   if (Array.isArray(m.expenseGroups)) {
     const groups = m.expenseGroups
@@ -1249,7 +1313,8 @@ function normalizeMonthData(monthData) {
       notes: typeof m.notes === "string" ? m.notes : "",
       transactions,
       bankBalance: m.bankBalance != null ? m.bankBalance : "",
-      bankReserve: m.bankReserve != null ? m.bankReserve : "",
+      overdraftLimit: m.overdraftLimit != null ? m.overdraftLimit : "",
+      pendingIncomeEntries,
       pendingMoneyIn: m.pendingMoneyIn != null ? m.pendingMoneyIn : "",
       pendingMoneyLabel: typeof m.pendingMoneyLabel === "string" ? m.pendingMoneyLabel : "",
     };
@@ -1262,7 +1327,8 @@ function normalizeMonthData(monthData) {
     notes: typeof m.notes === "string" ? m.notes : "",
     transactions,
     bankBalance: m.bankBalance != null ? m.bankBalance : "",
-    bankReserve: m.bankReserve != null ? m.bankReserve : "",
+    overdraftLimit: m.overdraftLimit != null ? m.overdraftLimit : "",
+    pendingIncomeEntries,
     pendingMoneyIn: m.pendingMoneyIn != null ? m.pendingMoneyIn : "",
     pendingMoneyLabel: typeof m.pendingMoneyLabel === "string" ? m.pendingMoneyLabel : "",
   };
@@ -1359,15 +1425,19 @@ const TRANSLATIONS = {
     invalidJson: "Invalid JSON",
     importConfirm: "Importing replaces the current budget data in this app. Continue?",
     balanceCheck: "Balance Check",
-    balanceCheckDesc: "Bank balance plus pending money, minus expenses and reserve.",
+    balanceCheckDesc: "Bank balance plus pending money, minus remaining expenses.",
     pendingMoneyIn: "Pending money in",
+    pendingIncomeLabel: "Pending money description",
+    pendingIncomeLabelPlaceholder: "Overtime, eBay, refund",
+    pendingIncomeFallback: "Pending",
+    addPendingIncome: "Add pending money",
+    pendingMoneyTotal: "Pending money in total",
     pendingMoneyLabel: "Pending label / notes",
     pendingMoneyPlaceholder: "Salary, refund, transfer expected",
-    reserveAmount: "Buffer / reserve",
+    overdraftLimit: "Overdraft limit",
+    availableWithOverdraft: "Available with overdraft",
     currentBalanceShort: "Current balance",
     projectedAfterMoneyIn: "Projected balance after money in",
-    finalAfterExpenses: "Final balance after expenses",
-    finalAfterReserve: "Final balance after reserve",
     deleteSectionConfirm: "Delete “{name}” and all items inside it?",
     clearItemsConfirm: "Clear ALL items in “{name}”?",
     clearMonthConfirm: "Clear all income and expenses for this month?",
@@ -1378,6 +1448,14 @@ const TRANSLATIONS = {
     expense: "Expense",
     sectionLabel: "Section label (e.g., Loans)",
     incomeName: "Income name",
+    sourceLabel: "Source",
+    incomeDate: "Date",
+    incomeStatus: "Status",
+    actions: "Actions",
+    status_expected: "Expected",
+    status_received: "Received",
+    status_delayed: "Delayed",
+    status_cancelled: "Cancelled",
     expenseName: "Expense name",
     amount: "Amount",
     dueDay: "Due day",
@@ -1583,15 +1661,19 @@ const TRANSLATIONS = {
     invalidJson: "Ungültiges JSON",
     importConfirm: "Der Import ersetzt die aktuellen Budgetdaten in dieser App. Fortfahren?",
     balanceCheck: "Kontostand-Check",
-    balanceCheckDesc: "Kontostand plus erwartetes Geld, minus Ausgaben und Reserve.",
+    balanceCheckDesc: "Kontostand plus erwartetes Geld, minus verbleibende Ausgaben.",
     pendingMoneyIn: "Erwartetes Geld",
+    pendingIncomeLabel: "Beschreibung für erwartetes Geld",
+    pendingIncomeLabelPlaceholder: "Überstunden, eBay, Erstattung",
+    pendingIncomeFallback: "Erwartet",
+    addPendingIncome: "Erwartetes Geld hinzufügen",
+    pendingMoneyTotal: "Erwartetes Geld gesamt",
     pendingMoneyLabel: "Label / Notizen",
     pendingMoneyPlaceholder: "Gehalt, Erstattung, erwartete Überweisung",
-    reserveAmount: "Puffer / Reserve",
+    overdraftLimit: "Dispolimit",
+    availableWithOverdraft: "Verfügbar mit Dispo",
     currentBalanceShort: "Aktueller Kontostand",
     projectedAfterMoneyIn: "Voraussichtlicher Kontostand nach Eingang",
-    finalAfterExpenses: "Endstand nach Ausgaben",
-    finalAfterReserve: "Endstand nach Reserve",
     deleteSectionConfirm: "„{name}“ und alle Elemente darin löschen?",
     clearItemsConfirm: "ALLE Elemente in „{name}“ leeren?",
     clearMonthConfirm: "Alle Einkommen und Ausgaben für diesen Monat löschen?",
@@ -1602,6 +1684,14 @@ const TRANSLATIONS = {
     expense: "Ausgabe",
     sectionLabel: "Abschnittsbezeichnung (z. B. Kredite)",
     incomeName: "Einkommensname",
+    sourceLabel: "Quelle",
+    incomeDate: "Datum",
+    incomeStatus: "Status",
+    actions: "Aktionen",
+    status_expected: "Erwartet",
+    status_received: "Erhalten",
+    status_delayed: "Verspätet",
+    status_cancelled: "Storniert",
     expenseName: "Ausgabenname",
     amount: "Betrag",
     dueDay: "Fälligkeitstag",
@@ -1858,7 +1948,7 @@ export default function BudgitApp() {
   // ---------------------------
 
   const addIncome = () => {
-    const item = { id: uid(), name: t("salary"), amount: "0" };
+    const item = { id: uid(), name: t("salary"), amount: "0", date: "", status: "expected", notes: "" };
     updateMonth((cur) => ({ ...cur, incomes: [item, ...(cur.incomes || [])] }));
     setLastAdded({ kind: "income", id: item.id });
   };
@@ -2223,6 +2313,17 @@ export default function BudgitApp() {
 
   const previewIncomes = active.incomes || [];
   const previewGroups = active.expenseGroups || [];
+  const visibleIncomes = (active.incomes || []).filter((i) => {
+    if (!searchTerm) return true;
+    const q = searchTerm.toLowerCase();
+    return (
+      (i.name || "").toLowerCase().includes(q) ||
+      (i.amount || "").toString().includes(searchTerm) ||
+      (i.date || "").includes(searchTerm) ||
+      (i.notes || "").toLowerCase().includes(q) ||
+      t(`status_${i.status || "expected"}`).toLowerCase().includes(q)
+    );
+  });
 
   // ---------------------------
   // Self-tests (minimal)
@@ -2630,15 +2731,15 @@ export default function BudgitApp() {
 
             <div className="p-4 space-y-4">
               {/* Income */}
-              <div className="rounded-2xl border border-neutral-200 bg-white">
-                <div className="px-4 py-3 border-b border-neutral-100 flex items-center justify-between">
-                  <div className="font-bold text-xl text-neutral-900">{t("income")}</div>
-                  <SmallButton tone="primary" onClick={addIncome}>
+              <div className="rounded-2xl border border-neutral-200 bg-white overflow-hidden">
+                <div className="px-4 py-3 flex items-center justify-between gap-3">
+                  <div className="font-bold text-lg text-neutral-900">{t("income")}</div>
+                  <SmallButton tone="primary" onClick={addIncome} className="!py-1.5 !text-xs">
                     {t("addIncome")}
                   </SmallButton>
                 </div>
 
-                <div className="p-4 space-y-2">
+                <div className="px-3 pb-3">
                   {!searchTerm && (
                     <InsertDropZone
                       active={dropHint && dropHint.type === "incomeInsert" && dropHint.index === 0}
@@ -2658,23 +2759,38 @@ export default function BudgitApp() {
                     />
                   )}
 
-                  {(active.incomes || []).filter(i => !searchTerm || (i.name || "").toLowerCase().includes(searchTerm.toLowerCase()) || (i.amount || "").toString().includes(searchTerm)).length === 0 ? (
-                    <div className="text-sm text-neutral-700">{t("noIncome")}</div>
+                  {visibleIncomes.length === 0 ? (
+                    <div className="px-2 py-3 text-sm text-neutral-700">{t("noIncome")}</div>
                   ) : (
-                    (active.incomes || []).filter(i => !searchTerm || (i.name || "").toLowerCase().includes(searchTerm.toLowerCase()) || (i.amount || "").toString().includes(searchTerm)).map((i, idx) => (
+                    <div className="overflow-x-auto">
+                      <div className="min-w-[520px]">
+                        <div className="grid grid-cols-[20px_120px_88px_98px_minmax(120px,1fr)_24px] gap-1 px-1.5 py-1 rounded-lg bg-neutral-50 text-[10px] uppercase tracking-wide text-neutral-500 font-bold">
+                          <div />
+                          <div>{t("sourceLabel")}</div>
+                          <div className="text-right">{t("amount")} ({app.currency})</div>
+                          <div>{t("incomeStatus")}</div>
+                          <div>{t("notes")}</div>
+                          <div />
+                        </div>
+                        <div>
+                    {visibleIncomes.map((i, idx) => (
                       <div key={i.id}>
-                        <div className="grid grid-cols-[1fr_80px_40px] sm:grid-cols-12 gap-2 items-center rounded-2xl p-2 border border-transparent">
+                        <div className="grid grid-cols-[20px_120px_88px_98px_minmax(120px,1fr)_24px] gap-1 items-center px-1.5 py-0.5 rounded-md hover:bg-neutral-50 text-[11px]">
                           <div
-                            className="hidden sm:block col-span-1"
+                            className="print:hidden"
                             draggable={!searchTerm}
                             onDragStart={(e) => setDragPayload({ type: "income", itemId: i.id }, e)}
                             onDragEnd={clearDragState}
                           >
-                            {!searchTerm && <DragHandle title={t("dragIncomeTitle")} />}
+                            {!searchTerm && (
+                              <div title={t("dragIncomeTitle")} className="h-5 w-5 rounded text-neutral-400 hover:text-neutral-700 flex items-center justify-center cursor-grab active:cursor-grabbing">
+                                ⋮
+                              </div>
+                            )}
                           </div>
 
                           <input
-                    className="w-full sm:col-span-7 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-neutral-800 text-sm focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 focus:border-neutral-300"
+                            className="min-w-0 rounded-md border border-transparent px-1.5 py-0.5 bg-transparent hover:bg-white hover:border-neutral-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 focus:border-neutral-300 text-neutral-800 text-[11px]"
                             value={i.name || ""}
                             onChange={(e) => updateIncome(i.id, { name: e.target.value })}
                             placeholder={t("incomeName")}
@@ -2709,7 +2825,7 @@ export default function BudgitApp() {
                           />
 
                           <SelectAllNumberInput
-                    className="w-full sm:col-span-3 rounded-xl border border-neutral-200 px-3 py-2 bg-white text-right text-neutral-800 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 focus:border-neutral-300"
+                            className="min-w-0 rounded-md border border-transparent px-1.5 py-0.5 bg-transparent hover:bg-white hover:border-neutral-200 focus:bg-white text-right text-neutral-800 text-[11px] tabular-nums focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 focus:border-neutral-300"
                             value={i.amount == null ? "0" : i.amount}
                             onChange={(e) => updateIncome(i.id, { amount: e.target.value })}
                             inputMode="decimal"
@@ -2717,8 +2833,27 @@ export default function BudgitApp() {
                             title={t("amount")}
                           />
 
+                          <select
+                            className="min-w-0 rounded-md border border-transparent px-1.5 py-0.5 bg-transparent hover:bg-white hover:border-neutral-200 focus:bg-white text-neutral-700 text-[11px] focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 focus:border-neutral-300"
+                            value={INCOME_STATUSES.includes(i.status) ? i.status : "expected"}
+                            onChange={(e) => updateIncome(i.id, { status: e.target.value })}
+                            title={t("incomeStatus")}
+                          >
+                            {INCOME_STATUSES.map((status) => (
+                              <option key={status} value={status}>{t(`status_${status}`)}</option>
+                            ))}
+                          </select>
+
+                          <input
+                            className="min-w-0 rounded-md border border-transparent px-1.5 py-0.5 bg-transparent hover:bg-white hover:border-neutral-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 focus:border-neutral-300 text-neutral-700 text-[11px]"
+                            value={i.notes || ""}
+                            onChange={(e) => updateIncome(i.id, { notes: e.target.value })}
+                            placeholder={t("notes")}
+                            title={t("notes")}
+                          />
+
                           <button
-                            className="print:hidden w-full h-10 rounded-xl border bg-red-50 hover:bg-red-100 text-red-700 border-red-200 flex items-center justify-center shadow-sm sm:col-span-1"
+                            className="print:hidden h-5 w-5 rounded text-neutral-400 hover:text-red-700 hover:bg-red-50 flex items-center justify-center text-[11px]"
                             title={t("removeTitle")}
                             onClick={() => deleteIncome(i.id)}
                           >
@@ -2745,11 +2880,14 @@ export default function BudgitApp() {
                           />
                         )}
                       </div>
-                    ))
+                    ))}
+                        </div>
+                      </div>
+                    </div>
                   )}
 
                   {(active.incomes || []).length ? (
-                    <div className="pt-3 mt-2 border-t border-neutral-100 flex items-center justify-between">
+                    <div className="pt-3 mt-2 flex items-center justify-between px-2">
                       <div className="text-sm text-neutral-700">{t("totalIncome")}</div>
                       <div className="font-semibold text-neutral-800">
                         <Money value={incomeTotal} currency={app.currency} />
@@ -3095,13 +3233,12 @@ export default function BudgitApp() {
 
             <BalanceCheck
               balance={active.bankBalance}
-              pendingMoneyIn={active.pendingMoneyIn}
-              pendingMoneyLabel={active.pendingMoneyLabel}
-              reserve={active.bankReserve}
+              pendingIncomeEntries={active.pendingIncomeEntries}
+              overdraftLimit={active.overdraftLimit}
               onBalanceUpdate={(e) => updateMonth(cur => ({ ...cur, bankBalance: e.target.value }))}
-              onPendingMoneyUpdate={(e) => updateMonth(cur => ({ ...cur, pendingMoneyIn: e.target.value }))}
-              onPendingMoneyLabelUpdate={(e) => updateMonth(cur => ({ ...cur, pendingMoneyLabel: e.target.value }))}
-              onReserveUpdate={(e) => updateMonth(cur => ({ ...cur, bankReserve: e.target.value }))}
+              onAddPendingIncome={(entry) => updateMonth(cur => ({ ...cur, pendingIncomeEntries: [...(cur.pendingIncomeEntries || []), entry] }))}
+              onDeletePendingIncome={(id) => updateMonth(cur => ({ ...cur, pendingIncomeEntries: (cur.pendingIncomeEntries || []).filter((entry) => entry.id !== id) }))}
+              onOverdraftLimitUpdate={(e) => updateMonth(cur => ({ ...cur, overdraftLimit: e.target.value }))}
               remainingExpenses={expenseRemainingTotal}
               currency={app.currency}
               currencySymbol={currencySymbol}
