@@ -1072,12 +1072,27 @@ function ExportModal({ open, onClose, onPreview, onPrint, onBackup, onImport, t 
   ); 
 }
 
-function BalanceCheck({ balance, reserve, onBalanceUpdate, onReserveUpdate, remainingExpenses, currency, currencySymbol, t }) {
+function BalanceCheck({
+  balance,
+  pendingMoneyIn,
+  pendingMoneyLabel,
+  reserve,
+  onBalanceUpdate,
+  onPendingMoneyUpdate,
+  onPendingMoneyLabelUpdate,
+  onReserveUpdate,
+  remainingExpenses,
+  currency,
+  currencySymbol,
+  t,
+}) {
   const currentBalance = toNumber(balance);
+  const pendingAmount = toNumber(pendingMoneyIn);
   const reserveAmount = toNumber(reserve);
-  const afterExpenses = currentBalance - remainingExpenses;
-  const afterReserve = afterExpenses - reserveAmount;
-  const isShort = afterReserve < 0;
+  const projectedBalance = currentBalance + pendingAmount;
+  const finalAfterExpenses = projectedBalance - remainingExpenses;
+  const finalAfterReserve = finalAfterExpenses - reserveAmount;
+  const isShort = finalAfterReserve < 0;
 
   return (
     <div className={`rounded-2xl bg-white shadow-sm border p-4 print:hidden ${isShort ? "border-red-200" : "border-neutral-200"}`}>
@@ -1108,6 +1123,34 @@ function BalanceCheck({ balance, reserve, onBalanceUpdate, onReserveUpdate, rema
           </div>
         </label>
 
+        <label htmlFor="pending-money-input" className="block">
+          <span className="text-xs text-neutral-600 font-medium">{t("pendingMoneyIn")}</span>
+          <div className="relative mt-1">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500 font-semibold">{currencySymbol}</span>
+            <SelectAllNumberInput
+              id="pending-money-input"
+              className="w-full rounded-xl border border-neutral-200 pl-8 pr-3 py-2 bg-white text-right text-neutral-800 font-semibold text-lg tabular-nums focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 focus:border-neutral-300"
+              value={pendingMoneyIn}
+              onChange={onPendingMoneyUpdate}
+              placeholder="0.00"
+              title={t("pendingMoneyIn")}
+              inputMode="decimal"
+            />
+          </div>
+        </label>
+
+        <label htmlFor="pending-money-label-input" className="block">
+          <span className="text-xs text-neutral-600 font-medium">{t("pendingMoneyLabel")}</span>
+          <input
+            id="pending-money-label-input"
+            className="mt-1 w-full rounded-xl border border-neutral-200 px-3 py-2 bg-white text-neutral-800 text-sm focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 focus:border-neutral-300"
+            value={pendingMoneyLabel || ""}
+            onChange={onPendingMoneyLabelUpdate}
+            placeholder={t("pendingMoneyPlaceholder")}
+            title={t("pendingMoneyLabel")}
+          />
+        </label>
+
         <label htmlFor="bank-reserve-input" className="block">
           <span className="text-xs text-neutral-600 font-medium">{t("reserveAmount")}</span>
           <div className="relative mt-1">
@@ -1127,16 +1170,24 @@ function BalanceCheck({ balance, reserve, onBalanceUpdate, onReserveUpdate, rema
 
       <div className="mt-4 pt-3 border-t border-neutral-100 space-y-2 text-sm">
         <div className="flex items-center justify-between gap-3">
-          <span className="text-neutral-600">{t("unpaidExpenses")}</span>
+          <span className="text-neutral-600">{t("currentBalanceShort")}</span>
+          <span className="font-semibold text-neutral-800"><Money value={currentBalance} currency={currency} /></span>
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-neutral-600">{t("projectedAfterMoneyIn")}</span>
+          <span className="font-semibold text-neutral-800"><Money value={projectedBalance} currency={currency} /></span>
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-neutral-600">{t("remainingExpenses")}</span>
           <span className="font-semibold text-neutral-800"><Money value={remainingExpenses} currency={currency} /></span>
         </div>
         <div className="flex items-center justify-between gap-3">
-          <span className="text-neutral-600">{t("afterUnpaid")}</span>
-          <span className={`font-semibold ${afterExpenses < 0 ? "text-red-700" : "text-neutral-800"}`}><Money value={afterExpenses} currency={currency} /></span>
+          <span className="text-neutral-600">{t("finalAfterExpenses")}</span>
+          <span className={`font-semibold ${finalAfterExpenses < 0 ? "text-red-700" : "text-neutral-800"}`}><Money value={finalAfterExpenses} currency={currency} /></span>
         </div>
         <div className="flex items-center justify-between gap-3">
-          <span className="text-neutral-600">{t("afterReserve")}</span>
-          <span className={`font-bold ${isShort ? "text-red-700" : "text-neutral-900"}`}><Money value={afterReserve} currency={currency} /></span>
+          <span className="text-neutral-600">{t("finalAfterReserve")}</span>
+          <span className={`font-bold ${isShort ? "text-red-700" : "text-neutral-900"}`}><Money value={finalAfterReserve} currency={currency} /></span>
         </div>
       </div>
     </div>
@@ -1178,7 +1229,7 @@ const normalizeTransaction = (x) => ({
 // - Legacy: { expenses: [] }
 // - New: { expenseGroups: [{ id, label, items: [] }] }
 function normalizeMonthData(monthData) {
-  const m = monthData || { incomes: [], expenses: [], notes: "", transactions: [], bankBalance: "", bankReserve: "" };
+  const m = monthData || { incomes: [], expenses: [], notes: "", transactions: [], bankBalance: "", bankReserve: "", pendingMoneyIn: "", pendingMoneyLabel: "" };
 
   const incomes = Array.isArray(m.incomes) ? m.incomes.map(normalizeIncomeItem) : [];
   const transactions = Array.isArray(m.transactions) ? m.transactions.map(normalizeTransaction) : [];
@@ -1199,6 +1250,8 @@ function normalizeMonthData(monthData) {
       transactions,
       bankBalance: m.bankBalance != null ? m.bankBalance : "",
       bankReserve: m.bankReserve != null ? m.bankReserve : "",
+      pendingMoneyIn: m.pendingMoneyIn != null ? m.pendingMoneyIn : "",
+      pendingMoneyLabel: typeof m.pendingMoneyLabel === "string" ? m.pendingMoneyLabel : "",
     };
   }
 
@@ -1210,6 +1263,8 @@ function normalizeMonthData(monthData) {
     transactions,
     bankBalance: m.bankBalance != null ? m.bankBalance : "",
     bankReserve: m.bankReserve != null ? m.bankReserve : "",
+    pendingMoneyIn: m.pendingMoneyIn != null ? m.pendingMoneyIn : "",
+    pendingMoneyLabel: typeof m.pendingMoneyLabel === "string" ? m.pendingMoneyLabel : "",
   };
 }
 
@@ -1304,11 +1359,15 @@ const TRANSLATIONS = {
     invalidJson: "Invalid JSON",
     importConfirm: "Importing replaces the current budget data in this app. Continue?",
     balanceCheck: "Balance Check",
-    balanceCheckDesc: "Bank balance minus unpaid expenses and reserve.",
+    balanceCheckDesc: "Bank balance plus pending money, minus expenses and reserve.",
+    pendingMoneyIn: "Pending money in",
+    pendingMoneyLabel: "Pending label / notes",
+    pendingMoneyPlaceholder: "Salary, refund, transfer expected",
     reserveAmount: "Buffer / reserve",
-    unpaidExpenses: "Unpaid expenses",
-    afterUnpaid: "After unpaid",
-    afterReserve: "After reserve",
+    currentBalanceShort: "Current balance",
+    projectedAfterMoneyIn: "Projected balance after money in",
+    finalAfterExpenses: "Final balance after expenses",
+    finalAfterReserve: "Final balance after reserve",
     deleteSectionConfirm: "Delete “{name}” and all items inside it?",
     clearItemsConfirm: "Clear ALL items in “{name}”?",
     clearMonthConfirm: "Clear all income and expenses for this month?",
@@ -1524,11 +1583,15 @@ const TRANSLATIONS = {
     invalidJson: "Ungültiges JSON",
     importConfirm: "Der Import ersetzt die aktuellen Budgetdaten in dieser App. Fortfahren?",
     balanceCheck: "Kontostand-Check",
-    balanceCheckDesc: "Kontostand minus unbezahlte Ausgaben und Reserve.",
+    balanceCheckDesc: "Kontostand plus erwartetes Geld, minus Ausgaben und Reserve.",
+    pendingMoneyIn: "Erwartetes Geld",
+    pendingMoneyLabel: "Label / Notizen",
+    pendingMoneyPlaceholder: "Gehalt, Erstattung, erwartete Überweisung",
     reserveAmount: "Puffer / Reserve",
-    unpaidExpenses: "Unbezahlte Ausgaben",
-    afterUnpaid: "Nach unbezahlten",
-    afterReserve: "Nach Reserve",
+    currentBalanceShort: "Aktueller Kontostand",
+    projectedAfterMoneyIn: "Voraussichtlicher Kontostand nach Eingang",
+    finalAfterExpenses: "Endstand nach Ausgaben",
+    finalAfterReserve: "Endstand nach Reserve",
     deleteSectionConfirm: "„{name}“ und alle Elemente darin löschen?",
     clearItemsConfirm: "ALLE Elemente in „{name}“ leeren?",
     clearMonthConfirm: "Alle Einkommen und Ausgaben für diesen Monat löschen?",
@@ -3032,8 +3095,12 @@ export default function BudgitApp() {
 
             <BalanceCheck
               balance={active.bankBalance}
+              pendingMoneyIn={active.pendingMoneyIn}
+              pendingMoneyLabel={active.pendingMoneyLabel}
               reserve={active.bankReserve}
               onBalanceUpdate={(e) => updateMonth(cur => ({ ...cur, bankBalance: e.target.value }))}
+              onPendingMoneyUpdate={(e) => updateMonth(cur => ({ ...cur, pendingMoneyIn: e.target.value }))}
+              onPendingMoneyLabelUpdate={(e) => updateMonth(cur => ({ ...cur, pendingMoneyLabel: e.target.value }))}
               onReserveUpdate={(e) => updateMonth(cur => ({ ...cur, bankReserve: e.target.value }))}
               remainingExpenses={expenseRemainingTotal}
               currency={app.currency}
