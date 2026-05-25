@@ -302,10 +302,10 @@ function DragHandle({ title = "Drag to reorder" }) {
 
 function PaidCheck({ checked, onChange }) {
   return (
-    <label className="print:hidden h-10 w-10 rounded-xl border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 shadow-sm flex items-center justify-center cursor-pointer">
+    <label className="print:hidden h-6 w-6 rounded-md border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 flex items-center justify-center cursor-pointer">
       <input
         type="checkbox"
-        className="h-4 w-4 accent-[#D5FF00]"
+        className="h-3.5 w-3.5 accent-[#D5FF00]"
         checked={!!checked}
         onChange={(e) => {
           if (typeof onChange === "function") onChange(e.target.checked);
@@ -374,6 +374,28 @@ function NoteIcon({ className = "" }) {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
       <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+    </svg>
+  );
+}
+
+function TrashIcon({ className = "" }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M3 6h18" />
+      <path d="M8 6V4h8v2" />
+      <path d="M19 6l-1 14H6L5 6" />
+      <path d="M10 11v5" />
+      <path d="M14 11v5" />
+    </svg>
+  );
+}
+
+function AddPendingIcon({ className = "" }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M12 5v14" />
+      <path d="M5 12h14" />
+      <path d="M4 7h16v10H4z" />
     </svg>
   );
 }
@@ -1456,6 +1478,10 @@ const TRANSLATIONS = {
     status_received: "Received",
     status_delayed: "Delayed",
     status_cancelled: "Cancelled",
+    addIncomeToPending: "Add to Pending Money In",
+    includeExpenseInBalance: "Include in Balance Check",
+    alreadyInBalance: "Already included",
+    incomeNoteTodo: "Income notes are not linked yet.",
     expenseName: "Expense name",
     amount: "Amount",
     dueDay: "Due day",
@@ -1692,6 +1718,10 @@ const TRANSLATIONS = {
     status_received: "Erhalten",
     status_delayed: "Verspätet",
     status_cancelled: "Storniert",
+    addIncomeToPending: "Zu erwartetem Geld hinzufügen",
+    includeExpenseInBalance: "In Kontostand-Check einbeziehen",
+    alreadyInBalance: "Bereits einbezogen",
+    incomeNoteTodo: "Einkommensnotizen sind noch nicht verknüpft.",
     expenseName: "Ausgabenname",
     amount: "Betrag",
     dueDay: "Fälligkeitstag",
@@ -1965,6 +1995,23 @@ export default function BudgitApp() {
       ...cur,
       incomes: (cur.incomes || []).filter((x) => x.id !== id),
     }));
+  };
+
+  const addIncomeToPending = (item) => {
+    const entry = {
+      id: uid(),
+      label: String(item && item.name ? item.name : t("pendingIncomeFallback")).trim(),
+      amount: item && item.amount != null ? item.amount : "0",
+    };
+    updateMonth((cur) => ({
+      ...cur,
+      pendingIncomeEntries: [...(cur.pendingIncomeEntries || []), entry],
+    }));
+  };
+
+  const openIncomeNotePlaceholder = () => {
+    // TODO: Link income rows into the existing notes workflow once notes support non-expense records.
+    notify(t("incomeNoteTodo"));
   };
 
   // Income insert reorder
@@ -2763,19 +2810,18 @@ export default function BudgitApp() {
                     <div className="px-2 py-3 text-sm text-neutral-700">{t("noIncome")}</div>
                   ) : (
                     <div className="overflow-x-auto">
-                      <div className="min-w-[520px]">
-                        <div className="grid grid-cols-[20px_120px_88px_98px_minmax(120px,1fr)_24px] gap-1 px-1.5 py-1 rounded-lg bg-neutral-50 text-[10px] uppercase tracking-wide text-neutral-500 font-bold">
+                      <div className="min-w-[470px]">
+                        <div className="grid grid-cols-[20px_120px_88px_98px_92px] gap-1 px-1.5 py-1 rounded-lg bg-neutral-50 text-[10px] uppercase tracking-wide text-neutral-500 font-bold">
                           <div />
                           <div>{t("sourceLabel")}</div>
                           <div className="text-right">{t("amount")} ({app.currency})</div>
                           <div>{t("incomeStatus")}</div>
-                          <div>{t("notes")}</div>
-                          <div />
+                          <div className="text-right">{t("actions")}</div>
                         </div>
                         <div>
                     {visibleIncomes.map((i, idx) => (
                       <div key={i.id}>
-                        <div className="grid grid-cols-[20px_120px_88px_98px_minmax(120px,1fr)_24px] gap-1 items-center px-1.5 py-0.5 rounded-md hover:bg-neutral-50 text-[11px]">
+                        <div className="grid grid-cols-[20px_120px_88px_98px_92px] gap-1 items-center px-1.5 py-0.5 rounded-md hover:bg-neutral-50 text-[11px]">
                           <div
                             className="print:hidden"
                             draggable={!searchTerm}
@@ -2844,19 +2890,34 @@ export default function BudgitApp() {
                             ))}
                           </select>
 
-                          <input
-                            className="min-w-0 rounded-md border border-transparent px-1.5 py-0.5 bg-transparent hover:bg-white hover:border-neutral-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 focus:border-neutral-300 text-neutral-700 text-[11px]"
-                            value={i.notes || ""}
-                            onChange={(e) => updateIncome(i.id, { notes: e.target.value })}
-                            placeholder={t("notes")}
-                            title={t("notes")}
-                          />
+                          <div className="print:hidden flex items-center justify-end gap-1">
+                            <button
+                              type="button"
+                              className="h-5 w-5 rounded text-neutral-400 hover:text-neutral-800 hover:bg-[#D5FF00]/30 flex items-center justify-center"
+                              title={t("addIncomeToPending")}
+                              onClick={() => addIncomeToPending(i)}
+                            >
+                              <AddPendingIcon className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              className="h-5 w-5 rounded text-neutral-400 hover:text-neutral-800 hover:bg-neutral-100 flex items-center justify-center"
+                              title={t("note")}
+                              onClick={openIncomeNotePlaceholder}
+                            >
+                              <NoteIcon className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              className="h-5 w-5 rounded text-neutral-400 hover:text-red-700 hover:bg-red-50 flex items-center justify-center"
+                              title={t("removeTitle")}
+                              onClick={() => deleteIncome(i.id)}
+                            >
+                              <TrashIcon className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                          <button className="hidden" type="button">
 
-                          <button
-                            className="print:hidden h-5 w-5 rounded text-neutral-400 hover:text-red-700 hover:bg-red-50 flex items-center justify-center text-[11px]"
-                            title={t("removeTitle")}
-                            onClick={() => deleteIncome(i.id)}
-                          >
                             ×
                           </button>
                         </div>
@@ -3042,25 +3103,40 @@ export default function BudgitApp() {
                             {itemsVisible.length === 0 ? (
                               <div className="text-sm text-neutral-700">{t("noItemsSection")}</div>
                             ) : (
-                              itemsVisible.map((e, idx) => (
+                              <div className="overflow-x-auto">
+                                <div className="min-w-[650px]">
+                                  <div className="grid grid-cols-[20px_34px_150px_88px_150px_96px] gap-1 px-1.5 py-1 rounded-lg bg-neutral-50 text-[10px] uppercase tracking-wide text-neutral-500 font-bold">
+                                    <div />
+                                    <div>{t("paid")}</div>
+                                    <div>{t("expenseName")}</div>
+                                    <div className="text-right">{t("amount")} ({app.currency})</div>
+                                    <div>{t("dueDate")}</div>
+                                    <div className="text-right">{t("actions")}</div>
+                                  </div>
+                                  <div>
+                              {itemsVisible.map((e, idx) => (
                                 <div key={e.id} id={`item-${e.id}`} className={`transition-colors duration-1000 rounded-2xl ${highlightItem === e.id ? "bg-[#D5FF00]/20" : ""}`}>
-                                  <div className="grid grid-cols-6 sm:grid-cols-12 gap-2 items-center p-2 border border-transparent">
+                                  <div className="grid grid-cols-[20px_34px_150px_88px_150px_96px] gap-1 items-center px-1.5 py-0.5 rounded-md hover:bg-neutral-50 text-[11px]">
                                     <div
-                                      className="hidden sm:block sm:col-span-1"
+                                      className="print:hidden"
                                       draggable={!searchTerm}
                                       onDragStart={(ev) => setDragPayload({ type: "expense", fromGroupId: g.id, itemId: e.id }, ev)}
                                       onDragEnd={clearDragState}
                                     >
-                                      {!searchTerm && <DragHandle title={t("dragExpenseTitle")} />}
+                                      {!searchTerm && (
+                                        <div title={t("dragExpenseTitle")} className="h-5 w-5 rounded text-neutral-400 hover:text-neutral-700 flex items-center justify-center cursor-grab active:cursor-grabbing">
+                                          ⋮
+                                        </div>
+                                      )}
                                     </div>
 
-                                    <div className="col-span-1 sm:col-span-1 flex justify-center sm:justify-start">
+                                    <div className="flex justify-center">
                                       <PaidCheck checked={!!e.paid} onChange={(v) => updateExpenseItem(g.id, e.id, { paid: !!v })} />
                                     </div>
 
                                     <input
-                                      className={`col-span-3 sm:col-span-4 rounded-xl border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 focus:border-neutral-300 ${
-                                        e.paid ? "bg-white border-neutral-200 line-through text-neutral-400 decoration-[#D5FF00] decoration-2" : "bg-white border-neutral-200 text-neutral-800"
+                                      className={`min-w-0 rounded-md border border-transparent px-1.5 py-0.5 bg-transparent hover:bg-white hover:border-neutral-200 focus:bg-white text-[11px] focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 focus:border-neutral-300 ${
+                                        e.paid ? "line-through text-neutral-400 decoration-[#D5FF00] decoration-2" : "text-neutral-800"
                                       }`}
                                       value={e.name || ""}
                                       onChange={(ev) => updateExpenseItem(g.id, e.id, { name: ev.target.value })}
@@ -3096,8 +3172,8 @@ export default function BudgitApp() {
                                     />
 
                                     <SelectAllNumberInput
-                                      className={`col-span-2 sm:col-span-2 rounded-xl border px-3 py-2 text-right text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 focus:border-neutral-300 ${
-                                        e.paid ? "bg-white border-neutral-200 line-through text-neutral-400 decoration-[#D5FF00] decoration-2" : "bg-white border-neutral-200 text-neutral-800"
+                                      className={`min-w-0 rounded-md border border-transparent px-1.5 py-0.5 bg-transparent hover:bg-white hover:border-neutral-200 focus:bg-white text-right text-[11px] tabular-nums focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 focus:border-neutral-300 ${
+                                        e.paid ? "line-through text-neutral-400 decoration-[#D5FF00] decoration-2" : "text-neutral-800"
                                       }`}
                                       value={e.amount == null ? "0" : e.amount}
                                       onChange={(ev) => updateExpenseItem(g.id, e.id, { amount: ev.target.value })}
@@ -3106,7 +3182,7 @@ export default function BudgitApp() {
                                       title={t("amount")}
                                     />
 
-                                    <div className="col-span-4 sm:col-span-3">
+                                    <div className="min-w-0">
                                       <DuePicker
                                         ym={app.activeMonth}
                                         value={e.dueDay}
@@ -3116,16 +3192,35 @@ export default function BudgitApp() {
                                       />
                                     </div>
 
-                                    <div className="col-span-2 sm:col-span-1 flex gap-1 justify-end sm:justify-start">
+                                    <div className="print:hidden flex items-center justify-end gap-1">
                                       <button
-                                        className={`print:hidden h-10 w-10 rounded-xl border shadow-sm flex items-center justify-center transition ${e.note ? "bg-[#D5FF00] border-[#D5FF00] text-neutral-900" : "bg-white border-neutral-200 text-neutral-400 hover:text-neutral-600"}`}
+                                        type="button"
+                                        className={`h-5 w-5 rounded flex items-center justify-center ${e.paid ? "text-neutral-400 hover:text-neutral-800 hover:bg-[#D5FF00]/30" : "text-neutral-300 cursor-default"}`}
+                                        title={e.paid ? t("includeExpenseInBalance") : t("alreadyInBalance")}
+                                        disabled={!e.paid}
+                                        onClick={() => updateExpenseItem(g.id, e.id, { paid: false })}
+                                      >
+                                        <AddPendingIcon className="h-3.5 w-3.5" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className={`h-5 w-5 rounded flex items-center justify-center ${e.note ? "text-neutral-900 bg-[#D5FF00]/40" : "text-neutral-400 hover:text-neutral-800 hover:bg-neutral-100"}`}
                                         title={t("note")}
                                         onClick={() => setNoteModal({ groupId: g.id, itemId: e.id })}
                                       >
-                                        <NoteIcon className="h-4 w-4" />
+                                        <NoteIcon className="h-3.5 w-3.5" />
                                       </button>
                                       <button
-                                        className="print:hidden h-10 w-10 rounded-xl border bg-red-50 hover:bg-red-100 text-red-700 border-red-200 shadow-sm flex items-center justify-center"
+                                        type="button"
+                                        className="h-5 w-5 rounded text-neutral-400 hover:text-red-700 hover:bg-red-50 flex items-center justify-center"
+                                        title={t("removeTitle")}
+                                        onClick={() => deleteExpenseItem(g.id, e.id)}
+                                      >
+                                        <TrashIcon className="h-3.5 w-3.5" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="hidden"
                                         title={t("removeTitle")}
                                         onClick={() => deleteExpenseItem(g.id, e.id)}
                                       >
@@ -3153,7 +3248,10 @@ export default function BudgitApp() {
                                     />
                                   )}
                                 </div>
-                              ))
+                              ))}
+                                  </div>
+                                </div>
+                              </div>
                             )}
                           </div>
                         </div>
