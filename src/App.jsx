@@ -42,6 +42,7 @@ import budgitSub from "./assets/budgit-sub.png";
 // - Spend Tracker (Real-world purchase tracking)
 
 const LS_KEY = "toolstack_budgit_v1";
+const HUB_URL = import.meta.env.VITE_HUB_URL || "";
 
 const uid = () => {
   try {
@@ -929,7 +930,7 @@ function HelpModal({ open, onClose, t }) {
 
           <HelpItem title={t("help_tech_title")}>
             <p>{t("help_tech_p1")}</p>
-            <p><code className="text-xs bg-neutral-100 border border-neutral-200 rounded p-1 font-mono text-neutral-600">toolstack.budgit.v1</code></p>
+            <p><code className="text-xs bg-neutral-100 border border-neutral-200 rounded p-1 font-mono text-neutral-600">toolstack_budgit_v1</code></p>
             <p className="mt-2">{t("help_tech_p2")}</p>
             <p><code className="text-xs bg-neutral-100 border border-neutral-200 rounded p-1 font-mono text-neutral-600">toolstack.profile.v1</code></p>
           </HelpItem>
@@ -993,6 +994,7 @@ function ExportModal({ open, onClose, onPreview, onPrint, onBackup, onImport, t 
               if (f) {
                 onClose();
                 if (typeof onImport === 'function') onImport(f);
+                e.target.value = "";
               }
             }}
           />
@@ -1070,21 +1072,72 @@ function ExportModal({ open, onClose, onPreview, onPrint, onBackup, onImport, t 
   ); 
 }
 
-function BankBalance({ balance, onUpdate, currencySymbol, t }) {
+function BalanceCheck({ balance, reserve, onBalanceUpdate, onReserveUpdate, remainingExpenses, currency, currencySymbol, t }) {
+  const currentBalance = toNumber(balance);
+  const reserveAmount = toNumber(reserve);
+  const afterExpenses = currentBalance - remainingExpenses;
+  const afterReserve = afterExpenses - reserveAmount;
+  const isShort = afterReserve < 0;
+
   return (
-    <div className="rounded-2xl bg-white shadow-sm border border-neutral-200 p-4 print:hidden">
-      <label htmlFor="bank-balance-input" className="text-sm text-neutral-700 font-medium">{t("currentBalance")}</label>
-      <div className="relative mt-2">
-        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500 font-semibold">{currencySymbol}</span>
-        <SelectAllNumberInput
-          id="bank-balance-input"
-          className="w-full rounded-xl border border-neutral-200 pl-8 pr-3 py-2 bg-white text-right text-neutral-800 font-semibold text-2xl tabular-nums focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 focus:border-neutral-300"
-          value={balance}
-          onChange={onUpdate}
-          placeholder="0.00"
-          title={t("currentBalance")}
-          inputMode="decimal"
-        />
+    <div className={`rounded-2xl bg-white shadow-sm border p-4 print:hidden ${isShort ? "border-red-200" : "border-neutral-200"}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-sm font-bold text-neutral-900">{t("balanceCheck")}</div>
+          <div className="text-xs text-neutral-500 mt-1">{t("balanceCheckDesc")}</div>
+        </div>
+        <div className={`text-xs font-bold px-2 py-1 rounded-lg ${isShort ? "bg-red-50 text-red-700" : "bg-neutral-100 text-neutral-600"}`}>
+          {currency}
+        </div>
+      </div>
+
+      <div className="mt-4 space-y-3">
+        <label htmlFor="bank-balance-input" className="block">
+          <span className="text-xs text-neutral-600 font-medium">{t("currentBalance")}</span>
+          <div className="relative mt-1">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500 font-semibold">{currencySymbol}</span>
+            <SelectAllNumberInput
+              id="bank-balance-input"
+              className="w-full rounded-xl border border-neutral-200 pl-8 pr-3 py-2 bg-white text-right text-neutral-800 font-semibold text-lg tabular-nums focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 focus:border-neutral-300"
+              value={balance}
+              onChange={onBalanceUpdate}
+              placeholder="0.00"
+              title={t("currentBalance")}
+              inputMode="decimal"
+            />
+          </div>
+        </label>
+
+        <label htmlFor="bank-reserve-input" className="block">
+          <span className="text-xs text-neutral-600 font-medium">{t("reserveAmount")}</span>
+          <div className="relative mt-1">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500 font-semibold">{currencySymbol}</span>
+            <SelectAllNumberInput
+              id="bank-reserve-input"
+              className="w-full rounded-xl border border-neutral-200 pl-8 pr-3 py-2 bg-white text-right text-neutral-800 font-semibold text-lg tabular-nums focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 focus:border-neutral-300"
+              value={reserve}
+              onChange={onReserveUpdate}
+              placeholder="0.00"
+              title={t("reserveAmount")}
+              inputMode="decimal"
+            />
+          </div>
+        </label>
+      </div>
+
+      <div className="mt-4 pt-3 border-t border-neutral-100 space-y-2 text-sm">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-neutral-600">{t("unpaidExpenses")}</span>
+          <span className="font-semibold text-neutral-800"><Money value={remainingExpenses} currency={currency} /></span>
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-neutral-600">{t("afterUnpaid")}</span>
+          <span className={`font-semibold ${afterExpenses < 0 ? "text-red-700" : "text-neutral-800"}`}><Money value={afterExpenses} currency={currency} /></span>
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-neutral-600">{t("afterReserve")}</span>
+          <span className={`font-bold ${isShort ? "text-red-700" : "text-neutral-900"}`}><Money value={afterReserve} currency={currency} /></span>
+        </div>
       </div>
     </div>
   );
@@ -1125,7 +1178,7 @@ const normalizeTransaction = (x) => ({
 // - Legacy: { expenses: [] }
 // - New: { expenseGroups: [{ id, label, items: [] }] }
 function normalizeMonthData(monthData) {
-  const m = monthData || { incomes: [], expenses: [], notes: "", transactions: [], bankBalance: "" };
+  const m = monthData || { incomes: [], expenses: [], notes: "", transactions: [], bankBalance: "", bankReserve: "" };
 
   const incomes = Array.isArray(m.incomes) ? m.incomes.map(normalizeIncomeItem) : [];
   const transactions = Array.isArray(m.transactions) ? m.transactions.map(normalizeTransaction) : [];
@@ -1145,6 +1198,7 @@ function normalizeMonthData(monthData) {
       notes: typeof m.notes === "string" ? m.notes : "",
       transactions,
       bankBalance: m.bankBalance != null ? m.bankBalance : "",
+      bankReserve: m.bankReserve != null ? m.bankReserve : "",
     };
   }
 
@@ -1155,6 +1209,7 @@ function normalizeMonthData(monthData) {
     notes: typeof m.notes === "string" ? m.notes : "",
     transactions,
     bankBalance: m.bankBalance != null ? m.bankBalance : "",
+    bankReserve: m.bankReserve != null ? m.bankReserve : "",
   };
 }
 
@@ -1247,6 +1302,13 @@ const TRANSLATIONS = {
     monthCleared: "Month cleared",
     imported: "Imported",
     invalidJson: "Invalid JSON",
+    importConfirm: "Importing replaces the current budget data in this app. Continue?",
+    balanceCheck: "Balance Check",
+    balanceCheckDesc: "Bank balance minus unpaid expenses and reserve.",
+    reserveAmount: "Buffer / reserve",
+    unpaidExpenses: "Unpaid expenses",
+    afterUnpaid: "After unpaid",
+    afterReserve: "After reserve",
     deleteSectionConfirm: "Delete “{name}” and all items inside it?",
     clearItemsConfirm: "Clear ALL items in “{name}”?",
     clearMonthConfirm: "Clear all income and expenses for this month?",
@@ -1460,6 +1522,13 @@ const TRANSLATIONS = {
     monthCleared: "Monat geleert",
     imported: "Importiert",
     invalidJson: "Ungültiges JSON",
+    importConfirm: "Der Import ersetzt die aktuellen Budgetdaten in dieser App. Fortfahren?",
+    balanceCheck: "Kontostand-Check",
+    balanceCheckDesc: "Kontostand minus unbezahlte Ausgaben und Reserve.",
+    reserveAmount: "Puffer / Reserve",
+    unpaidExpenses: "Unbezahlte Ausgaben",
+    afterUnpaid: "Nach unbezahlten",
+    afterReserve: "Nach Reserve",
     deleteSectionConfirm: "„{name}“ und alle Elemente darin löschen?",
     clearItemsConfirm: "ALLE Elemente in „{name}“ leeren?",
     clearMonthConfirm: "Alle Einkommen und Ausgaben für diesen Monat löschen?",
@@ -1886,10 +1955,10 @@ export default function BudgitApp() {
       if (fromIndex < 0) return cur;
 
       const moved = groups.splice(fromIndex, 1)[0];
-      let insertAt = clamp(toIndex, 0, items.length);
+      let insertAt = clamp(toIndex, 0, groups.length);
       if (fromIndex < insertAt) insertAt = insertAt - 1;
 
-      groups.splice(clamp(insertAt, 0, items.length), 0, moved);
+      groups.splice(clamp(insertAt, 0, groups.length), 0, moved);
       return { ...cur, expenseGroups: groups };
     });
   };
@@ -1999,6 +2068,9 @@ export default function BudgitApp() {
       return;
     }
 
+    const ok = window.confirm(t("importConfirm"));
+    if (!ok) return;
+
     const months = { ...(parsed.months || {}) };
     Object.keys(months).forEach((k) => {
       months[k] = normalizeMonthData(months[k]);
@@ -2007,6 +2079,8 @@ export default function BudgitApp() {
     const next = {
       activeMonth: parsed.activeMonth || monthKey(),
       months,
+      lang: app.lang || "en",
+      currency: app.currency || "EUR",
     };
     next.months[next.activeMonth] = normalizeMonthData(next.months[next.activeMonth]);
 
@@ -2060,6 +2134,8 @@ export default function BudgitApp() {
 
   const expenseRemainingTotal = useMemo(() => {
     const groups = active.expenseGroups || [];
+    // Expense rows have a `paid` flag in the current schema; unpaid rows drive the balance check.
+    // If a row has no paid status, normalization defaults it to unpaid so it is included.
     return groups.reduce((sum, g) => sum + groupRemainingTotal(g), 0);
   }, [active.expenseGroups]);
 
@@ -2346,7 +2422,9 @@ export default function BudgitApp() {
           <div className="flex flex-col items-end">
             <div className="relative flex justify-end gap-2 pt-2 mb-12 md:mb-0 w-full">
               <div className="flex items-center gap-2">
-                <ActionButton onClick={() => {}}>{t("hub")}</ActionButton>
+                {HUB_URL ? (
+                  <ActionButton onClick={() => { window.location.href = HUB_URL; }}>{t("hub")}</ActionButton>
+                ) : null}
                 <ActionButton onClick={openPreview}>{t("preview")}</ActionButton>
                 <ActionButton onClick={() => setExportModalOpen(true)}>{t("data")}</ActionButton>
               </div>
@@ -2952,9 +3030,13 @@ export default function BudgitApp() {
               </div>
             </div>
 
-            <BankBalance
+            <BalanceCheck
               balance={active.bankBalance}
-              onUpdate={(e) => updateMonth(cur => ({ ...cur, bankBalance: e.target.value }))}
+              reserve={active.bankReserve}
+              onBalanceUpdate={(e) => updateMonth(cur => ({ ...cur, bankBalance: e.target.value }))}
+              onReserveUpdate={(e) => updateMonth(cur => ({ ...cur, bankReserve: e.target.value }))}
+              remainingExpenses={expenseRemainingTotal}
+              currency={app.currency}
               currencySymbol={currencySymbol}
               t={t}
             />
