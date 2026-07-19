@@ -3102,7 +3102,7 @@ export default function BudgitApp() {
         </div>
 
         <div className="mt-5 grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div className="md:col-span-2 rounded-2xl bg-white shadow-sm border border-neutral-200 print:shadow-none">
+          <div className="md:col-span-2 min-w-0 max-w-full rounded-2xl bg-white shadow-sm border border-neutral-200 print:shadow-none">
             <div className="px-4 py-3 border-b border-neutral-100">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 w-full sm:w-auto">
@@ -3200,11 +3200,11 @@ export default function BudgitApp() {
               </div>
             </div>
 
-            <div className="p-4 space-y-4">
+            <div className="min-w-0 max-w-full p-4 space-y-4">
               {/* Income */}
-              <div className="rounded-2xl border border-neutral-200 bg-white overflow-hidden">
-                <div className="px-4 py-3 flex items-center justify-between gap-3">
-                  <div className="font-bold text-lg text-neutral-900">{t("income")}</div>
+              <section className="ledger-section">
+                <div className="ledger-section-header">
+                  <h2 className="ledger-section-title">{t("income")}</h2>
                   <SmallButton tone="primary" onClick={addIncome} className="!py-1.5 !text-xs">
                     {t("addIncome")}
                   </SmallButton>
@@ -3273,9 +3273,9 @@ export default function BudgitApp() {
                         );
                       })}
                     </div>
-                    <div className="desktop-entry-table overflow-x-auto">
-                      <div className="min-w-[470px]">
-                        <div className="grid grid-cols-[20px_120px_88px_98px_92px] gap-1 px-1.5 py-1 rounded-lg bg-neutral-50 text-[10px] uppercase tracking-wide text-neutral-500 font-bold">
+                    <div className="desktop-entry-table">
+                      <div className="ledger-table">
+                        <div className="ledger-grid-income ledger-table-heading">
                           <div />
                           <div>{t("sourceLabel")}</div>
                           <div className="text-right">{t("amount")} ({app.currency})</div>
@@ -3285,7 +3285,7 @@ export default function BudgitApp() {
                         <div>
                     {visibleIncomes.map((i, idx) => (
                       <div key={i.id}>
-                        <div className="grid grid-cols-[20px_120px_88px_98px_92px] gap-1 items-center px-1.5 py-0.5 rounded-md hover:bg-neutral-50 text-[11px]">
+                        <div className="ledger-grid-income ledger-table-row">
                           <div
                             className="print:hidden"
                             draggable={!searchTerm}
@@ -3300,7 +3300,7 @@ export default function BudgitApp() {
                           </div>
 
                           <input
-                            className="min-w-0 rounded-md border border-transparent px-1.5 py-0.5 bg-transparent hover:bg-white hover:border-neutral-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 focus:border-neutral-300 text-neutral-800 text-[11px]"
+                            className="ledger-table-control"
                             value={i.name || ""}
                             onChange={(e) => updateIncome(i.id, { name: e.target.value })}
                             placeholder={t("incomeName")}
@@ -3335,7 +3335,7 @@ export default function BudgitApp() {
                           />
 
                           <SelectAllNumberInput
-                            className="min-w-0 rounded-md border border-transparent px-1.5 py-0.5 bg-transparent hover:bg-white hover:border-neutral-200 focus:bg-white text-right text-neutral-800 text-[11px] tabular-nums focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 focus:border-neutral-300"
+                            className="ledger-table-control text-right tabular-nums"
                             value={i.amount == null ? "0" : i.amount}
                             onChange={(e) => updateIncome(i.id, { amount: e.target.value })}
                             inputMode="decimal"
@@ -3344,7 +3344,7 @@ export default function BudgitApp() {
                           />
 
                           <select
-                            className="min-w-0 rounded-md border border-transparent px-1.5 py-0.5 bg-transparent hover:bg-white hover:border-neutral-200 focus:bg-white text-neutral-700 text-[11px] focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 focus:border-neutral-300"
+                            className="ledger-table-control text-neutral-700"
                             value={INCOME_STATUSES.includes(i.status) ? i.status : "expected"}
                             onChange={(e) => updateIncome(i.id, { status: e.target.value })}
                             title={t("incomeStatus")}
@@ -3354,10 +3354,10 @@ export default function BudgitApp() {
                             ))}
                           </select>
 
-                          <div className="print:hidden flex items-center justify-end gap-1">
+                          <div className="ledger-table-actions">
                             <button
                               type="button"
-                              className="h-5 w-5 rounded text-neutral-400 hover:text-neutral-800 hover:bg-[#D5FF00]/30 flex items-center justify-center"
+                              className="ledger-icon-button"
                               title={t("addIncomeToPending")}
                               onClick={() => addIncomeToPending(i)}
                             >
@@ -3365,7 +3365,7 @@ export default function BudgitApp() {
                             </button>
                             <button
                               type="button"
-                              className="h-5 w-5 rounded text-neutral-400 hover:text-neutral-800 hover:bg-neutral-100 flex items-center justify-center"
+                              className="ledger-icon-button"
                               title={t("note")}
                               onClick={openIncomeNotePlaceholder}
                             >
@@ -3373,7 +3373,7 @@ export default function BudgitApp() {
                             </button>
                             <button
                               type="button"
-                              className="h-5 w-5 rounded text-neutral-400 hover:text-red-700 hover:bg-red-50 flex items-center justify-center"
+                              className="ledger-icon-button-danger"
                               title={t("removeTitle")}
                               onClick={() => deleteIncome(i.id)}
                             >
@@ -3421,12 +3421,12 @@ export default function BudgitApp() {
                     </div>
                   ) : null}
                 </div>
-              </div>
+              </section>
 
               {/* Expenses */}
-              <div className="rounded-2xl border border-neutral-200 bg-white">
+              <section className="ledger-section">
                 <div className="px-4 py-3 border-b border-neutral-100 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="font-bold text-xl text-neutral-900">{t("expenses")}</div>
+                  <h2 className="ledger-section-title">{t("expenses")}</h2>
                   <div className="grid grid-cols-2 sm:grid-cols-2 gap-2 w-full sm:w-auto">
                     <MiniActionButton tone="primary" onClick={addExpenseGroup}>
                       {t("addSection")}
@@ -3483,11 +3483,11 @@ export default function BudgitApp() {
 
                     return (
                       <div key={g.id}>
-                        <div className="rounded-2xl border border-neutral-200 overflow-hidden shadow-sm">
+                        <div className="min-w-0 max-w-full rounded-2xl border border-neutral-200 overflow-hidden shadow-sm">
                         <div className="px-3 py-3 border-b border-neutral-100 bg-neutral-50">
                           <div className="flex flex-col gap-3">
-                            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                              <div className="flex items-center gap-2">
+                            <div className="flex min-w-0 flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                              <div className="flex min-w-0 flex-1 items-center gap-2">
                                 <div
                                   draggable={!searchTerm}
                                   onDragStart={(e) => setDragPayload({ type: "expenseGroup", groupId: g.id }, e)}
@@ -3497,14 +3497,14 @@ export default function BudgitApp() {
                                 </div>
 
                                 <input
-                                  className="flex-1 min-w-[140px] sm:w-[240px] sm:flex-none rounded-xl border border-neutral-200 bg-white px-3 py-2 font-semibold text-neutral-800 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 focus:border-neutral-300"
+                                  className="ledger-group-title h-10 rounded-xl border border-neutral-200 bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 focus:border-neutral-300"
                                   value={g.label == null ? "" : g.label}
                                   onChange={(e) => updateExpenseGroupLabel(g.id, e.target.value)}
                                   onBlur={() => normalizeExpenseGroupLabel(g.id)}
                                   placeholder={t("sectionLabel")}
                                 />
 
-                                <div className="hidden md:block text-sm text-neutral-700">
+                                <div className="hidden min-w-0 text-xs leading-5 text-neutral-600 lg:block">
                                   {itemsCount} {t(itemsCount === 1 ? "entrySingular" : "entryPlural")} • {t("remainingExpenses")}:{" "}
                                   <span className="font-semibold text-neutral-800">{currencySymbol}{groupRemainingTotal(g).toFixed(2)}</span>
                                   <span className="text-neutral-400"> • </span>
@@ -3536,7 +3536,7 @@ export default function BudgitApp() {
                               </MiniActionButton>
                             </div>
 
-                            <div className="md:hidden text-sm text-neutral-700">
+                            <div className="text-sm leading-5 text-neutral-700 md:text-xs md:text-neutral-600 lg:hidden">
                               {itemsCount} {t(itemsCount === 1 ? "entrySingular" : "entryPlural")} • {t("remainingExpenses")}:{" "}
                               <span className="font-semibold text-neutral-800">{currencySymbol}{groupRemainingTotal(g).toFixed(2)}</span>
                               <span className="text-neutral-400"> • </span>
@@ -3605,9 +3605,9 @@ export default function BudgitApp() {
                                   );
                                 })}
                               </div>
-                              <div className="desktop-entry-table overflow-x-auto">
-                                <div className="min-w-[650px]">
-                                  <div className="grid grid-cols-[20px_34px_150px_88px_150px_96px] gap-1 px-1.5 py-1 rounded-lg bg-neutral-50 text-[10px] uppercase tracking-wide text-neutral-500 font-bold">
+                              <div className="desktop-entry-table">
+                                <div className="ledger-table">
+                                  <div className="ledger-grid-expense ledger-table-heading">
                                     <div />
                                     <div>{t("paid")}</div>
                                     <div>{t("expenseName")}</div>
@@ -3618,7 +3618,7 @@ export default function BudgitApp() {
                                   <div>
                               {itemsVisible.map((e, idx) => (
                                 <div key={e.id} id={`item-${e.id}`} data-expense-item={e.id} className={`transition-colors duration-1000 rounded-2xl ${highlightItem === e.id ? "bg-[#D5FF00]/20" : ""}`}>
-                                  <div className="grid grid-cols-[20px_34px_150px_88px_150px_96px] gap-1 items-center px-1.5 py-0.5 rounded-md hover:bg-neutral-50 text-[11px]">
+                                  <div className="ledger-grid-expense ledger-table-row">
                                     <div
                                       className="print:hidden"
                                       draggable={!searchTerm}
@@ -3637,7 +3637,7 @@ export default function BudgitApp() {
                                     </div>
 
                                     <input
-                                      className={`min-w-0 rounded-md border border-transparent px-1.5 py-0.5 bg-transparent hover:bg-white hover:border-neutral-200 focus:bg-white text-[11px] focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 focus:border-neutral-300 ${
+                                      className={`ledger-table-control ${
                                         e.paid ? "line-through text-neutral-400 decoration-[#D5FF00] decoration-2" : "text-neutral-800"
                                       }`}
                                       value={e.name || ""}
@@ -3674,7 +3674,7 @@ export default function BudgitApp() {
                                     />
 
                                     <SelectAllNumberInput
-                                      className={`min-w-0 rounded-md border border-transparent px-1.5 py-0.5 bg-transparent hover:bg-white hover:border-neutral-200 focus:bg-white text-right text-[11px] tabular-nums focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 focus:border-neutral-300 ${
+                                      className={`ledger-table-control text-right tabular-nums ${
                                         e.paid ? "line-through text-neutral-400 decoration-[#D5FF00] decoration-2" : "text-neutral-800"
                                       }`}
                                       value={e.amount == null ? "0" : e.amount}
@@ -3694,10 +3694,10 @@ export default function BudgitApp() {
                                       />
                                     </div>
 
-                                    <div className="print:hidden flex items-center justify-end gap-1">
+                                    <div className="ledger-table-actions">
                                       <button
                                         type="button"
-                                        className={`h-5 w-5 rounded flex items-center justify-center ${e.paid ? "text-neutral-400 hover:text-neutral-800 hover:bg-[#D5FF00]/30" : "text-neutral-300 cursor-default"}`}
+                                        className={`ledger-icon-button ${e.paid ? "" : "text-neutral-300 cursor-default hover:bg-transparent hover:text-neutral-300"}`}
                                         title={e.paid ? t("includeExpenseInBalance") : t("alreadyInBalance")}
                                         disabled={!e.paid}
                                         onClick={() => updateExpenseItem(g.id, e.id, { paid: false })}
@@ -3706,7 +3706,7 @@ export default function BudgitApp() {
                                       </button>
                                       <button
                                         type="button"
-                                        className={`h-5 w-5 rounded flex items-center justify-center ${e.note ? "text-neutral-900 bg-[#D5FF00]/40" : "text-neutral-400 hover:text-neutral-800 hover:bg-neutral-100"}`}
+                                        className={`ledger-icon-button ${e.note ? "text-neutral-900 bg-[#D5FF00]/40" : ""}`}
                                         title={t("note")}
                                         onClick={() => setNoteModal({ groupId: g.id, itemId: e.id })}
                                       >
@@ -3714,7 +3714,7 @@ export default function BudgitApp() {
                                       </button>
                                       <button
                                         type="button"
-                                        className="h-5 w-5 rounded text-neutral-400 hover:text-red-700 hover:bg-red-50 flex items-center justify-center"
+                                        className="ledger-icon-button-danger"
                                         title={t("removeTitle")}
                                         onClick={() => deleteExpenseItem(g.id, e.id)}
                                       >
@@ -3794,7 +3794,7 @@ export default function BudgitApp() {
                     </div>
                   )}
                 </div>
-              </div>
+              </section>
 
               <NotesPanel active={active} onJump={handleJumpTo} t={t} />
             </div>
