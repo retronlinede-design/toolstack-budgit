@@ -33,6 +33,7 @@ import {
   parseMoney,
 } from "./domain/calculations.js";
 import { createExpenseAttentionSummary, formatSavingsRate } from "./domain/dashboardSummary.js";
+import { getMobileExpensePresentation, getMobileIncomePresentation } from "./domain/mobilePresentation.js";
 import {
   BACKUP_LIMITS,
   createBackupEnvelope,
@@ -1742,6 +1743,15 @@ const TRANSLATIONS = {
     incomeDate: "Date",
     incomeStatus: "Status",
     actions: "Actions",
+    edit: "Edit",
+    delete: "Delete",
+    date: "Date",
+    status: "Status",
+    paidState: "Paid",
+    unpaidState: "Unpaid",
+    dueLabel: "Due",
+    entrySingular: "entry",
+    entryPlural: "entries",
     status_expected: "Expected",
     status_received: "Received",
     status_delayed: "Delayed",
@@ -2047,6 +2057,15 @@ const TRANSLATIONS = {
     incomeDate: "Datum",
     incomeStatus: "Status",
     actions: "Aktionen",
+    edit: "Bearbeiten",
+    delete: "Löschen",
+    date: "Datum",
+    status: "Status",
+    paidState: "Bezahlt",
+    unpaidState: "Offen",
+    dueLabel: "Fällig",
+    entrySingular: "Eintrag",
+    entryPlural: "Einträge",
     status_expected: "Erwartet",
     status_received: "Erhalten",
     status_delayed: "Verspätet",
@@ -2454,7 +2473,9 @@ export default function BudgitApp() {
   const handleJumpTo = (itemId) => {
     setHighlightItem(itemId);
     setTimeout(() => {
-      const el = document.getElementById(`item-${itemId}`);
+      const candidates = [...document.querySelectorAll(`[data-expense-item="${itemId}"]`)];
+      const el = candidates.find((candidate) => candidate.getClientRects().length > 0)
+        || document.getElementById(`item-${itemId}`);
       if (el) {
         el.scrollIntoView({ behavior: "smooth", block: "center" });
       }
@@ -3165,7 +3186,47 @@ export default function BudgitApp() {
                   {visibleIncomes.length === 0 ? (
                     <div className="px-2 py-3 text-sm text-neutral-700">{t("noIncome")}</div>
                   ) : (
-                    <div className="overflow-x-auto">
+                    <>
+                    <div className="mobile-entry-list">
+                      {visibleIncomes.map((income) => {
+                        const mobileIncome = getMobileIncomePresentation(income);
+                        return (
+                          <article key={income.id} className="mobile-entry-card" aria-labelledby={`mobile-income-${income.id}`}>
+                            <div className="flex items-start gap-3">
+                              {!searchTerm ? (
+                                <div draggable onDragStart={(event) => setDragPayload({ type: "income", itemId: income.id }, event)} onDragEnd={clearDragState} className="mobile-entry-action flex min-h-11 w-11 shrink-0 cursor-grab items-center justify-center px-0 touch-pan-y" title={t("dragIncomeTitle")} aria-label={t("dragIncomeTitle")}>⋮</div>
+                              ) : null}
+                              <label className="mobile-entry-heading">
+                                <span className="mobile-entry-label">{t("incomeName")}</span>
+                                <input id={`mobile-income-${income.id}`} className="mobile-entry-input font-semibold" value={mobileIncome.name} onChange={(event) => updateIncome(income.id, { name: event.target.value })} placeholder={t("incomeName")} />
+                              </label>
+                              <div className="mobile-entry-amount pt-5"><Money value={mobileIncome.amount} currency={app.currency} /></div>
+                            </div>
+                            <div className="mobile-entry-meta mt-3 grid-cols-2">
+                              <label>
+                                <span className="mobile-entry-label">{t("amount")}</span>
+                                <SelectAllNumberInput className="mobile-entry-input text-right tabular-nums" value={mobileIncome.amount == null ? "0" : mobileIncome.amount} onChange={(event) => updateIncome(income.id, { amount: event.target.value })} inputMode="decimal" title={t("amount")} />
+                              </label>
+                              <label>
+                                <span className="mobile-entry-label">{t("status")}</span>
+                                <select className="mobile-entry-input" value={INCOME_STATUSES.includes(mobileIncome.status) ? mobileIncome.status : "expected"} onChange={(event) => updateIncome(income.id, { status: event.target.value })}>
+                                  {INCOME_STATUSES.map((status) => <option key={status} value={status}>{t(`status_${status}`)}</option>)}
+                                </select>
+                              </label>
+                            </div>
+                            {mobileIncome.date ? <div className="mt-3 text-sm text-neutral-700"><span className="mobile-entry-label">{t("date")}</span>{mobileIncome.date}</div> : null}
+                            {mobileIncome.notes ? <div className="mobile-entry-notes mt-3"><span className="mobile-entry-label">{t("notes")}</span>{mobileIncome.notes}</div> : null}
+                            <div className="mobile-entry-actions print:hidden">
+                              <button type="button" className="mobile-entry-action" onClick={() => document.getElementById(`mobile-income-${income.id}`)?.focus()}>{t("edit")}</button>
+                              <button type="button" className="mobile-entry-action" onClick={() => addIncomeToPending(income)} title={t("addIncomeToPending")}>{t("addIncomeToPending")}</button>
+                              <button type="button" className="mobile-entry-action" onClick={openIncomeNotePlaceholder}>{t("notes")}</button>
+                              <button type="button" className="mobile-entry-action-danger ml-auto" onClick={() => deleteIncome(income.id)} aria-label={`${t("delete")}: ${mobileIncome.name || t("incomeName")}`}>{t("delete")}</button>
+                            </div>
+                          </article>
+                        );
+                      })}
+                    </div>
+                    <div className="desktop-entry-table overflow-x-auto">
                       <div className="min-w-[470px]">
                         <div className="grid grid-cols-[20px_120px_88px_98px_92px] gap-1 px-1.5 py-1 rounded-lg bg-neutral-50 text-[10px] uppercase tracking-wide text-neutral-500 font-bold">
                           <div />
@@ -3301,6 +3362,7 @@ export default function BudgitApp() {
                         </div>
                       </div>
                     </div>
+                    </>
                   )}
 
                   {(active.incomes || []).length ? (
@@ -3396,10 +3458,10 @@ export default function BudgitApp() {
                                 />
 
                                 <div className="hidden md:block text-sm text-neutral-700">
-                                  {itemsCount} item{itemsCount === 1 ? "" : "s"} • {t("remainingExpenses")}:{" "}
+                                  {itemsCount} {t(itemsCount === 1 ? "entrySingular" : "entryPlural")} • {t("remainingExpenses")}:{" "}
                                   <span className="font-semibold text-neutral-800">{currencySymbol}{groupRemainingTotal(g).toFixed(2)}</span>
                                   <span className="text-neutral-400"> • </span>
-                                  Planned: <span className="font-medium">{currencySymbol}{groupPlannedTotal(g).toFixed(2)}</span>
+                                  {t("plannedExpenses")}: <span className="font-medium">{currencySymbol}{groupPlannedTotal(g).toFixed(2)}</span>
                                 </div>
                               </div>
 
@@ -3428,10 +3490,10 @@ export default function BudgitApp() {
                             </div>
 
                             <div className="md:hidden text-sm text-neutral-700">
-                              {itemsCount} item{itemsCount === 1 ? "" : "s"} • {t("remainingExpenses")}:{" "}
+                              {itemsCount} {t(itemsCount === 1 ? "entrySingular" : "entryPlural")} • {t("remainingExpenses")}:{" "}
                               <span className="font-semibold text-neutral-800">{currencySymbol}{groupRemainingTotal(g).toFixed(2)}</span>
                               <span className="text-neutral-400"> • </span>
-                              Planned: <span className="font-medium">{currencySymbol}{groupPlannedTotal(g).toFixed(2)}</span>
+                              {t("plannedExpenses")}: <span className="font-medium">{currencySymbol}{groupPlannedTotal(g).toFixed(2)}</span>
                             </div>
                           </div>
                         </div>
@@ -3459,7 +3521,44 @@ export default function BudgitApp() {
                             {itemsVisible.length === 0 ? (
                               <div className="text-sm text-neutral-700">{t("noItemsSection")}</div>
                             ) : (
-                              <div className="overflow-x-auto">
+                              <>
+                              <div className="mobile-entry-list">
+                                {itemsVisible.map((expense) => {
+                                  const mobileExpense = getMobileExpensePresentation(expense, { activeMonth: app.activeMonth, language: app.lang });
+                                  return (
+                                    <article key={expense.id} data-expense-item={expense.id} className={`mobile-entry-card ${highlightItem === expense.id ? "ring-2 ring-[#D5FF00]" : ""}`} aria-labelledby={`mobile-expense-${expense.id}`}>
+                                      <div className="flex items-start gap-3">
+                                        {!searchTerm ? <div draggable onDragStart={(event) => setDragPayload({ type: "expense", fromGroupId: g.id, itemId: expense.id }, event)} onDragEnd={clearDragState} className="mobile-entry-action flex min-h-11 w-11 shrink-0 cursor-grab items-center justify-center px-0 touch-pan-y" title={t("dragExpenseTitle")} aria-label={t("dragExpenseTitle")}>⋮</div> : null}
+                                        <label className="mobile-entry-heading">
+                                          <span className="mobile-entry-label">{t("expenseName")}</span>
+                                          <input id={`mobile-expense-${expense.id}`} className={`mobile-entry-input font-semibold ${mobileExpense.paid ? "line-through text-neutral-500" : ""}`} value={mobileExpense.name} onChange={(event) => updateExpenseItem(g.id, expense.id, { name: event.target.value })} placeholder={t("expenseName")} />
+                                        </label>
+                                        <div className={`mobile-entry-amount pt-5 ${mobileExpense.paid ? "line-through text-neutral-500" : ""}`}><Money value={mobileExpense.amount} currency={app.currency} /></div>
+                                      </div>
+                                      <div className="mt-3 flex items-center justify-between gap-3">
+                                        <span className={`rounded-full border px-3 py-1 text-sm font-semibold ${mobileExpense.paid ? "border-[#D5FF00] bg-[#D5FF00]/20 text-neutral-800" : "border-neutral-300 text-neutral-700"}`}>{mobileExpense.paidLabel}</span>
+                                        {mobileExpense.dueLabel ? <span className="text-sm text-neutral-700"><span className="font-medium">{t("dueLabel")}:</span> {mobileExpense.dueLabel}</span> : null}
+                                      </div>
+                                      <label className="mt-3 block">
+                                        <span className="mobile-entry-label">{t("amount")}</span>
+                                        <SelectAllNumberInput className="mobile-entry-input text-right tabular-nums" value={mobileExpense.amount == null ? "0" : mobileExpense.amount} onChange={(event) => updateExpenseItem(g.id, expense.id, { amount: event.target.value })} inputMode="decimal" title={t("amount")} />
+                                      </label>
+                                      <div className="mt-3">
+                                        <span className="mobile-entry-label">{t("dueDate")}</span>
+                                        <DuePicker ym={app.activeMonth} value={expense.dueDay} onChange={(due) => updateExpenseItem(g.id, expense.id, { dueDay: due })} lang={app.lang} t={t} />
+                                      </div>
+                                      {mobileExpense.notes ? <div className="mobile-entry-notes mt-3"><span className="mobile-entry-label">{t("notes")}</span>{mobileExpense.notes}</div> : null}
+                                      <div className="mobile-entry-actions print:hidden">
+                                        <button type="button" className="mobile-entry-action" onClick={() => document.getElementById(`mobile-expense-${expense.id}`)?.focus()}>{t("edit")}</button>
+                                        <button type="button" className="mobile-entry-action" onClick={() => updateExpenseItem(g.id, expense.id, { paid: !expense.paid })} aria-label={`${expense.paid ? t("unpaidState") : t("paidState")}: ${mobileExpense.name || t("expenseName")}`}>{expense.paid ? t("unpaidState") : t("paidState")}</button>
+                                        <button type="button" className="mobile-entry-action" onClick={() => setNoteModal({ groupId: g.id, itemId: expense.id })}>{t("notes")}</button>
+                                        <button type="button" className="mobile-entry-action-danger ml-auto" onClick={() => deleteExpenseItem(g.id, expense.id)} aria-label={`${t("delete")}: ${mobileExpense.name || t("expenseName")}`}>{t("delete")}</button>
+                                      </div>
+                                    </article>
+                                  );
+                                })}
+                              </div>
+                              <div className="desktop-entry-table overflow-x-auto">
                                 <div className="min-w-[650px]">
                                   <div className="grid grid-cols-[20px_34px_150px_88px_150px_96px] gap-1 px-1.5 py-1 rounded-lg bg-neutral-50 text-[10px] uppercase tracking-wide text-neutral-500 font-bold">
                                     <div />
@@ -3471,7 +3570,7 @@ export default function BudgitApp() {
                                   </div>
                                   <div>
                               {itemsVisible.map((e, idx) => (
-                                <div key={e.id} id={`item-${e.id}`} className={`transition-colors duration-1000 rounded-2xl ${highlightItem === e.id ? "bg-[#D5FF00]/20" : ""}`}>
+                                <div key={e.id} id={`item-${e.id}`} data-expense-item={e.id} className={`transition-colors duration-1000 rounded-2xl ${highlightItem === e.id ? "bg-[#D5FF00]/20" : ""}`}>
                                   <div className="grid grid-cols-[20px_34px_150px_88px_150px_96px] gap-1 items-center px-1.5 py-0.5 rounded-md hover:bg-neutral-50 text-[11px]">
                                     <div
                                       className="print:hidden"
@@ -3608,6 +3707,7 @@ export default function BudgitApp() {
                                   </div>
                                 </div>
                               </div>
+                              </>
                             )}
                           </div>
                         </div>
