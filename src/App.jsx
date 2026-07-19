@@ -74,7 +74,7 @@ const HUB_URL = import.meta.env.VITE_HUB_URL || "";
 const uid = () => {
   try {
     if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
-  } catch (err) {
+  } catch {
     // ignore
   }
   return `id_${Math.random().toString(16).slice(2)}_${Date.now()}`;
@@ -117,7 +117,7 @@ const safeParse = (s, fallback) => {
   try {
     const v = JSON.parse(s);
     return v == null ? fallback : v;
-  } catch (err) {
+  } catch {
     return fallback;
   }
 };
@@ -352,14 +352,14 @@ function SelectAllNumberInput({ className = "", value, onChange, onKeyDown, plac
       onFocus={(e) => {
         try {
           e.target.select();
-        } catch (err) {
+        } catch {
           // ignore
         }
       }}
       onClick={(e) => {
         try {
           e.target.select();
-        } catch (err) {
+        } catch {
           // ignore
         }
       }}
@@ -450,15 +450,8 @@ function SearchIcon({ className = "" }) {
 }
 
 function NoteEditorModal({ open, onClose, item, groupName, onSave, onClear, t }) {
-  const [text, setText] = useState("");
-  const [pinned, setPinned] = useState(false);
-
-  useEffect(() => {
-    if (open && item) {
-      setText(item.note || "");
-      setPinned(!!item.notePinned);
-    }
-  }, [open, item]);
+  const [text, setText] = useState(() => item?.note || "");
+  const [pinned, setPinned] = useState(() => !!item?.notePinned);
   useModalEscape(open, onClose);
 
   if (!open || !item) return null;
@@ -660,10 +653,7 @@ function DuePicker({ ym, value, onChange, lang = "en", t, compact = false }) {
 
   // Keep the calendar fully on-screen (flip up/down, clamp left/right)
   useLayoutEffect(() => {
-    if (!open) {
-      setPos(null);
-      return;
-    }
+    if (!open) return undefined;
 
     const place = () => {
       const btn = btnRef.current;
@@ -1018,65 +1008,66 @@ function HelpModal({ open, onClose, t }) {
   );
 }
 
-function ExportModal({ open, onClose, onPrint, onBackup, onImport, t }) {
-  useModalEscape(open, onClose);
-  if (!open) return null;
-
-  const IconWrapper = ({ children }) => (
+function ExportIconWrapper({ children }) {
+  return (
     <div className="h-10 w-10 rounded-full bg-[#D5FF00] flex items-center justify-center text-neutral-900 shrink-0">
       {children}
     </div>
   );
+}
 
-  const Icons = {
-    Preview: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
-    Print: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>,
-    Download: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
-    Upload: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>,
-    Close: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
-    Mail: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-  };
+const ExportIcons = {
+  Print: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>,
+  Download: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
+  Upload: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>,
+  Close: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
+  Mail: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>,
+};
 
-  const ActionRow = ({ icon, label, sub, onClick, file }) => {
-    const content = (
-      <>
-        <IconWrapper>{icon}</IconWrapper>
-        <div className="flex-1 text-left">
-          <div className="font-semibold text-neutral-900 text-base">{label}</div>
-          {sub && <div className="text-xs text-neutral-500 font-medium">{sub}</div>}
-        </div>
-      </>
-    );
+function ExportActionRow({ icon, label, sub, onClick, file, onClose, onImport }) {
+  const content = (
+    <>
+      <ExportIconWrapper>{icon}</ExportIconWrapper>
+      <div className="flex-1 text-left">
+        <div className="font-semibold text-neutral-900 text-base">{label}</div>
+        {sub && <div className="text-xs text-neutral-500 font-medium">{sub}</div>}
+      </div>
+    </>
+  );
 
-    const cls = `w-full min-h-14 p-3 rounded-2xl hover:bg-neutral-50 transition flex items-center gap-4 group active:scale-[0.98] border border-transparent hover:border-neutral-100 focus-within:outline-none focus-within:ring-2 focus-within:ring-[#D5FF00] focus-within:ring-offset-2 ${BUTTON_FOCUS}`;
+  const cls = `w-full min-h-14 p-3 rounded-2xl hover:bg-neutral-50 transition flex items-center gap-4 group active:scale-[0.98] border border-transparent hover:border-neutral-100 focus-within:outline-none focus-within:ring-2 focus-within:ring-[#D5FF00] focus-within:ring-offset-2 ${BUTTON_FOCUS}`;
 
-    if (file) {
-      return (
-        <label className={`${cls} cursor-pointer`}>
-          {content}
-          <input
-            type="file"
-            accept="application/json"
-            className="sr-only"
-            onChange={(e) => {
-              const f = e.target.files && e.target.files[0] ? e.target.files[0] : null;
-              if (f) {
-                onClose();
-                if (typeof onImport === 'function') onImport(f);
-                e.target.value = "";
-              }
-            }}
-          />
-        </label>
-      );
-    }
-
+  if (file) {
     return (
-      <button type="button" className={cls} onClick={onClick}>
+      <label className={`${cls} cursor-pointer`}>
         {content}
-      </button>
+        <input
+          type="file"
+          accept="application/json"
+          className="sr-only"
+          onChange={(e) => {
+            const f = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+            if (f) {
+              onClose();
+              if (typeof onImport === "function") onImport(f);
+              e.target.value = "";
+            }
+          }}
+        />
+      </label>
     );
-  };
+  }
+
+  return (
+    <button type="button" className={cls} onClick={onClick}>
+      {content}
+    </button>
+  );
+}
+
+function ExportModal({ open, onClose, onPrint, onBackup, onImport, t }) {
+  useModalEscape(open, onClose);
+  if (!open) return null;
 
   const handleEmail = () => {
     const today = new Date().toISOString().split('T')[0];
@@ -1100,35 +1091,36 @@ function ExportModal({ open, onClose, onPrint, onBackup, onImport, t }) {
             aria-label={t("close")}
             className={`h-11 w-11 rounded-xl bg-neutral-100 hover:bg-[#D5FF00] hover:text-neutral-900 flex items-center justify-center text-neutral-600 transition ${BUTTON_FOCUS}`}
           >
-            <Icons.Close />
+            <ExportIcons.Close />
           </button>
         </div>
         
         <div className="px-4 pb-6 flex flex-col gap-2">
-          <ActionRow
-            icon={<Icons.Print />}
+          <ExportActionRow
+            icon={<ExportIcons.Print />}
             label={t("export_print_pdf_label")}
             sub={t("export_print_pdf_sub")}
             onClick={() => { onClose(); onPrint(); }}
           />
-          <ActionRow
-            icon={<Icons.Mail />}
+          <ExportActionRow
+            icon={<ExportIcons.Mail />}
             label={t("export_email_label")}
             sub={t("export_email_sub")}
             onClick={handleEmail}
           />
           <div className="h-px bg-neutral-100 my-2 mx-4" />
-          <ActionRow
-            icon={<Icons.Download />}
+          <ExportActionRow
+            icon={<ExportIcons.Download />}
             label={t("export_download_json_label")}
             sub={t("export_download_json_sub")}
             onClick={() => { onClose(); onBackup(); }}
           />
-          <ActionRow
-            icon={<Icons.Upload />}
+          <ExportActionRow
+            icon={<ExportIcons.Upload />}
             label={t("export_import_json_label")}
             sub={t("export_import_json_sub")}
             file
+            onClose={onClose}
             onImport={onImport}
           />
         </div>
@@ -2728,7 +2720,7 @@ export default function BudgitApp() {
       e.dataTransfer.effectAllowed = "move";
       e.dataTransfer.setData("application/json", JSON.stringify(payload));
       e.dataTransfer.setData("text/plain", JSON.stringify(payload));
-    } catch (err) {
+    } catch {
       // ignore
     }
     setTimeout(() => setDrag(payload), 0);
@@ -2740,7 +2732,7 @@ export default function BudgitApp() {
       if (!j) return drag;
       const p = safeParse(j, null);
       return p || drag;
-    } catch (err) {
+    } catch {
       return drag;
     }
   };
@@ -2818,7 +2810,7 @@ export default function BudgitApp() {
 
       console.assert(sim.expenseGroups[0].items.length === before - 1, "sim move should remove from source");
       console.assert(sim.expenseGroups[1].items.length === 1, "sim move should insert into target");
-    } catch (err) {
+    } catch {
       // ignore
     }
   }, []);
@@ -3311,14 +3303,14 @@ export default function BudgitApp() {
                             onFocus={(e) => {
                               try {
                                 e.target.select();
-                              } catch (err) {
+                              } catch {
                                 // ignore
                               }
                             }}
                             onClick={(e) => {
                               try {
                                 e.target.select();
-                              } catch (err) {
+                              } catch {
                                 // ignore
                               }
                             }}
@@ -3329,7 +3321,7 @@ export default function BudgitApp() {
                                   try {
                                     node.focus();
                                     node.select();
-                                  } catch (err) {
+                                  } catch {
                                     // ignore
                                   }
                                   setTimeout(() => setLastAdded(null), 0);
@@ -3648,14 +3640,14 @@ export default function BudgitApp() {
                                       onFocus={(ev) => {
                                         try {
                                           ev.target.select();
-                                        } catch (err) {
+                                        } catch {
                                           // ignore
                                         }
                                       }}
                                       onClick={(ev) => {
                                         try {
                                           ev.target.select();
-                                        } catch (err) {
+                                        } catch {
                                           // ignore
                                         }
                                       }}
@@ -3666,7 +3658,7 @@ export default function BudgitApp() {
                                             try {
                                               node.focus();
                                               node.select();
-                                            } catch (err) {
+                                            } catch {
                                               // ignore
                                             }
                                             setTimeout(() => setLastAdded(null), 0);
