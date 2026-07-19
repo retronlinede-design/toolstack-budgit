@@ -23,6 +23,22 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import budgitLogo from "./assets/budgit-graffiti.png";
 import budgitSub from "./assets/budgit-sub.png";
+import {
+  INCOME_STATUSES,
+  balanceAfterExpectedIncomingMoney,
+  balanceAfterUnpaidExpenses,
+  calculateExpenseGroupTotals,
+  calculateMoneyListTotal,
+  calculateMonthTotals,
+  parseMoney,
+} from "./domain/calculations.js";
+import {
+  BACKUP_LIMITS,
+  createBackupEnvelope,
+  parseAndValidateBackup,
+  prepareRestoredApp,
+} from "./domain/backupSchema.js";
+import { getBrowserStorage, readStorageValue, writeStorageValue } from "./domain/storage.js";
 
 // ToolStack Budgit — Simple monthly budgeting tool (free)
 // - Runs fully in-browser
@@ -96,8 +112,8 @@ const safeParse = (s, fallback) => {
 };
 
 const toNumber = (v) => {
-  const n = Number(String(v == null ? "" : v).replace(",", "."));
-  return Number.isFinite(n) ? n : 0;
+  const parsed = parseMoney(v);
+  return parsed.valid ? parsed.value : 0;
 };
 
 const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
@@ -154,30 +170,13 @@ const dueInfo = (ym, dueDay, lang = "en") => {
 // localStorage safe wrapper
 // ---------------------------
 
-const canUseLS = () => {
-  try {
-    return typeof window !== "undefined" && !!window.localStorage;
-  } catch (err) {
-    return false;
-  }
-};
-
 const lsGet = (key) => {
-  if (!canUseLS()) return null;
-  try {
-    return window.localStorage.getItem(key);
-  } catch (err) {
-    return null;
-  }
+  const result = readStorageValue(getBrowserStorage(), key);
+  return result.ok ? result.value : null;
 };
 
 const lsSet = (key, value) => {
-  if (!canUseLS()) return;
-  try {
-    window.localStorage.setItem(key, value);
-  } catch (err) {
-    // ignore
-  }
+  return writeStorageValue(getBrowserStorage(), key, value);
 };
 
 // ---------------------------
@@ -273,8 +272,6 @@ const CURRENCIES = {
   GBP: "£",
   ZAR: "R",
 };
-
-const INCOME_STATUSES = ["expected", "received", "delayed", "cancelled"];
 
 function Money({ value, currency = "EUR" }) {
   const v = Number(value) || 0;
@@ -1114,11 +1111,11 @@ function BalanceCheck({
   const [draftAmount, setDraftAmount] = useState("");
   const currentBalance = toNumber(balance);
   const pendingEntries = Array.isArray(pendingIncomeEntries) ? pendingIncomeEntries : [];
-  const totalPendingMoneyIn = pendingEntries.reduce((sum, entry) => sum + toNumber(entry.amount), 0);
+  const totalPendingMoneyIn = calculateMoneyListTotal(pendingEntries, "expectedIncomingMoney").total;
   const projectedAfterMoneyIn = currentBalance + totalPendingMoneyIn;
-  const projectedBalance = projectedAfterMoneyIn - remainingExpenses;
+  const balanceAfterIncomingMoney = balanceAfterExpectedIncomingMoney(currentBalance, totalPendingMoneyIn, remainingExpenses);
   const overdraftAmount = toNumber(overdraftLimit);
-  const availableWithOverdraft = projectedBalance + overdraftAmount;
+  const availableWithOverdraft = balanceAfterIncomingMoney + overdraftAmount;
   const isShort = availableWithOverdraft < 0;
   const canAddPending = !!String(draftLabel || "").trim() || toNumber(draftAmount) !== 0;
 
@@ -1253,8 +1250,8 @@ function BalanceCheck({
           <span className="font-semibold text-neutral-800"><Money value={remainingExpenses} currency={currency} /></span>
         </div>
         <div className="flex items-center justify-between gap-3">
-          <span className="text-neutral-600">{t("projectedBalance")}</span>
-          <span className={`font-semibold ${projectedBalance < 0 ? "text-red-700" : "text-neutral-800"}`}><Money value={projectedBalance} currency={currency} /></span>
+          <span className="text-neutral-600">{t("balanceAfterExpectedIncomingMoney")}</span>
+          <span className={`font-semibold ${balanceAfterIncomingMoney < 0 ? "text-red-700" : "text-neutral-800"}`}><Money value={balanceAfterIncomingMoney} currency={currency} /></span>
         </div>
         <div className="flex items-center justify-between gap-3 text-xs">
           <span className="text-neutral-500">{t("availableWithOverdraft")}</span>
@@ -1356,6 +1353,53 @@ function normalizeMonthData(monthData) {
   };
 }
 
+function loadInitialAppState() {
+  const base = {
+    activeMonth: monthKey(),
+    months: {},
+    lang: "en",
+    currency: "EUR",
+  };
+  const stored = readStorageValue(getBrowserStorage(), LS_KEY);
+  if (!stored.ok) return { app: initializeAppData(base), loadFailure: stored.code };
+  if (stored.value == null) return { app: initializeAppData(base), loadFailure: null };
+
+  const parsed = safeParse(stored.value, null);
+  const supportedLanguage = !parsed?.lang || parsed.lang === "en" || parsed.lang === "de";
+  const supportedCurrency = !parsed?.currency || Object.prototype.hasOwnProperty.call(CURRENCIES, parsed.currency);
+  if (
+    !parsed
+    || typeof parsed !== "object"
+    || Array.isArray(parsed)
+    || !parsed.months
+    || typeof parsed.months !== "object"
+    || Array.isArray(parsed.months)
+    || (parsed.activeMonth != null && typeof parsed.activeMonth !== "string")
+    || !supportedLanguage
+    || !supportedCurrency
+  ) {
+    return { app: initializeAppData(base), loadFailure: "invalid_saved_data" };
+  }
+  try {
+    return { app: initializeAppData(parsed), loadFailure: null };
+  } catch {
+    return { app: initializeAppData(base), loadFailure: "invalid_saved_data" };
+  }
+}
+
+function initializeAppData(source) {
+  const data = { ...source, months: { ...(source.months || {}) } };
+  const activeMonth = data.activeMonth || monthKey();
+  data.activeMonth = activeMonth;
+  Object.keys(data.months).forEach((key) => {
+    data.months[key] = normalizeMonthData(data.months[key]);
+  });
+  if (!data.months[activeMonth]) data.months[activeMonth] = normalizeMonthData(null);
+  if (!data.lang) data.lang = "en";
+  if (!data.currency) data.currency = "EUR";
+  return data;
+}
+
 const TRANSLATIONS = {
   en: {
     subtitle: "Monthly personal budgeting tool",
@@ -1446,6 +1490,20 @@ const TRANSLATIONS = {
     imported: "Imported",
     invalidJson: "Invalid JSON",
     importConfirm: "Importing replaces the current budget data in this app. Continue?",
+    invalidBackup: "This backup cannot be restored.",
+    backupTooLarge: "This backup is too large. The maximum size is 5 MB.",
+    backupExportFailed: "Backup could not be created.",
+    importSaveFailed: "The backup was valid, but it could not be saved. Your current data was not replaced.",
+    importSummary: "Restore this {format}?\n\n{months} months, {incomes} income entries, {expenses} expense entries.\n\nThis replaces the current BudgIt data. Continue?",
+    legacyBackup: "legacy BudgIt backup",
+    versionedBackup: "BudgIt backup",
+    saveStatusSaved: "Saved on this device",
+    saveStatusSaving: "Saving…",
+    saveStatusError: "Could not save",
+    saveStatusImported: "Imported successfully",
+    saveStatusLoadError: "Could not load saved data",
+    saveFailureAdvice: "Download a backup now. Your latest changes are only in this open page.",
+    loadFailureAdvice: "Existing browser data was left unchanged. Restore a known backup to continue safely.",
     balanceCheck: "Balance Check",
     balanceCheckDesc: "Bank balance plus pending money, minus remaining expenses.",
     pendingMoneyIn: "Pending money in",
@@ -1536,6 +1594,8 @@ const TRANSLATIONS = {
     currentBalance: "Current Bank Balance",
     projectedBalance: "Projected Balance",
     projectedBalanceDesc: "Bank Balance - Remaining",
+    balanceAfterUnpaidExpenses: "Balance after unpaid expenses",
+    balanceAfterExpectedIncomingMoney: "Balance after expected incoming money",
     help_about_title: "About BudgIt",
     help_about_p1: "BudgIt is a local-first budgeting tool built to help you plan, organise, and print structured monthly budgets. It allows you to group expenses into custom sections, calculate totals automatically, and generate a clean printable overview.",
     help_about_p2: "All data is stored directly in your browser. There are no accounts, no cloud storage, and no automatic data transmission.",
@@ -1686,6 +1746,20 @@ const TRANSLATIONS = {
     imported: "Importiert",
     invalidJson: "Ungültiges JSON",
     importConfirm: "Der Import ersetzt die aktuellen Budgetdaten in dieser App. Fortfahren?",
+    invalidBackup: "Diese Sicherung kann nicht wiederhergestellt werden.",
+    backupTooLarge: "Diese Sicherung ist zu groß. Die maximale Größe beträgt 5 MB.",
+    backupExportFailed: "Die Sicherung konnte nicht erstellt werden.",
+    importSaveFailed: "Die Sicherung war gültig, konnte aber nicht gespeichert werden. Ihre aktuellen Daten wurden nicht ersetzt.",
+    importSummary: "Diese {format} wiederherstellen?\n\n{months} Monate, {incomes} Einnahmen, {expenses} Ausgaben.\n\nDies ersetzt die aktuellen BudgIt-Daten. Fortfahren?",
+    legacyBackup: "ältere BudgIt-Sicherung",
+    versionedBackup: "BudgIt-Sicherung",
+    saveStatusSaved: "Auf diesem Gerät gespeichert",
+    saveStatusSaving: "Wird gespeichert…",
+    saveStatusError: "Speichern nicht möglich",
+    saveStatusImported: "Erfolgreich importiert",
+    saveStatusLoadError: "Gespeicherte Daten konnten nicht geladen werden",
+    saveFailureAdvice: "Laden Sie jetzt eine Sicherung herunter. Ihre neuesten Änderungen sind nur auf dieser geöffneten Seite vorhanden.",
+    loadFailureAdvice: "Vorhandene Browserdaten wurden nicht verändert. Stellen Sie eine bekannte Sicherung wieder her, um sicher fortzufahren.",
     balanceCheck: "Kontostand-Check",
     balanceCheckDesc: "Kontostand plus erwartetes Geld, minus verbleibende Ausgaben.",
     pendingMoneyIn: "Erwartetes Geld",
@@ -1776,6 +1850,8 @@ const TRANSLATIONS = {
     currentBalance: "Aktueller Kontostand",
     projectedBalance: "Voraussichtlicher Kontostand",
     projectedBalanceDesc: "Kontostand - Verbleibend",
+    balanceAfterUnpaidExpenses: "Kontostand nach offenen Ausgaben",
+    balanceAfterExpectedIncomingMoney: "Kontostand nach erwarteten Geldeingängen",
     help_about_title: "Über BudgIt",
     help_about_p1: "BudgIt ist ein lokales Budgetierungstool, das Ihnen hilft, strukturierte monatliche Budgets zu planen, zu organisieren und zu drucken. Sie können Ausgaben in benutzerdefinierte Abschnitte gruppieren, Summen automatisch berechnen und eine saubere druckbare Übersicht erstellen.",
     help_about_p2: "Alle Daten werden direkt in Ihrem Browser gespeichert. Es gibt keine Konten, keine Cloud-Speicherung und keine automatische Datenübertragung.",
@@ -1844,30 +1920,12 @@ const TRANSLATIONS = {
 // ---------------------------
 
 export default function BudgitApp() {
-  const [app, setApp] = useState(() => {
-    const base = {
-      activeMonth: monthKey(),
-      months: {},
-      lang: "en",
-      currency: "EUR",
-    };
-
-    const saved = lsGet(LS_KEY);
-    const data = saved ? safeParse(saved, base) : base;
-
-    const m = data.activeMonth || monthKey();
-    data.activeMonth = m;
-    data.months = data.months || {};
-
-    Object.keys(data.months).forEach((k) => {
-      data.months[k] = normalizeMonthData(data.months[k]);
-    });
-    if (!data.months[m]) data.months[m] = normalizeMonthData(null);
-
-    if (!data.lang) data.lang = "en";
-    if (!data.currency) data.currency = "EUR";
-    return data;
-  });
+  const [initialLoad] = useState(loadInitialAppState);
+  const [app, setApp] = useState(initialLoad.app);
+  const [saveStatus, setSaveStatus] = useState(initialLoad.loadFailure ? "load_error" : "saved");
+  const [saveErrorCode, setSaveErrorCode] = useState(initialLoad.loadFailure);
+  const persistenceLocked = useRef(!!initialLoad.loadFailure);
+  const skipNextSave = useRef(false);
 
   const [toast, setToast] = useState(null);
   const toastTimer = useRef(null);
@@ -1906,7 +1964,27 @@ export default function BudgitApp() {
   };
 
   useEffect(() => {
-    lsSet(LS_KEY, JSON.stringify(app));
+    if (persistenceLocked.current) return;
+    if (skipNextSave.current) {
+      skipNextSave.current = false;
+      return;
+    }
+
+    const statusTimer = setTimeout(() => setSaveStatus("saving"), 0);
+    const saveTimer = setTimeout(() => {
+      const result = writeStorageValue(getBrowserStorage(), LS_KEY, JSON.stringify(app));
+      if (result.ok) {
+        setSaveErrorCode(null);
+        setSaveStatus("saved");
+      } else {
+        setSaveErrorCode(result.code);
+        setSaveStatus("error");
+      }
+    }, 200);
+    return () => {
+      clearTimeout(statusTimer);
+      clearTimeout(saveTimer);
+    };
   }, [app]);
 
   const active = useMemo(() => {
@@ -2183,11 +2261,8 @@ export default function BudgitApp() {
     }));
   };
 
-  const groupPlannedTotal = (group) => (group.items || []).reduce((s, it) => s + toNumber(it.amount), 0);
-  const groupRemainingTotal = (group) =>
-    (group.items || []).reduce((s, it) => s + (it.paid ? 0 : toNumber(it.amount)), 0);
-  const groupPaidTotal = (group) =>
-    (group.items || []).reduce((s, it) => s + (it.paid ? toNumber(it.amount) : 0), 0);
+  const groupPlannedTotal = (group) => calculateExpenseGroupTotals(group).expenseGroupPlannedTotal;
+  const groupRemainingTotal = (group) => calculateExpenseGroupTotals(group).expenseGroupUnpaidTotal;
 
   // ---------------------------
   // Month actions
@@ -2248,7 +2323,13 @@ export default function BudgitApp() {
   // ---------------------------
 
   const exportJSON = () => {
-    const blob = new Blob([JSON.stringify(app, null, 2)], { type: "application/json" });
+    const backup = createBackupEnvelope(app);
+    if (!backup.valid) {
+      const detail = backup.errors[0] ? backup.errors[0].message : t("invalidBackup");
+      notify(`${t("backupExportFailed")} ${detail}`);
+      return;
+    }
+    const blob = new Blob([JSON.stringify(backup.envelope, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -2261,30 +2342,46 @@ export default function BudgitApp() {
 
   const importJSON = async (file) => {
     if (!file) return;
-    const text = await file.text();
-    const parsed = safeParse(text, null);
-    if (!parsed || !parsed.months) {
-      notify(t("invalidJson"));
+    if (file.size > BACKUP_LIMITS.maxFileBytes) {
+      notify(t("backupTooLarge"));
+      return;
+    }
+    let text;
+    try {
+      text = await file.text();
+    } catch {
+      notify(t("invalidBackup"));
+      return;
+    }
+    const validation = parseAndValidateBackup(text);
+    if (!validation.valid) {
+      const firstError = validation.errors[0];
+      notify(`${t("invalidBackup")} ${firstError ? firstError.message : ""}`.trim());
       return;
     }
 
-    const ok = window.confirm(t("importConfirm"));
+    const summary = validation.summary;
+    const ok = window.confirm(t("importSummary", {
+      months: summary.months,
+      incomes: summary.incomes,
+      expenses: summary.expenses,
+      format: validation.format === "legacy" ? t("legacyBackup") : t("versionedBackup"),
+    }));
     if (!ok) return;
 
-    const months = { ...(parsed.months || {}) };
-    Object.keys(months).forEach((k) => {
-      months[k] = normalizeMonthData(months[k]);
-    });
-
-    const next = {
-      activeMonth: parsed.activeMonth || monthKey(),
-      months,
-      lang: app.lang || "en",
-      currency: app.currency || "EUR",
-    };
-    next.months[next.activeMonth] = normalizeMonthData(next.months[next.activeMonth]);
-
+    const next = prepareRestoredApp(validation.data, app.lang);
+    const persisted = writeStorageValue(getBrowserStorage(), LS_KEY, JSON.stringify(next));
+    if (!persisted.ok) {
+      setSaveErrorCode(persisted.code);
+      setSaveStatus("error");
+      notify(t("importSaveFailed"));
+      return;
+    }
+    persistenceLocked.current = false;
+    skipNextSave.current = true;
     setApp(next);
+    setSaveErrorCode(null);
+    setSaveStatus("imported");
     notify(t("imported"));
   };
 
@@ -2325,34 +2422,19 @@ export default function BudgitApp() {
   // Totals
   // ---------------------------
 
-  const incomeTotal = useMemo(() => (active.incomes || []).reduce((sum, i) => sum + toNumber(i.amount), 0), [active.incomes]);
-
-  const expensePlannedTotal = useMemo(() => {
-    const groups = active.expenseGroups || [];
-    return groups.reduce((sum, g) => sum + groupPlannedTotal(g), 0);
-  }, [active.expenseGroups]);
-
-  const expenseRemainingTotal = useMemo(() => {
-    const groups = active.expenseGroups || [];
-    // Expense rows have a `paid` flag in the current schema; unpaid rows drive the balance check.
-    // If a row has no paid status, normalization defaults it to unpaid so it is included.
-    return groups.reduce((sum, g) => sum + groupRemainingTotal(g), 0);
-  }, [active.expenseGroups]);
+  const monthTotals = useMemo(() => calculateMonthTotals(active), [active]);
+  const incomeTotal = monthTotals.expectedIncome;
+  const expensePlannedTotal = monthTotals.plannedExpenses;
+  const expenseRemainingTotal = monthTotals.unpaidExpenses;
 
   const bankBalance = useMemo(() => toNumber(active.bankBalance), [active.bankBalance]);
-  const projectedBalance = useMemo(() => bankBalance - expenseRemainingTotal, [bankBalance, expenseRemainingTotal]);
-
-  const expensePaidTotal = useMemo(() => {
-    const groups = active.expenseGroups || [];
-    return groups.reduce((sum, g) => sum + groupPaidTotal(g), 0);
-  }, [active.expenseGroups]);
-
-  const netRemaining = useMemo(() => incomeTotal - expensePlannedTotal, [incomeTotal, expensePlannedTotal]);
-
-  const savingsRate = useMemo(() => {
-    if (!incomeTotal) return 0;
-    return (netRemaining / incomeTotal) * 100;
-  }, [netRemaining, incomeTotal]);
+  const balanceAfterUnpaid = useMemo(
+    () => balanceAfterUnpaidExpenses(bankBalance, expenseRemainingTotal),
+    [bankBalance, expenseRemainingTotal],
+  );
+  const expensePaidTotal = monthTotals.paidExpenses;
+  const netRemaining = monthTotals.leftAfterPlannedExpenses;
+  const savingsRate = monthTotals.savingsRate;
 
   // ---------------------------
   // Print preview computed
@@ -2598,7 +2680,7 @@ export default function BudgitApp() {
                       <Money value={netRemaining} currency={app.currency} />
                     </div>
                     <div className="text-xs text-neutral-700 mt-2 print:text-[10px]">
-                      {t("savingsRate")}: <span className="font-medium">{savingsRate.toFixed(1)}%</span>
+                      {t("savingsRate")}: <span className="font-medium">{savingsRate == null ? "—" : `${savingsRate.toFixed(1)}%`}</span>
                     </div>
                   </div>
 
@@ -2771,6 +2853,22 @@ export default function BudgitApp() {
                     )}
                   </div>
                   <div className="hidden sm:block text-xs text-neutral-500 font-medium tabular-nums">{app.activeMonth}</div>
+                </div>
+                <div
+                  role="status"
+                  aria-live={saveStatus === "error" || saveStatus === "load_error" ? "assertive" : "polite"}
+                  title={saveErrorCode || undefined}
+                  className={`mt-2 text-xs ${saveStatus === "error" || saveStatus === "load_error" ? "text-red-700" : "text-neutral-500"}`}
+                >
+                  {saveStatus === "saving" && t("saveStatusSaving")}
+                  {saveStatus === "saved" && t("saveStatusSaved")}
+                  {saveStatus === "imported" && t("saveStatusImported")}
+                  {saveStatus === "error" && (
+                    <><span className="font-semibold">{t("saveStatusError")}</span> — {t("saveFailureAdvice")}</>
+                  )}
+                  {saveStatus === "load_error" && (
+                    <><span className="font-semibold">{t("saveStatusLoadError")}</span> — {t("loadFailureAdvice")}</>
+                  )}
                 </div>
                 <div className="mt-2 h-[2px] w-72 rounded-full bg-gradient-to-r from-[#D5FF00]/0 via-[#D5FF00] to-[#D5FF00]/0" />
               </div>
@@ -3385,15 +3483,15 @@ export default function BudgitApp() {
                   <Money value={netRemaining} currency={app.currency} />
                 </div>
                 <div className="text-xs text-neutral-700 mt-2">
-                  {t("savingsRate")}: <span className="font-medium">{savingsRate.toFixed(1)}%</span>
+                  {t("savingsRate")}: <span className="font-medium">{savingsRate == null ? "—" : `${savingsRate.toFixed(1)}%`}</span>
                 </div>
               </div>
 
               {bankBalance > 0 && (
-                <div className={`rounded-2xl border p-4 ${projectedBalance >= 0 ? "border-[#D5FF00]/50" : "border-red-200"}`}>
-                  <div className="text-sm text-neutral-700">{t("projectedBalance")}</div>
+                <div className={`rounded-2xl border p-4 ${balanceAfterUnpaid >= 0 ? "border-[#D5FF00]/50" : "border-red-200"}`}>
+                  <div className="text-sm text-neutral-700">{t("balanceAfterUnpaidExpenses")}</div>
                   <div className="text-2xl font-semibold text-neutral-800 mt-1">
-                    <Money value={projectedBalance} currency={app.currency} />
+                    <Money value={balanceAfterUnpaid} currency={app.currency} />
                   </div>
                   <div className="text-xs text-neutral-600 mt-2">
                     {t("projectedBalanceDesc")}
