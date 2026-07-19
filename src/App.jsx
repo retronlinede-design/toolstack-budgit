@@ -43,6 +43,7 @@ import {
   validateApplicationState,
 } from "./domain/backupSchema.js";
 import { getBrowserStorage, readStorageValue, writeStorageValue } from "./domain/storage.js";
+import { writeUiPreference } from "./domain/uiPreferences.js";
 import {
   DEFAULT_MONTH_COPY_OPTIONS,
   applyMonthCopyToApp,
@@ -525,7 +526,9 @@ function NoteEditorModal({ open, onClose, item, groupName, onSave, onClear, t })
 
 function NotesPanel({ active, onJump, t }) {
   const [isOpen, setIsOpen] = useState(() => lsGet("budgit_notes_open") !== "false");
-  useEffect(() => lsSet("budgit_notes_open", isOpen), [isOpen]);
+  useEffect(() => {
+    writeUiPreference(lsSet, "budgit_notes_open", isOpen);
+  }, [isOpen]);
   const notes = useMemo(() => {
     const list = [];
     (active.expenseGroups || []).forEach(g => {
