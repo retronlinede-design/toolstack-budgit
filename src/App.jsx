@@ -34,6 +34,7 @@ import {
 } from "./domain/calculations.js";
 import { createExpenseAttentionSummary, formatSavingsRate } from "./domain/dashboardSummary.js";
 import { getMobileExpensePresentation, getMobileIncomePresentation } from "./domain/mobilePresentation.js";
+import { calculateYearOverview } from "./domain/yearOverview.js";
 import {
   BACKUP_LIMITS,
   createBackupEnvelope,
@@ -1024,6 +1025,12 @@ const ExportIcons = {
   Mail: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>,
 };
 
+const monthName = (ym, lang = "en") => {
+  const { y, m } = parseYM(ym);
+  if (!y || !m) return String(ym || "");
+  return new Date(y, m - 1, 1).toLocaleDateString(lang === "de" ? "de-DE" : "en-US", { month: "long" });
+};
+
 function ExportActionRow({ icon, label, sub, onClick, file, onClose, onImport }) {
   const content = (
     <>
@@ -1584,6 +1591,32 @@ function initializeAppData(source) {
 const TRANSLATIONS = {
   en: {
     subtitle: "Monthly personal budgeting tool",
+    yearOverview: "Year Overview",
+    backToMonth: "Back to Month",
+    previousYear: "Previous year",
+    nextYear: "Next year",
+    planningDetails: "Planning Details",
+    yearInsights: "Year Insights",
+    strongestMonth: "Strongest month",
+    weakestMonth: "Weakest month",
+    averageMonthlyActualNet: "Average monthly actual net",
+    noData: "No data",
+    noYearData: "No yearly data available yet.",
+    yearReceivedIncome: "Received Income",
+    yearPaidExpenses: "Paid Expenses",
+    yearUnpaidExpenses: "Unpaid Expenses",
+    actualNet: "Actual Net",
+    monthsWithData: "Months with Data",
+    monthsWithUnpaidExpenses: "Months with Unpaid Expenses",
+    yearLeftAfterPlanned: "Left After Planned Expenses",
+    tableMonth: "Month",
+    tableExpected: "Expected",
+    tableReceived: "Received",
+    tablePlanned: "Planned",
+    tablePaid: "Paid",
+    tableUnpaid: "Unpaid",
+    tableActualNet: "Actual Net",
+    openMonth: "Open {month}",
     hub: "HUB",
     preview: "Preview",
     data: "Export",
@@ -1909,6 +1942,32 @@ const TRANSLATIONS = {
   },
   de: {
     subtitle: "Monatliches persönliches Budgetierungstool",
+    yearOverview: "Jahresübersicht",
+    backToMonth: "Zurück zum Monat",
+    previousYear: "Vorheriges Jahr",
+    nextYear: "Nächstes Jahr",
+    planningDetails: "Planungsdetails",
+    yearInsights: "Jahresanalyse",
+    strongestMonth: "Stärkster Monat",
+    weakestMonth: "Schwächster Monat",
+    averageMonthlyActualNet: "Durchschnittlicher monatlicher Saldo",
+    noData: "Keine Daten",
+    noYearData: "Noch keine Jahresdaten verfügbar.",
+    yearReceivedIncome: "Erhaltene Einnahmen",
+    yearPaidExpenses: "Bezahlte Ausgaben",
+    yearUnpaidExpenses: "Offene Ausgaben",
+    actualNet: "Tatsächlicher Saldo",
+    monthsWithData: "Monate mit Daten",
+    monthsWithUnpaidExpenses: "Monate mit offenen Ausgaben",
+    yearLeftAfterPlanned: "Nach geplanten Ausgaben übrig",
+    tableMonth: "Monat",
+    tableExpected: "Erwartet",
+    tableReceived: "Erhalten",
+    tablePlanned: "Geplant",
+    tablePaid: "Bezahlt",
+    tableUnpaid: "Offen",
+    tableActualNet: "Tatsächlicher Saldo",
+    openMonth: "{month} öffnen",
     hub: "HUB",
     preview: "Vorschau",
     data: "Export",
@@ -2238,9 +2297,158 @@ const TRANSLATIONS = {
 // App
 // ---------------------------
 
+function YearValue({ value, hasData, currency }) {
+  return hasData ? <Money value={value} currency={currency} /> : <span>—</span>;
+}
+
+function YearOverviewView({ app, year, onYearChange, onBack, onOpenMonth, onPrint, t }) {
+  const overview = useMemo(() => calculateYearOverview(app, year), [app, year]);
+  const hasYearData = overview.monthsWithData > 0;
+  const openMonth = (month) => {
+    if (month.hasData) onOpenMonth(month.monthKey);
+  };
+  const handleMonthKeyDown = (event, month) => {
+    if (!month.hasData || (event.key !== "Enter" && event.key !== " ")) return;
+    event.preventDefault();
+    openMonth(month);
+  };
+  const monthAriaLabel = (month) => t("openMonth", { month: monthLabel(month.monthKey, app.lang) });
+  const primaryMetrics = [
+    ["yearReceivedIncome", overview.totals.receivedIncome],
+    ["yearPaidExpenses", overview.totals.paidExpenses],
+    ["actualNet", overview.totals.actualNet],
+    ["yearUnpaidExpenses", overview.totals.unpaidExpenses],
+  ];
+  const detailMetrics = [
+    ["expectedIncome", overview.totals.expectedIncome, true],
+    ["plannedExpenses", overview.totals.plannedExpenses, true],
+    ["yearLeftAfterPlanned", overview.totals.leftAfterPlanned, true],
+    ["monthsWithData", overview.monthsWithData, false],
+    ["monthsWithUnpaidExpenses", overview.monthsWithUnpaidExpenses, false],
+  ];
+
+  return (
+    <main className="year-overview-page">
+      <header className="year-overview-header">
+        <div>
+          <h1 className="year-overview-title">{t("yearOverview")}</h1>
+          <p className="year-overview-year" aria-live="polite">{overview.year}</p>
+        </div>
+        <div className="year-overview-actions print:hidden">
+          <button type="button" className="year-secondary-button" onClick={onBack}>{t("backToMonth")}</button>
+          <button type="button" className="year-secondary-button" onClick={onPrint}>{t("printSave")}</button>
+        </div>
+      </header>
+
+      <nav className="year-navigation print:hidden" aria-label={t("yearOverview")}>
+        <button type="button" className="year-nav-button" onClick={() => onYearChange(year - 1)} aria-label={t("previousYear")}>
+          <span aria-hidden="true">←</span><span>{t("previousYear")}</span>
+        </button>
+        <strong className="year-navigation-value">{year}</strong>
+        <button type="button" className="year-nav-button" onClick={() => onYearChange(year + 1)} aria-label={t("nextYear")}>
+          <span>{t("nextYear")}</span><span aria-hidden="true">→</span>
+        </button>
+      </nav>
+
+      <section aria-label={t("yearOverview")} className="year-summary-grid">
+        {primaryMetrics.map(([label, value]) => (
+          <article key={label} className={`year-summary-card ${label === "actualNet" && value < 0 ? "year-summary-card-negative" : ""}`}>
+            <h2>{t(label)}</h2>
+            <div className="year-summary-value"><YearValue value={value} hasData={hasYearData} currency={app.currency} /></div>
+            {label === "actualNet" && value < 0 ? <span className="year-negative-label">{t("negativeValue")}</span> : null}
+          </article>
+        ))}
+      </section>
+
+      <section className="year-section" aria-labelledby="planning-details-title">
+        <h2 id="planning-details-title" className="year-section-title">{t("planningDetails")}</h2>
+        <dl className="year-details-grid">
+          {detailMetrics.map(([label, value, monetary]) => (
+            <div key={label} className="year-detail-item">
+              <dt>{t(label)}</dt>
+              <dd>{monetary ? <YearValue value={value} hasData={hasYearData} currency={app.currency} /> : value}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+
+      <section className="year-section" aria-labelledby="monthly-overview-title">
+        <h2 id="monthly-overview-title" className="year-section-title">{t("yearOverview")} — {year}</h2>
+        <div className="year-table-wrap">
+          <table className="year-table">
+            <thead>
+              <tr>
+                {["tableMonth", "tableExpected", "tableReceived", "tablePlanned", "tablePaid", "tableUnpaid", "tableActualNet"].map((label) => (
+                  <th key={label} scope="col">{t(label)}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {overview.months.map((month) => (
+                <tr
+                  key={month.monthKey}
+                  className={month.hasData ? "year-month-row year-month-row-interactive" : "year-month-row year-month-row-empty"}
+                  tabIndex={month.hasData ? 0 : undefined}
+                  aria-label={month.hasData ? monthAriaLabel(month) : undefined}
+                  onClick={() => openMonth(month)}
+                  onKeyDown={(event) => handleMonthKeyDown(event, month)}
+                >
+                  <th scope="row"><span>{monthName(month.monthKey, app.lang)}</span>{!month.hasData ? <small>{t("noData")}</small> : null}</th>
+                  {["expectedIncome", "receivedIncome", "plannedExpenses", "paidExpenses", "unpaidExpenses", "actualNet"].map((field) => (
+                    <td key={field} className={field === "actualNet" && month.hasData && month.actualNet < 0 ? "year-negative-value" : ""}>
+                      <YearValue value={month[field]} hasData={month.hasData} currency={app.currency} />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="year-mobile-list">
+          {overview.months.map((month) => (
+            <article key={month.monthKey} className="year-month-card">
+              <div className="year-month-card-header">
+                <h3>{monthName(month.monthKey, app.lang)}</h3>
+                {!month.hasData ? <span>{t("noData")}</span> : null}
+              </div>
+              {month.hasData ? (
+                <>
+                  <dl className="year-month-card-grid">
+                    {["receivedIncome", "paidExpenses", "actualNet", "unpaidExpenses", "expectedIncome", "plannedExpenses"].map((field) => (
+                      <div key={field}>
+                        <dt>{t(field)}</dt>
+                        <dd className={field === "actualNet" && month.actualNet < 0 ? "year-negative-value" : ""}><Money value={month[field]} currency={app.currency} /></dd>
+                      </div>
+                    ))}
+                  </dl>
+                  <button type="button" className="year-month-open-button print:hidden" onClick={() => openMonth(month)}>{monthAriaLabel(month)}</button>
+                </>
+              ) : null}
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="year-section" aria-labelledby="year-insights-title">
+        <h2 id="year-insights-title" className="year-section-title">{t("yearInsights")}</h2>
+        {!hasYearData ? <p className="year-empty-state">{t("noYearData")}</p> : (
+          <dl className="year-insights-grid">
+            <div><dt>{t("strongestMonth")}</dt><dd>{monthName(overview.strongestMonth.monthKey, app.lang)} <Money value={overview.strongestMonth.actualNet} currency={app.currency} /></dd></div>
+            <div><dt>{t("weakestMonth")}</dt><dd>{monthName(overview.weakestMonth.monthKey, app.lang)} <Money value={overview.weakestMonth.actualNet} currency={app.currency} /></dd></div>
+            <div><dt>{t("averageMonthlyActualNet")}</dt><dd><Money value={overview.averages.actualNet} currency={app.currency} /></dd></div>
+          </dl>
+        )}
+      </section>
+    </main>
+  );
+}
+
 export default function BudgitApp() {
   const [initialLoad] = useState(loadInitialAppState);
   const [app, setApp] = useState(initialLoad.app);
+  const [currentView, setCurrentView] = useState("month");
+  const [overviewYear, setOverviewYear] = useState(() => parseYM(initialLoad.app.activeMonth).y || new Date().getFullYear());
   const [saveStatus, setSaveStatus] = useState(initialLoad.loadFailure ? "load_error" : "saved");
   const [saveErrorCode, setSaveErrorCode] = useState(initialLoad.loadFailure);
   const persistenceLocked = useRef(!!initialLoad.loadFailure);
@@ -2819,6 +3027,24 @@ export default function BudgitApp() {
   // Render
   // ---------------------------
 
+  if (currentView === "year") {
+    return (
+      <YearOverviewView
+        app={app}
+        year={overviewYear}
+        onYearChange={setOverviewYear}
+        onBack={() => setCurrentView("month")}
+        onOpenMonth={(selectedMonth) => {
+          if (!Object.prototype.hasOwnProperty.call(app.months || {}, selectedMonth)) return;
+          setApp((current) => ({ ...current, activeMonth: selectedMonth }));
+          setCurrentView("month");
+        }}
+        onPrint={() => window.print()}
+        t={t}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-neutral-50 text-neutral-800">
       <style>{`
@@ -3055,6 +3281,10 @@ export default function BudgitApp() {
                 {HUB_URL ? (
                   <ActionButton onClick={() => { window.location.href = HUB_URL; }}>{t("hub")}</ActionButton>
                 ) : null}
+                <ActionButton onClick={() => {
+                  setOverviewYear(parseYM(app.activeMonth).y || new Date().getFullYear());
+                  setCurrentView("year");
+                }}>{t("yearOverview")}</ActionButton>
                 <ActionButton onClick={openPreview}>{t("preview")}</ActionButton>
                 <ActionButton onClick={() => setExportModalOpen(true)}>{t("data")}</ActionButton>
               </div>

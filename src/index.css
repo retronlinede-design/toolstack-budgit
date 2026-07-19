@@ -178,6 +178,211 @@
     @apply px-2 py-3 text-sm text-neutral-600;
   }
 
+  .year-overview-page {
+    @apply mx-auto min-h-screen w-full max-w-7xl space-y-5 bg-neutral-50 px-4 py-5 text-neutral-800 sm:px-6 lg:px-8;
+  }
+
+  .year-overview-header {
+    @apply flex flex-col gap-3 border-b border-neutral-200 pb-4 sm:flex-row sm:items-center sm:justify-between;
+  }
+
+  .year-overview-title {
+    @apply text-3xl font-black tracking-tight text-neutral-900;
+  }
+
+  .year-overview-year {
+    @apply mt-1 text-lg font-semibold tabular-nums text-neutral-600;
+  }
+
+  .year-overview-actions {
+    @apply flex flex-wrap gap-2;
+  }
+
+  .year-secondary-button,
+  .year-nav-button,
+  .year-month-open-button {
+    @apply min-h-11 rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 hover:border-[#D5FF00] hover:bg-[#D5FF00]/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D5FF00]/60;
+  }
+
+  .year-navigation {
+    @apply flex items-center justify-between gap-3 rounded-2xl border border-neutral-200 bg-white p-3;
+  }
+
+  .year-nav-button {
+    @apply flex items-center gap-2;
+  }
+
+  .year-navigation-value {
+    @apply text-xl font-bold tabular-nums text-neutral-900;
+  }
+
+  .year-summary-grid {
+    @apply grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4;
+  }
+
+  .year-summary-card {
+    @apply min-w-0 rounded-2xl border border-neutral-200 bg-white p-4;
+  }
+
+  .year-summary-card h2 {
+    @apply text-sm font-semibold leading-5 text-neutral-600;
+  }
+
+  .year-summary-value {
+    @apply mt-2 break-words text-2xl font-black tabular-nums text-neutral-900;
+  }
+
+  .year-summary-card-negative {
+    @apply border-red-300;
+  }
+
+  .year-negative-label,
+  .year-negative-value {
+    @apply text-red-700;
+  }
+
+  .year-negative-label {
+    @apply mt-1 block text-xs font-semibold;
+  }
+
+  .year-section {
+    @apply min-w-0 rounded-2xl border border-neutral-200 bg-white p-4;
+  }
+
+  .year-section-title {
+    @apply mb-3 text-xl font-bold leading-7 tracking-tight text-neutral-900;
+  }
+
+  .year-details-grid,
+  .year-insights-grid {
+    @apply grid grid-cols-1 gap-x-6 gap-y-1 sm:grid-cols-2 lg:grid-cols-3;
+  }
+
+  .year-detail-item,
+  .year-insights-grid > div {
+    @apply flex min-w-0 items-baseline justify-between gap-3 border-b border-neutral-100 py-2;
+  }
+
+  .year-detail-item dt,
+  .year-insights-grid dt {
+    @apply text-sm text-neutral-600;
+  }
+
+  .year-detail-item dd,
+  .year-insights-grid dd {
+    @apply text-right text-sm font-semibold tabular-nums text-neutral-900;
+  }
+
+  .year-table-wrap {
+    @apply hidden min-w-0 max-w-full overflow-hidden md:block print:block;
+  }
+
+  .year-table {
+    @apply w-full table-fixed border-collapse text-xs lg:text-sm;
+  }
+
+  .year-table th,
+  .year-table td {
+    @apply min-w-0 border-b border-neutral-100 px-2 py-2;
+  }
+
+  .year-table thead th {
+    @apply bg-neutral-50 text-right text-xs font-semibold leading-4 text-neutral-600;
+    overflow-wrap: anywhere;
+  }
+
+  .year-table thead th:first-child,
+  .year-table tbody th {
+    @apply text-left;
+    width: 16%;
+  }
+
+  .year-table tbody th {
+    @apply font-semibold text-neutral-800;
+  }
+
+  .year-table tbody th small {
+    @apply ml-2 font-normal text-neutral-500;
+  }
+
+  .year-table tbody td {
+    @apply text-right tabular-nums text-neutral-800;
+  }
+
+  .year-month-row-interactive {
+    @apply cursor-pointer hover:bg-[#D5FF00]/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#D5FF00];
+  }
+
+  .year-month-row-empty {
+    @apply text-neutral-500;
+  }
+
+  .year-mobile-list {
+    @apply space-y-3 md:hidden print:hidden;
+  }
+
+  .year-month-card {
+    @apply rounded-xl border border-neutral-200 bg-white p-3;
+  }
+
+  .year-month-card-header {
+    @apply flex items-center justify-between gap-3;
+  }
+
+  .year-month-card-header h3 {
+    @apply text-base font-semibold text-neutral-900;
+  }
+
+  .year-month-card-header span {
+    @apply text-xs font-medium text-neutral-500;
+  }
+
+  .year-month-card-grid {
+    @apply mt-3 grid grid-cols-2 gap-2;
+  }
+
+  .year-month-card-grid > div {
+    @apply rounded-lg bg-neutral-50 p-2;
+  }
+
+  .year-month-card-grid dt {
+    @apply text-xs text-neutral-500;
+  }
+
+  .year-month-card-grid dd {
+    @apply mt-0.5 text-sm font-semibold tabular-nums text-neutral-900;
+  }
+
+  .year-month-open-button {
+    @apply mt-3 w-full;
+  }
+
+  .year-empty-state {
+    @apply rounded-xl bg-neutral-50 px-3 py-4 text-sm text-neutral-600;
+  }
+
+}
+
+@media print {
+  .year-overview-page {
+    max-width: none;
+    padding: 0;
+    background: white;
+  }
+
+  .year-summary-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .year-section,
+  .year-summary-card {
+    break-inside: avoid;
+    box-shadow: none;
+  }
+
+  .year-table {
+    font-size: 10pt;
+  }
 }
 
 @layer utilities {
