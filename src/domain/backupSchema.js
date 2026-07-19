@@ -307,6 +307,10 @@ function validateApplicationData(data, { legacy = false } = {}) {
   };
 }
 
+export function validateApplicationState(data) {
+  return validateApplicationData(data);
+}
+
 export function validateBackupObject(root) {
   if (!isPlainObject(root)) {
     return { valid: false, format: "unknown", errors: [{ path: "$", code: "invalid_root", message: "Backup must contain a JSON object." }] };

@@ -37,8 +37,17 @@ import {
   createBackupEnvelope,
   parseAndValidateBackup,
   prepareRestoredApp,
+  validateApplicationState,
 } from "./domain/backupSchema.js";
 import { getBrowserStorage, readStorageValue, writeStorageValue } from "./domain/storage.js";
+import {
+  DEFAULT_MONTH_COPY_OPTIONS,
+  applyMonthCopyToApp,
+  classifyMonthDestination,
+  getMonthCopySummary,
+  getNextMonthKey,
+  isValidMonthKey,
+} from "./domain/monthCopy.js";
 
 // ToolStack Budgit — Simple monthly budgeting tool (free)
 // - Runs fully in-browser
@@ -1094,6 +1103,152 @@ function ExportModal({ open, onClose, onPreview, onPrint, onBackup, onImport, t 
   ); 
 }
 
+function MonthCopyModal({ sourceMonthKey, sourceMonth, months, lang, onClose, onCopy, t }) {
+  const [destinationMonthKey, setDestinationMonthKey] = useState(() => getNextMonthKey(sourceMonthKey) || "");
+  const [copyIncome, setCopyIncome] = useState(DEFAULT_MONTH_COPY_OPTIONS.copyIncome);
+  const [copyExpenses, setCopyExpenses] = useState(DEFAULT_MONTH_COPY_OPTIONS.copyExpenses);
+  const [copyEntryNotes, setCopyEntryNotes] = useState(DEFAULT_MONTH_COPY_OPTIONS.copyEntryNotes);
+  const [copyMonthNote, setCopyMonthNote] = useState(DEFAULT_MONTH_COPY_OPTIONS.copyMonthNote);
+
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
+
+  const destinationValid = isValidMonthKey(destinationMonthKey) && destinationMonthKey !== sourceMonthKey;
+  const destinationState = destinationValid ? classifyMonthDestination(months, destinationMonthKey) : null;
+  const destinationLabel = destinationValid ? monthLabel(destinationMonthKey, lang) : destinationMonthKey;
+  const sourceLabel = monthLabel(sourceMonthKey, lang);
+  const summary = getMonthCopySummary({ sourceMonth, destinationState, copyIncome, copyExpenses, copyEntryNotes, copyMonthNote });
+  const options = { copyIncome, copyExpenses, copyEntryNotes, copyMonthNote };
+  const destructive = destinationState === "has_data";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 print:hidden">
+      <div className="absolute inset-0 bg-neutral-900/50 backdrop-blur-sm" onClick={onClose} />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="month-copy-title"
+        aria-describedby={destructive ? "month-copy-warning" : "month-copy-reset-summary"}
+        className="relative w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-[28px] bg-white shadow-2xl ring-1 ring-black/5"
+      >
+        <div className="px-6 pt-6 pb-4 border-b border-neutral-100 flex items-start justify-between gap-4">
+          <div>
+            <h2 id="month-copy-title" className="text-2xl font-bold text-neutral-900">{t("copyMonth")}</h2>
+            <p className="mt-1 text-sm text-neutral-600">{t("copySource", { month: sourceLabel })}</p>
+          </div>
+          <button type="button" onClick={onClose} aria-label={t("close")} className="h-10 w-10 rounded-xl border border-neutral-200 text-neutral-600 hover:bg-neutral-100">×</button>
+        </div>
+
+        <div className="p-6 space-y-5">
+          <label className="block">
+            <span className="text-sm font-semibold text-neutral-800">{t("copyTo")}</span>
+            <input
+              autoFocus
+              type="month"
+              value={destinationMonthKey}
+              onChange={(event) => setDestinationMonthKey(event.target.value)}
+              className="mt-2 w-full h-11 rounded-xl border border-neutral-200 px-3 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/60"
+            />
+          </label>
+
+          {!destinationValid && (
+            <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+              {destinationMonthKey === sourceMonthKey ? t("copySameMonthError") : t("copyInvalidMonthError")}
+            </div>
+          )}
+
+          {destructive && (
+            <div id="month-copy-warning" role="alert" className="rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-900">
+              <div className="font-bold">{t("destinationHasData")}</div>
+              <div className="mt-1">{t("replaceMonthWarning", { month: destinationLabel })}</div>
+            </div>
+          )}
+
+          {destinationState && !destructive && (
+            <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3 text-sm text-neutral-700">
+              {destinationState === "not_created" ? t("destinationNotCreated") : t("destinationEffectivelyEmpty")}
+            </div>
+          )}
+
+          <fieldset className="space-y-3">
+            <legend className="text-sm font-bold text-neutral-900">{t("whatWillBeCopied")}</legend>
+            <label className="flex items-center gap-3 text-sm text-neutral-800">
+              <input type="checkbox" checked={copyIncome} onChange={(event) => setCopyIncome(event.target.checked)} className="h-4 w-4 accent-[#D5FF00]" />
+              {t("copyIncomeEntries")}
+            </label>
+            <label className="flex items-center gap-3 text-sm text-neutral-800">
+              <input type="checkbox" checked={copyExpenses} onChange={(event) => setCopyExpenses(event.target.checked)} className="h-4 w-4 accent-[#D5FF00]" />
+              {t("copyExpenseEntries")}
+            </label>
+            <label className="flex items-center gap-3 text-sm text-neutral-800">
+              <input type="checkbox" checked={copyEntryNotes} onChange={(event) => setCopyEntryNotes(event.target.checked)} className="h-4 w-4 accent-[#D5FF00]" />
+              {t("copyEntryNotes")}
+            </label>
+            <label className="flex items-center gap-3 text-sm text-neutral-800">
+              <input type="checkbox" checked={copyMonthNote} onChange={(event) => setCopyMonthNote(event.target.checked)} className="h-4 w-4 accent-[#D5FF00]" />
+              {t("copyMonthNote")}
+            </label>
+          </fieldset>
+
+          <div className="rounded-xl border border-neutral-200 p-4">
+            <div className="text-sm font-bold text-neutral-900">{t("copyPreview")}</div>
+            <dl className="mt-3 grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-sm">
+              <dt className="text-neutral-600">{t("sourceMonth")}</dt><dd className="font-medium text-neutral-900">{sourceLabel}</dd>
+              <dt className="text-neutral-600">{t("destinationMonth")}</dt><dd className="font-medium text-neutral-900">{destinationLabel || "—"}</dd>
+              <dt className="text-neutral-600">{t("incomeEntries")}</dt><dd>{summary.incomeEntries}</dd>
+              <dt className="text-neutral-600">{t("expenseGroups")}</dt><dd>{summary.expenseGroups}</dd>
+              <dt className="text-neutral-600">{t("expenseItems")}</dt><dd>{summary.expenseEntries}</dd>
+              <dt className="text-neutral-600">{t("entryNotes")}</dt><dd>{summary.copyEntryNotes ? t("yes") : t("no")}</dd>
+              <dt className="text-neutral-600">{t("monthNote")}</dt><dd>{summary.copyMonthNote ? t("yes") : t("no")}</dd>
+            </dl>
+          </div>
+
+          <div id="month-copy-reset-summary" className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
+            <div className="font-bold text-neutral-900">{t("whatWillBeReset")}</div>
+            <ul className="mt-2 list-disc pl-5 space-y-1">
+              <li>{t("resetPaid")}</li>
+              <li>{t("resetIncomeStatus")}</li>
+              <li>{t("resetDates")}</li>
+              <li>{t("resetBalance")}</li>
+              <li>{t("resetPending")}</li>
+              <li>{t("resetTransactions")}</li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="sticky bottom-0 bg-white border-t border-neutral-100 p-4 flex justify-end gap-2">
+          <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium text-neutral-700 hover:bg-neutral-100">{t("cancel")}</button>
+          {destructive ? (
+            <button
+              type="button"
+              disabled={!destinationValid}
+              aria-describedby="month-copy-warning"
+              onClick={() => onCopy({ destinationMonthKey, options, confirmReplace: true })}
+              className="px-5 py-2 rounded-xl text-sm font-bold bg-red-700 text-white hover:bg-red-800 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {t("replaceMonthAction", { month: destinationLabel })}
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={!destinationValid}
+              onClick={() => onCopy({ destinationMonthKey, options, confirmReplace: false })}
+              className="px-5 py-2 rounded-xl text-sm font-bold bg-[#D5FF00] text-neutral-900 hover:bg-[#c7f000] disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {t("createMonthAction", { month: destinationLabel })}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function BalanceCheck({
   balance,
   pendingIncomeEntries,
@@ -1411,6 +1566,41 @@ const TRANSLATIONS = {
     prevMonth: "◀ Prev",
     nextMonth: "Next ▶",
     copyNext: "Copy → Next",
+    copyMonth: "Copy month",
+    copySource: "Copy {month}",
+    copyTo: "Copy to",
+    whatWillBeCopied: "What will be copied",
+    whatWillBeReset: "What will be reset",
+    copyIncomeEntries: "Copy income entries",
+    copyExpenseEntries: "Copy expense groups and entries",
+    copyEntryNotes: "Copy entry notes",
+    copyMonthNote: "Copy month note",
+    copyPreview: "Copy preview",
+    sourceMonth: "Source month",
+    destinationMonth: "Destination month",
+    incomeEntries: "Income entries",
+    expenseGroups: "Expense groups",
+    entryNotes: "Entry notes",
+    monthNote: "Month note",
+    yes: "Yes",
+    no: "No",
+    destinationHasData: "This month already contains data",
+    destinationNotCreated: "The destination month has not been created yet.",
+    destinationEffectivelyEmpty: "The destination month exists but contains no budget data.",
+    replaceMonthWarning: "{month} already contains budget data. Replacing it will permanently remove that month’s current entries.",
+    createMonthAction: "Create {month}",
+    replaceMonthAction: "Replace {month}",
+    copySameMonthError: "The destination must be different from the source month.",
+    copyInvalidMonthError: "Choose a valid destination month.",
+    resetPaid: "Paid expenses become unpaid.",
+    resetIncomeStatus: "All income statuses become expected.",
+    resetDates: "Income receipt dates and temporary payment dates are cleared.",
+    resetBalance: "Current bank balance and overdraft are not copied.",
+    resetPending: "Expected incoming money is not copied.",
+    resetTransactions: "Transaction remnants are not copied.",
+    monthCopied: "Month copied successfully",
+    monthCopyNotSaved: "The month was copied in this open page, but it could not be saved. Download a backup now.",
+    monthCopyInvalid: "The copied month could not be validated. No data was changed.",
     copyAll: "Copy ALL",
     copyUnpaid: "Copy UNPAID only",
     cancel: "Cancel",
@@ -1476,7 +1666,7 @@ const TRANSLATIONS = {
     dueDatesHelp: "Due Dates",
     dueDatesHelpDesc: "Set due dates to track when bills are due. Use “Sort due” to organize items by date.",
     copyingHelp: "Rolling Over",
-    copyingHelpDesc: "Move to the next month using “Copy → Next”. Choose “Copy UNPAID only” to carry over outstanding balances.",
+    copyingHelpDesc: "Use “Copy month” to review what will carry forward. Paid and income statuses, dates, balances, pending money, and transaction remnants are reset.",
     printing: "Printing / PDF",
     printingDesc: "Use",
     printingDesc2: "to check the layout, then",
@@ -1554,7 +1744,7 @@ const TRANSLATIONS = {
     togglePaidTitle: "Toggle visibility of paid items",
     expandAllTitle: "Expand all sections",
     collapseAllTitle: "Collapse all sections",
-    copyNextTitle: "Copy this month to next",
+    copyNextTitle: "Copy this month",
     clearMonthTitle: "Clear this month",
     prevMonthTitle: "Previous month",
     nextMonthTitle: "Next month",
@@ -1667,6 +1857,41 @@ const TRANSLATIONS = {
     prevMonth: "◀ Zurück",
     nextMonth: "Weiter ▶",
     copyNext: "Kopieren → Nächster",
+    copyMonth: "Monat kopieren",
+    copySource: "{month} kopieren",
+    copyTo: "Kopieren nach",
+    whatWillBeCopied: "Was kopiert wird",
+    whatWillBeReset: "Was zurückgesetzt wird",
+    copyIncomeEntries: "Einnahmen kopieren",
+    copyExpenseEntries: "Ausgabengruppen und Einträge kopieren",
+    copyEntryNotes: "Notizen an Einträgen kopieren",
+    copyMonthNote: "Monatsnotiz kopieren",
+    copyPreview: "Kopiervorschau",
+    sourceMonth: "Quellmonat",
+    destinationMonth: "Zielmonat",
+    incomeEntries: "Einnahmen",
+    expenseGroups: "Ausgabengruppen",
+    entryNotes: "Eintragsnotizen",
+    monthNote: "Monatsnotiz",
+    yes: "Ja",
+    no: "Nein",
+    destinationHasData: "Dieser Monat enthält bereits Daten",
+    destinationNotCreated: "Der Zielmonat wurde noch nicht erstellt.",
+    destinationEffectivelyEmpty: "Der Zielmonat ist vorhanden, enthält aber keine Budgetdaten.",
+    replaceMonthWarning: "{month} enthält bereits Budgetdaten. Beim Ersetzen werden die aktuellen Einträge dieses Monats dauerhaft gelöscht.",
+    createMonthAction: "{month} erstellen",
+    replaceMonthAction: "{month} ersetzen",
+    copySameMonthError: "Der Zielmonat muss sich vom Quellmonat unterscheiden.",
+    copyInvalidMonthError: "Wählen Sie einen gültigen Zielmonat.",
+    resetPaid: "Bezahlte Ausgaben werden auf offen gesetzt.",
+    resetIncomeStatus: "Alle Einnahmen werden auf erwartet gesetzt.",
+    resetDates: "Eingangs- und vorübergehende Zahlungsdaten werden geleert.",
+    resetBalance: "Aktueller Kontostand und Dispokredit werden nicht kopiert.",
+    resetPending: "Erwartete Geldeingänge werden nicht kopiert.",
+    resetTransactions: "Transaktionsreste werden nicht kopiert.",
+    monthCopied: "Monat erfolgreich kopiert",
+    monthCopyNotSaved: "Der Monat wurde auf dieser geöffneten Seite kopiert, konnte aber nicht gespeichert werden. Laden Sie jetzt eine Sicherung herunter.",
+    monthCopyInvalid: "Der kopierte Monat konnte nicht validiert werden. Es wurden keine Daten geändert.",
     copyAll: "ALLES kopieren",
     copyUnpaid: "Nur UNBEZAHLTE kopieren",
     cancel: "Abbrechen",
@@ -1732,7 +1957,7 @@ const TRANSLATIONS = {
     dueDatesHelp: "Fälligkeitsdaten",
     dueDatesHelpDesc: "Legen Sie Fälligkeitsdaten fest, um Rechnungen zu verfolgen. Verwenden Sie „Fälligkeit sort.“, um Elemente nach Datum zu ordnen.",
     copyingHelp: "Übertrag",
-    copyingHelpDesc: "Wechseln Sie mit „Kopieren → Nächster“ in den nächsten Monat. Wählen Sie „Nur UNBEZAHLTE kopieren“, um offene Salden zu übertragen.",
+    copyingHelpDesc: "Mit „Monat kopieren“ prüfen Sie vorab, was übernommen wird. Bezahl- und Einnahmestatus, Daten, Kontostände, erwartete Geldeingänge und Transaktionsreste werden zurückgesetzt.",
     printing: "Drucken / PDF",
     printingDesc: "Verwenden Sie",
     printingDesc2: "um das Layout zu überprüfen, dann",
@@ -1810,7 +2035,7 @@ const TRANSLATIONS = {
     togglePaidTitle: "Sichtbarkeit bezahlter Elemente umschalten",
     expandAllTitle: "Alle Abschnitte erweitern",
     collapseAllTitle: "Alle einklappen",
-    copyNextTitle: "Diesen Monat in den nächsten kopieren",
+    copyNextTitle: "Diesen Monat kopieren",
     clearMonthTitle: "Diesen Monat leeren",
     prevMonthTitle: "Vorheriger Monat",
     nextMonthTitle: "Nächster Monat",
@@ -2284,38 +2509,42 @@ export default function BudgitApp() {
     notify(t("monthCleared"));
   };
 
-  const copyMonthToNext = (mode) => {
-    const fromKey = app.activeMonth;
-    const toKey = addMonths(fromKey, 1);
-
-    const from = normalizeMonthData(app.months && app.months[fromKey] ? app.months[fromKey] : null);
-
-    const makeItem = (it) => {
-      const base = normalizeExpenseItem(it);
-      return { ...base, id: uid(), paid: false };
-    };
-
-    const nextGroups = (from.expenseGroups || []).map((g) => {
-      const items = (g.items || [])
-        .filter((it) => (mode === "unpaid" ? !it.paid : true))
-        .map(makeItem);
-      return { id: uid(), label: String((g.label || "General")).trim() || "General", items };
+  const performMonthCopy = ({ destinationMonthKey, options, confirmReplace }) => {
+    const result = applyMonthCopyToApp({
+      app,
+      sourceMonthKey: app.activeMonth,
+      destinationMonthKey,
+      options,
+      idFactory: () => uid(),
+      confirmReplace,
     });
+    if (!result.ok) {
+      notify(result.code === "same_month" ? t("copySameMonthError") : t("monthCopyInvalid"));
+      return;
+    }
 
-    const next = normalizeMonthData({
-      incomes: (from.incomes || []).map((i) => ({ ...normalizeIncomeItem(i), id: uid() })),
-      expenseGroups: nextGroups.length ? nextGroups : [{ id: uid(), label: "General", items: [] }],
-      notes: "",
-    });
+    const validation = validateApplicationState(result.app);
+    if (!validation.valid) {
+      notify(t("monthCopyInvalid"));
+      return;
+    }
 
-    setApp((a) => {
-      const months = { ...(a.months || {}) };
-      months[toKey] = next;
-      return { ...a, months, activeMonth: toKey };
-    });
+    const persisted = persistenceLocked.current
+      ? { ok: false, code: saveErrorCode || "storage_unavailable" }
+      : writeStorageValue(getBrowserStorage(), LS_KEY, JSON.stringify(result.app));
 
+    skipNextSave.current = true;
+    setApp(result.app);
     setCopyOpen(false);
-    notify(mode === "unpaid" ? t("copyUnpaidMsg") : t("copyAllMsg"));
+    if (persisted.ok) {
+      setSaveErrorCode(null);
+      setSaveStatus("saved");
+      notify(t("monthCopied"));
+    } else {
+      setSaveErrorCode(persisted.code);
+      setSaveStatus("error");
+      notify(t("monthCopyNotSaved"));
+    }
   };
 
   // ---------------------------
@@ -2526,6 +2755,18 @@ export default function BudgitApp() {
       })()}
 
       <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} t={t} />
+      {copyOpen && (
+        <MonthCopyModal
+          key={app.activeMonth}
+          sourceMonthKey={app.activeMonth}
+          sourceMonth={active}
+          months={app.months || {}}
+          lang={app.lang}
+          onClose={() => setCopyOpen(false)}
+          onCopy={performMonthCopy}
+          t={t}
+        />
+      )}
       <ExportModal
         open={exportModalOpen}
         onClose={() => setExportModalOpen(false)}
@@ -2799,24 +3040,9 @@ export default function BudgitApp() {
                   </select>
 
                   <div className="relative col-span-1">
-                    <MiniActionButton onClick={() => setCopyOpen((v) => !v)} title={t("copyNextTitle")} className="!h-8 !text-xs">
-                      {t("copyNext")}
+                    <MiniActionButton onClick={() => setCopyOpen(true)} title={t("copyNextTitle")} className="!h-8 !text-xs">
+                      {t("copyMonth")}
                     </MiniActionButton>
-
-                    {copyOpen ? (
-                      <div className="print:hidden absolute z-20 mt-2 w-48 rounded-2xl border border-neutral-200 bg-white shadow-xl p-2">
-                        <div className="grid grid-cols-1 gap-2">
-                          <MiniActionButton tone="primary" onClick={() => copyMonthToNext("all")}>
-                            {t("copyAll")}
-                          </MiniActionButton>
-                          <MiniActionButton onClick={() => copyMonthToNext("unpaid")}>{t("copyUnpaid")}</MiniActionButton>
-                          <MiniActionButton tone="danger" onClick={() => setCopyOpen(false)}>
-                            {t("cancel")}
-                          </MiniActionButton>
-                        </div>
-                        <div className="mt-2 text-xs text-neutral-600">{t("copyNote")}</div>
-                      </div>
-                    ) : null}
                   </div>
 
                   <MiniActionButton tone="danger" onClick={clearMonth} title={t("clearMonthTitle")}>
