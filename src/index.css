@@ -56,7 +56,7 @@
   }
 
   .ledger-section-header {
-    @apply flex items-center justify-between gap-3 px-4 py-3;
+    @apply flex items-center justify-between gap-3 border-b border-neutral-100 px-4 py-3;
   }
 
   .ledger-section-title {
@@ -65,6 +65,42 @@
 
   .ledger-group-title {
     @apply min-w-0 flex-1 text-base font-semibold leading-6 text-neutral-800;
+  }
+
+  .ledger-group {
+    @apply min-w-0 max-w-full overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm md:rounded-xl md:shadow-none;
+  }
+
+  .ledger-group-header {
+    @apply border-b border-neutral-100 bg-neutral-50 px-3 py-3 md:border-neutral-200 md:py-2.5;
+  }
+
+  .ledger-group-meta {
+    @apply flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm leading-5 text-neutral-700 md:text-xs md:text-neutral-600;
+  }
+
+  .ledger-group-meta-label {
+    @apply font-normal text-neutral-500;
+  }
+
+  .ledger-group-meta-value {
+    @apply ml-1 font-semibold tabular-nums text-neutral-800;
+  }
+
+  .ledger-group-meta-unpaid {
+    @apply ml-1 font-semibold tabular-nums text-neutral-900 underline decoration-[#D5FF00] decoration-2 underline-offset-2;
+  }
+
+  .ledger-group-body {
+    @apply space-y-2 p-3 md:space-y-1.5 md:p-2.5;
+  }
+
+  .ledger-group-actions {
+    @apply grid grid-cols-2 gap-2 sm:grid-cols-3 md:gap-1.5;
+  }
+
+  .ledger-group-actions > button {
+    @apply md:h-9 md:min-h-9 md:text-xs;
   }
 
   .ledger-table {
@@ -93,23 +129,53 @@
   }
 
   .ledger-table-row {
-    @apply items-center rounded-md px-1.5 py-1 text-sm hover:bg-neutral-50;
+    @apply items-center border-b border-neutral-100 px-1.5 py-0.5 text-sm hover:bg-neutral-50;
+  }
+
+  .ledger-table-row-paid {
+    @apply bg-neutral-50/70;
+  }
+
+  .ledger-table-row-paid .ledger-table-control {
+    @apply text-neutral-600;
+  }
+
+  .ledger-table-row-unpaid {
+    @apply bg-white;
   }
 
   .ledger-table-control {
-    @apply h-8 w-full min-w-0 rounded-md border border-transparent bg-transparent px-2 py-1 text-sm text-neutral-800 hover:border-neutral-200 hover:bg-white focus:border-neutral-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50;
+    @apply h-8 w-full min-w-0 rounded-md border border-neutral-200 bg-white px-2 py-1 text-sm text-neutral-800 hover:border-neutral-300 focus:border-neutral-300 focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-500;
+  }
+
+  .ledger-table-amount {
+    @apply text-right tabular-nums;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .ledger-table-status,
+  .ledger-table-due {
+    @apply min-w-0 text-center;
+  }
+
+  .ledger-table-handle {
+    @apply flex min-w-0 items-center justify-center;
   }
 
   .ledger-table-actions {
-    @apply flex min-w-0 items-center justify-end gap-0.5 print:hidden;
+    @apply flex min-w-0 items-center justify-center gap-0.5 print:hidden;
   }
 
   .ledger-icon-button {
-    @apply flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D5FF00]/60;
+    @apply flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-transparent text-neutral-500 hover:border-neutral-200 hover:bg-neutral-100 hover:text-neutral-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D5FF00]/60 disabled:cursor-not-allowed disabled:text-neutral-300;
   }
 
   .ledger-icon-button-danger {
-    @apply flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-red-600 hover:bg-red-50 hover:text-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-300;
+    @apply flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-transparent text-red-600 hover:border-red-200 hover:bg-red-50 hover:text-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-300;
+  }
+
+  .ledger-empty-state {
+    @apply px-2 py-3 text-sm text-neutral-600;
   }
 
 }

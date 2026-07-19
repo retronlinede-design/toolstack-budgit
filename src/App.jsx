@@ -623,7 +623,7 @@ function CalendarIcon({ className = "" }) {
   );
 }
 
-function DuePicker({ ym, value, onChange, lang = "en", t }) {
+function DuePicker({ ym, value, onChange, lang = "en", t, compact = false }) {
   const [open, setOpen] = useState(false);
   const boxRef = useRef(null);
   const btnRef = useRef(null);
@@ -737,7 +737,7 @@ function DuePicker({ ym, value, onChange, lang = "en", t }) {
         type="button"
         title={btnTitle}
         onClick={() => setOpen((v) => !v)}
-        className={`w-full h-10 rounded-xl border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 shadow-sm px-3 text-neutral-800 text-sm flex items-center justify-between gap-2 focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 focus:border-neutral-300 ${
+        className={`w-full ${compact ? "h-8 rounded-md px-2 shadow-none" : "h-10 rounded-xl px-3 shadow-sm"} border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-neutral-300 hover:text-neutral-800 text-neutral-800 text-sm flex items-center justify-between gap-1 focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 focus:border-neutral-300 ${
           info ? "font-medium" : "text-neutral-500"
         }`}
       >
@@ -846,7 +846,7 @@ function DuePicker({ ym, value, onChange, lang = "en", t }) {
 function InsertDropZone({ active, onDragOver, onDrop }) {
   return (
     <div
-      className={`print:hidden h-3 rounded-xl transition-colors duration-200 ${active ? "bg-[#D5FF00]/50 ring-2 ring-[#D5FF00]/20" : "bg-transparent"}`}
+      className={`print:hidden h-3 rounded-xl transition-colors duration-200 md:h-1.5 ${active ? "bg-[#D5FF00]/50 ring-2 ring-[#D5FF00]/20" : "bg-transparent"}`}
       onDragOver={onDragOver}
       onDrop={onDrop}
     />
@@ -1662,6 +1662,8 @@ const TRANSLATIONS = {
     remainingExpenses: "Unpaid Expenses",
     unpaidExpenses: "Unpaid Expenses",
     plannedExpenses: "Planned Expenses",
+    groupPlanned: "Planned",
+    groupUnpaid: "Unpaid",
     netRemaining: "Left After Planned Expenses",
     leftAfterPlannedExpenses: "Left After Planned Expenses",
     financialDetails: "Financial details",
@@ -1985,6 +1987,8 @@ const TRANSLATIONS = {
     remainingExpenses: "Offene Ausgaben",
     unpaidExpenses: "Offene Ausgaben",
     plannedExpenses: "Geplante Ausgaben",
+    groupPlanned: "Geplant",
+    groupUnpaid: "Offen",
     netRemaining: "Verfügbar nach geplanten Ausgaben",
     leftAfterPlannedExpenses: "Verfügbar nach geplanten Ausgaben",
     financialDetails: "Finanzdetails",
@@ -3231,7 +3235,7 @@ export default function BudgitApp() {
                   )}
 
                   {visibleIncomes.length === 0 ? (
-                    <div className="px-2 py-3 text-sm text-neutral-700">{t("noIncome")}</div>
+                    <div className="ledger-empty-state">{t("noIncome")}</div>
                   ) : (
                     <>
                     <div className="mobile-entry-list">
@@ -3278,16 +3282,16 @@ export default function BudgitApp() {
                         <div className="ledger-grid-income ledger-table-heading">
                           <div />
                           <div>{t("sourceLabel")}</div>
-                          <div className="text-right">{t("amount")} ({app.currency})</div>
-                          <div>{t("incomeStatus")}</div>
-                          <div className="text-right">{t("actions")}</div>
+                          <div className="ledger-table-amount">{t("amount")} ({app.currency})</div>
+                          <div className="text-center">{t("incomeStatus")}</div>
+                          <div className="text-center">{t("actions")}</div>
                         </div>
                         <div>
                     {visibleIncomes.map((i, idx) => (
                       <div key={i.id}>
                         <div className="ledger-grid-income ledger-table-row">
                           <div
-                            className="print:hidden"
+                            className="ledger-table-handle print:hidden"
                             draggable={!searchTerm}
                             onDragStart={(e) => setDragPayload({ type: "income", itemId: i.id }, e)}
                             onDragEnd={clearDragState}
@@ -3335,7 +3339,7 @@ export default function BudgitApp() {
                           />
 
                           <SelectAllNumberInput
-                            className="ledger-table-control text-right tabular-nums"
+                            className="ledger-table-control ledger-table-amount"
                             value={i.amount == null ? "0" : i.amount}
                             onChange={(e) => updateIncome(i.id, { amount: e.target.value })}
                             inputMode="decimal"
@@ -3344,7 +3348,7 @@ export default function BudgitApp() {
                           />
 
                           <select
-                            className="ledger-table-control text-neutral-700"
+                            className="ledger-table-control ledger-table-status text-neutral-700"
                             value={INCOME_STATUSES.includes(i.status) ? i.status : "expected"}
                             onChange={(e) => updateIncome(i.id, { status: e.target.value })}
                             title={t("incomeStatus")}
@@ -3415,7 +3419,7 @@ export default function BudgitApp() {
                   {(active.incomes || []).length ? (
                     <div className="pt-3 mt-2 flex items-center justify-between px-2">
                       <div className="text-sm text-neutral-700">{t("totalIncome")}</div>
-                      <div className="font-semibold text-neutral-800">
+                      <div className="ledger-table-amount font-semibold text-neutral-800">
                         <Money value={incomeTotal} currency={app.currency} />
                       </div>
                     </div>
@@ -3425,7 +3429,7 @@ export default function BudgitApp() {
 
               {/* Expenses */}
               <section className="ledger-section">
-                <div className="px-4 py-3 border-b border-neutral-100 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="ledger-section-header flex-col sm:flex-row">
                   <h2 className="ledger-section-title">{t("expenses")}</h2>
                   <div className="grid grid-cols-2 sm:grid-cols-2 gap-2 w-full sm:w-auto">
                     <MiniActionButton tone="primary" onClick={addExpenseGroup}>
@@ -3483,9 +3487,9 @@ export default function BudgitApp() {
 
                     return (
                       <div key={g.id}>
-                        <div className="min-w-0 max-w-full rounded-2xl border border-neutral-200 overflow-hidden shadow-sm">
-                        <div className="px-3 py-3 border-b border-neutral-100 bg-neutral-50">
-                          <div className="flex flex-col gap-3">
+                        <div className="ledger-group">
+                        <div className="ledger-group-header">
+                          <div className="flex flex-col gap-2.5">
                             <div className="flex min-w-0 flex-col gap-2 md:flex-row md:items-center md:justify-between">
                               <div className="flex min-w-0 flex-1 items-center gap-2">
                                 <div
@@ -3497,28 +3501,27 @@ export default function BudgitApp() {
                                 </div>
 
                                 <input
-                                  className="ledger-group-title h-10 rounded-xl border border-neutral-200 bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 focus:border-neutral-300"
+                                  className="ledger-group-title h-10 rounded-xl border border-neutral-200 bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 focus:border-neutral-300 md:h-9"
                                   value={g.label == null ? "" : g.label}
                                   onChange={(e) => updateExpenseGroupLabel(g.id, e.target.value)}
                                   onBlur={() => normalizeExpenseGroupLabel(g.id)}
                                   placeholder={t("sectionLabel")}
                                 />
 
-                                <div className="hidden min-w-0 text-xs leading-5 text-neutral-600 lg:block">
-                                  {itemsCount} {t(itemsCount === 1 ? "entrySingular" : "entryPlural")} • {t("remainingExpenses")}:{" "}
-                                  <span className="font-semibold text-neutral-800">{currencySymbol}{groupRemainingTotal(g).toFixed(2)}</span>
-                                  <span className="text-neutral-400"> • </span>
-                                  {t("plannedExpenses")}: <span className="font-medium">{currencySymbol}{groupPlannedTotal(g).toFixed(2)}</span>
+                                <div className="ledger-group-meta hidden lg:flex">
+                                  <span>{itemsCount} {t(itemsCount === 1 ? "entrySingular" : "entryPlural")}</span>
+                                  <span><span className="ledger-group-meta-label">{t("groupPlanned")}</span><span className="ledger-group-meta-value">{currencySymbol}{groupPlannedTotal(g).toFixed(2)}</span></span>
+                                  <span><span className="ledger-group-meta-label">{t("groupUnpaid")}</span><span className="ledger-group-meta-unpaid">{currencySymbol}{groupRemainingTotal(g).toFixed(2)}</span></span>
                                 </div>
                               </div>
 
-                              <SmallButton tone="primary" onClick={() => addExpenseItem(g.id)} className="whitespace-nowrap px-4 text-xs sm:text-sm" title={t("addExpense")}>
+                              <SmallButton tone="primary" onClick={() => addExpenseItem(g.id)} className="whitespace-nowrap px-4 text-xs md:!min-h-9 sm:text-sm" title={t("addExpense")}>
                                 {t("addExpense")}
                               </SmallButton>
                             </div>
 
                             {/* ACTIONS TABLE (consistent sizes) */}
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                            <div className="ledger-group-actions">
                               <MiniActionButton title={t("sortDueTitle")} onClick={() => sortGroupByDue(g.id)}>
                                 {t("sortDue")}
                               </MiniActionButton>
@@ -3536,16 +3539,15 @@ export default function BudgitApp() {
                               </MiniActionButton>
                             </div>
 
-                            <div className="text-sm leading-5 text-neutral-700 md:text-xs md:text-neutral-600 lg:hidden">
-                              {itemsCount} {t(itemsCount === 1 ? "entrySingular" : "entryPlural")} • {t("remainingExpenses")}:{" "}
-                              <span className="font-semibold text-neutral-800">{currencySymbol}{groupRemainingTotal(g).toFixed(2)}</span>
-                              <span className="text-neutral-400"> • </span>
-                              {t("plannedExpenses")}: <span className="font-medium">{currencySymbol}{groupPlannedTotal(g).toFixed(2)}</span>
+                            <div className="ledger-group-meta lg:hidden">
+                              <span>{itemsCount} {t(itemsCount === 1 ? "entrySingular" : "entryPlural")}</span>
+                              <span><span className="ledger-group-meta-label">{t("groupPlanned")}</span><span className="ledger-group-meta-value">{currencySymbol}{groupPlannedTotal(g).toFixed(2)}</span></span>
+                              <span><span className="ledger-group-meta-label">{t("groupUnpaid")}</span><span className="ledger-group-meta-unpaid">{currencySymbol}{groupRemainingTotal(g).toFixed(2)}</span></span>
                             </div>
                           </div>
                         </div>
 
-                          <div className="p-3 space-y-2">
+                          <div className="ledger-group-body">
                             {!searchTerm && (
                               <InsertDropZone
                                 active={dropHint && dropHint.type === "expenseInsert" && dropHint.groupId === g.id && dropHint.index === 0}
@@ -3566,7 +3568,7 @@ export default function BudgitApp() {
                             )}
 
                             {itemsVisible.length === 0 ? (
-                              <div className="text-sm text-neutral-700">{t("noItemsSection")}</div>
+                              <div className="ledger-empty-state">{t("noItemsSection")}</div>
                             ) : (
                               <>
                               <div className="mobile-entry-list">
@@ -3609,18 +3611,18 @@ export default function BudgitApp() {
                                 <div className="ledger-table">
                                   <div className="ledger-grid-expense ledger-table-heading">
                                     <div />
-                                    <div>{t("paid")}</div>
+                                    <div className="text-center">{t("paid")}</div>
                                     <div>{t("expenseName")}</div>
-                                    <div className="text-right">{t("amount")} ({app.currency})</div>
-                                    <div>{t("dueDate")}</div>
-                                    <div className="text-right">{t("actions")}</div>
+                                    <div className="ledger-table-amount">{t("amount")} ({app.currency})</div>
+                                    <div className="text-center">{t("dueDate")}</div>
+                                    <div className="text-center">{t("actions")}</div>
                                   </div>
                                   <div>
                               {itemsVisible.map((e, idx) => (
                                 <div key={e.id} id={`item-${e.id}`} data-expense-item={e.id} className={`transition-colors duration-1000 rounded-2xl ${highlightItem === e.id ? "bg-[#D5FF00]/20" : ""}`}>
-                                  <div className="ledger-grid-expense ledger-table-row">
+                                  <div className={`ledger-grid-expense ledger-table-row ${e.paid ? "ledger-table-row-paid" : "ledger-table-row-unpaid"}`}>
                                     <div
-                                      className="print:hidden"
+                                      className="ledger-table-handle print:hidden"
                                       draggable={!searchTerm}
                                       onDragStart={(ev) => setDragPayload({ type: "expense", fromGroupId: g.id, itemId: e.id }, ev)}
                                       onDragEnd={clearDragState}
@@ -3638,7 +3640,7 @@ export default function BudgitApp() {
 
                                     <input
                                       className={`ledger-table-control ${
-                                        e.paid ? "line-through text-neutral-400 decoration-[#D5FF00] decoration-2" : "text-neutral-800"
+                                        e.paid ? "line-through text-neutral-600 decoration-[#D5FF00] decoration-2" : "text-neutral-800"
                                       }`}
                                       value={e.name || ""}
                                       onChange={(ev) => updateExpenseItem(g.id, e.id, { name: ev.target.value })}
@@ -3674,8 +3676,8 @@ export default function BudgitApp() {
                                     />
 
                                     <SelectAllNumberInput
-                                      className={`ledger-table-control text-right tabular-nums ${
-                                        e.paid ? "line-through text-neutral-400 decoration-[#D5FF00] decoration-2" : "text-neutral-800"
+                                      className={`ledger-table-control ledger-table-amount ${
+                                        e.paid ? "line-through text-neutral-600 decoration-[#D5FF00] decoration-2" : "text-neutral-800"
                                       }`}
                                       value={e.amount == null ? "0" : e.amount}
                                       onChange={(ev) => updateExpenseItem(g.id, e.id, { amount: ev.target.value })}
@@ -3684,13 +3686,14 @@ export default function BudgitApp() {
                                       title={t("amount")}
                                     />
 
-                                    <div className="min-w-0">
+                                    <div className="ledger-table-due">
                                       <DuePicker
                                         ym={app.activeMonth}
                                         value={e.dueDay}
                                         onChange={(due) => updateExpenseItem(g.id, e.id, { dueDay: due })}
                                         lang={app.lang}
                                         t={t}
+                                        compact
                                       />
                                     </div>
 
@@ -3781,14 +3784,14 @@ export default function BudgitApp() {
                   })}
 
                   {(active.expenseGroups || []).length === 0 ? (
-                    <div className="text-sm text-neutral-700">{t("noExpenses")}</div>
+                    <div className="ledger-empty-state">{t("noExpenses")}</div>
                   ) : (
                     <div className="pt-3 mt-2 border-t border-neutral-100 flex items-center justify-between">
                       <div>
                         <div className="text-sm text-neutral-700">{t("remainingExpenses")}</div>
                         <div className="text-xs text-neutral-600">{t("plannedExpenses")}: {currencySymbol}{expensePlannedTotal.toFixed(2)}</div>
                       </div>
-                      <div className="font-semibold text-neutral-800">
+                      <div className="ledger-table-amount font-semibold text-neutral-800">
                         <Money value={expenseRemainingTotal} currency={app.currency} />
                       </div>
                     </div>
