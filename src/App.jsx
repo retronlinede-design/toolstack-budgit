@@ -32,6 +32,7 @@ import {
   calculateMonthTotals,
   parseMoney,
 } from "./domain/calculations.js";
+import { createExpenseAttentionSummary, formatSavingsRate } from "./domain/dashboardSummary.js";
 import {
   BACKUP_LIMITS,
   createBackupEnvelope,
@@ -1268,6 +1269,7 @@ function BalanceCheck({
   const pendingEntries = Array.isArray(pendingIncomeEntries) ? pendingIncomeEntries : [];
   const totalPendingMoneyIn = calculateMoneyListTotal(pendingEntries, "expectedIncomingMoney").total;
   const projectedAfterMoneyIn = currentBalance + totalPendingMoneyIn;
+  const balanceAfterUnpaid = balanceAfterUnpaidExpenses(currentBalance, remainingExpenses);
   const balanceAfterIncomingMoney = balanceAfterExpectedIncomingMoney(currentBalance, totalPendingMoneyIn, remainingExpenses);
   const overdraftAmount = toNumber(overdraftLimit);
   const availableWithOverdraft = balanceAfterIncomingMoney + overdraftAmount;
@@ -1403,6 +1405,10 @@ function BalanceCheck({
         <div className="flex items-center justify-between gap-3">
           <span className="text-neutral-600">{t("remainingExpenses")}</span>
           <span className="font-semibold text-neutral-800"><Money value={remainingExpenses} currency={currency} /></span>
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-neutral-600">{t("balanceAfterUnpaidExpenses")}</span>
+          <span className={`font-semibold ${balanceAfterUnpaid < 0 ? "text-red-700" : "text-neutral-800"}`}><Money value={balanceAfterUnpaid} currency={currency} /></span>
         </div>
         <div className="flex items-center justify-between gap-3">
           <span className="text-neutral-600">{t("balanceAfterExpectedIncomingMoney")}</span>
@@ -1608,8 +1614,8 @@ const TRANSLATIONS = {
     startAgain: "Start Again",
     income: "Income",
     addIncome: "+ Add income",
-    totalIncome: "Total income",
-    totalExpenses: "Total expenses",
+    totalIncome: "Expected Income",
+    totalExpenses: "Planned Expenses",
     expenses: "Expenses",
     addSection: "+ Add section",
     hidePaid: "Hide paid",
@@ -1623,9 +1629,23 @@ const TRANSLATIONS = {
     notes: "Notes",
     notesPlaceholder: "Optional notes for this month…",
     summary: "Summary",
-    remainingExpenses: "Remaining expenses",
-    plannedExpenses: "Planned expenses",
-    netRemaining: "Net (after remaining)",
+    expectedIncome: "Expected Income",
+    remainingExpenses: "Unpaid Expenses",
+    unpaidExpenses: "Unpaid Expenses",
+    plannedExpenses: "Planned Expenses",
+    netRemaining: "Left After Planned Expenses",
+    leftAfterPlannedExpenses: "Left After Planned Expenses",
+    financialDetails: "Financial details",
+    receivedIncome: "Received income",
+    delayedIncome: "Delayed income",
+    cancelledIncome: "Cancelled income",
+    expenseAttention: "Expense attention summary",
+    unpaidExpenseSingular: "unpaid expense",
+    unpaidExpensePlural: "unpaid expenses",
+    overdue: "overdue",
+    nextDue: "Next due",
+    noUnpaidExpenses: "No unpaid expenses",
+    negativeValue: "Negative value",
     savingsRate: "Savings rate",
     quickView: "Quick view",
     sections: "Sections",
@@ -1899,8 +1919,8 @@ const TRANSLATIONS = {
     startAgain: "Neu starten",
     income: "Einkommen",
     addIncome: "+ Einkommen",
-    totalIncome: "Gesamteinkommen",
-    totalExpenses: "Gesamtausgaben",
+    totalIncome: "Erwartete Einnahmen",
+    totalExpenses: "Geplante Ausgaben",
     expenses: "Ausgaben",
     addSection: "+ Abschnitt",
     hidePaid: "Bezahlte ausblenden",
@@ -1914,9 +1934,23 @@ const TRANSLATIONS = {
     notes: "Notizen",
     notesPlaceholder: "Optionale Notizen für diesen Monat…",
     summary: "Zusammenfassung",
-    remainingExpenses: "Verbleibende Ausgaben",
+    expectedIncome: "Erwartete Einnahmen",
+    remainingExpenses: "Offene Ausgaben",
+    unpaidExpenses: "Offene Ausgaben",
     plannedExpenses: "Geplante Ausgaben",
-    netRemaining: "Netto (nach Verbleibenden)",
+    netRemaining: "Verfügbar nach geplanten Ausgaben",
+    leftAfterPlannedExpenses: "Verfügbar nach geplanten Ausgaben",
+    financialDetails: "Finanzdetails",
+    receivedIncome: "Erhaltene Einnahmen",
+    delayedIncome: "Verspätete Einnahmen",
+    cancelledIncome: "Stornierte Einnahmen",
+    expenseAttention: "Übersicht offener Ausgaben",
+    unpaidExpenseSingular: "offene Ausgabe",
+    unpaidExpensePlural: "offene Ausgaben",
+    overdue: "überfällig",
+    nextDue: "Als Nächstes fällig",
+    noUnpaidExpenses: "Keine offenen Ausgaben",
+    negativeValue: "Negativer Wert",
     savingsRate: "Sparquote",
     quickView: "Schnellansicht",
     sections: "Abschnitte",
@@ -2162,8 +2196,7 @@ export default function BudgitApp() {
   const [searchTerm, setSearchTerm] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
 
-  const [summaryOpen, setSummaryOpen] = useState(() => lsGet("budgit_summary_open") !== "false");
-  useEffect(() => lsSet("budgit_summary_open", summaryOpen), [summaryOpen]);
+  const [financialDetailsOpen, setFinancialDetailsOpen] = useState(false);
 
   // Hide paid items (UI-only)
   const [hidePaid, setHidePaid] = useState(false);
@@ -2655,15 +2688,14 @@ export default function BudgitApp() {
   const incomeTotal = monthTotals.expectedIncome;
   const expensePlannedTotal = monthTotals.plannedExpenses;
   const expenseRemainingTotal = monthTotals.unpaidExpenses;
-
-  const bankBalance = useMemo(() => toNumber(active.bankBalance), [active.bankBalance]);
-  const balanceAfterUnpaid = useMemo(
-    () => balanceAfterUnpaidExpenses(bankBalance, expenseRemainingTotal),
-    [bankBalance, expenseRemainingTotal],
-  );
   const expensePaidTotal = monthTotals.paidExpenses;
   const netRemaining = monthTotals.leftAfterPlannedExpenses;
   const savingsRate = monthTotals.savingsRate;
+  const expenseAttention = createExpenseAttentionSummary({
+    activeMonth: app.activeMonth,
+    expenseGroups: active.expenseGroups,
+    currentDate: new Date(),
+  });
 
   // ---------------------------
   // Print preview computed
@@ -3653,6 +3685,42 @@ export default function BudgitApp() {
               </div>
             </div>
 
+            <div className="rounded-2xl bg-white shadow-sm border border-neutral-200 print:shadow-none overflow-hidden">
+              <div className="px-4 py-3 border-b border-neutral-100 font-semibold text-neutral-800">{t("summary")}</div>
+              <div className="p-4 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {[["expectedIncome", incomeTotal, false], ["plannedExpenses", expensePlannedTotal, false], ["leftAfterPlannedExpenses", netRemaining, netRemaining < 0], ["unpaidExpenses", expenseRemainingTotal, false]].map(([label, value, negative]) => (
+                  <div key={label} className={`rounded-2xl border p-4 min-w-0 ${negative ? "border-red-200" : "border-neutral-200"}`}>
+                    <div className="text-sm leading-5 text-neutral-700 break-words">{t(label)}</div>
+                    <div className={`text-2xl font-semibold mt-1 tabular-nums ${negative ? "text-red-700" : "text-neutral-800"}`}>
+                      {negative ? <span className="sr-only">{t("negativeValue")}: </span> : null}
+                      <Money value={value} currency={app.currency} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="rounded-xl bg-neutral-50 px-3 py-2 text-sm text-neutral-700" aria-label={t("expenseAttention")}>
+                {expenseAttention.unpaidCount === 0 ? t("noUnpaidExpenses") : <>
+                  <span>{expenseAttention.unpaidCount} {t(expenseAttention.unpaidCount === 1 ? "unpaidExpenseSingular" : "unpaidExpensePlural")}</span>
+                  {expenseAttention.overdueCount > 0 ? <span> · {expenseAttention.overdueCount} {t("overdue")}</span> : null}
+                  {expenseAttention.nextDue ? <span> · {t("nextDue")}: {expenseAttention.nextDue.name || t("unnamed")} — {new Date(`${expenseAttention.nextDue.dueDateISO}T12:00:00`).toLocaleDateString(app.lang === "de" ? "de-DE" : "en-US", { day: "numeric", month: "long" })}</span> : null}
+                </>}
+              </div>
+
+              <div className="border-t border-neutral-100 pt-3">
+                <button type="button" aria-expanded={financialDetailsOpen} aria-controls="financial-details-panel" onClick={() => setFinancialDetailsOpen((open) => !open)} className="w-full flex items-center justify-between gap-3 rounded-xl px-2 py-2 text-sm font-semibold text-neutral-800 hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50">
+                  <span>{t("financialDetails")}</span>
+                  <ChevronDownIcon className={`h-5 w-5 text-neutral-400 transition-transform ${financialDetailsOpen ? "rotate-180" : ""}`} />
+                </button>
+                {financialDetailsOpen ? <dl id="financial-details-panel" className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 px-2 text-sm">
+                  {[["receivedIncome", monthTotals.receivedIncome], ["delayedIncome", monthTotals.delayedIncome], ["cancelledIncome", monthTotals.cancelledIncome], ["paidExpenses", expensePaidTotal]].map(([label, value]) => <div key={label} className="flex items-center justify-between gap-3 border-b border-neutral-100 py-1.5"><dt className="text-neutral-600">{t(label)}</dt><dd className="font-medium text-neutral-800"><Money value={value} currency={app.currency} /></dd></div>)}
+                  <div className="flex items-center justify-between gap-3 border-b border-neutral-100 py-1.5"><dt className="text-neutral-600">{t("savingsRate")}</dt><dd className="font-medium text-neutral-800">{formatSavingsRate(savingsRate)}</dd></div>
+                </dl> : null}
+              </div>
+
+            </div>
+            </div>
             <BalanceCheck
               balance={active.bankBalance}
               pendingIncomeEntries={active.pendingIncomeEntries}
@@ -3666,87 +3734,6 @@ export default function BudgitApp() {
               currencySymbol={currencySymbol}
               t={t}
             />
-
-            <div className="rounded-2xl bg-white shadow-sm border border-neutral-200 print:shadow-none overflow-hidden">
-              <button
-                type="button"
-                onClick={() => setSummaryOpen(!summaryOpen)}
-                className="w-full px-4 py-3 border-b border-neutral-100 font-semibold text-neutral-800 flex items-center justify-between bg-white hover:bg-neutral-50 transition"
-              >
-                <span>{t("summary")}</span>
-                <ChevronDownIcon className={`h-5 w-5 text-neutral-400 transition-transform ${summaryOpen ? "rotate-180" : ""}`} />
-              </button>
-              {summaryOpen && (
-                <div className="p-4 space-y-4">
-              <div className="rounded-2xl border border-neutral-200 p-4">
-                <div className="text-sm text-neutral-700">{t("totalIncome")}</div>
-                <div className="text-2xl font-semibold text-neutral-800 mt-1">
-                  <Money value={incomeTotal} currency={app.currency} />
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-neutral-200 p-4">
-                <div className="text-sm text-neutral-700">{t("totalExpenses")}</div>
-                <div className="text-2xl font-semibold text-neutral-800 mt-1">
-                  <Money value={expensePlannedTotal} currency={app.currency} />
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-neutral-200 p-4">
-                <div className="text-sm text-neutral-700">{t("remainingExpenses")}</div>
-                <div className="text-2xl font-semibold text-neutral-800 mt-1">
-                  <Money value={expenseRemainingTotal} currency={app.currency} />
-                </div>
-                <div className="text-xs text-neutral-600 mt-2">
-                  <div>{t("plannedExpenses")}: {currencySymbol}{expensePlannedTotal.toFixed(2)}</div>
-                  <div>{t("paidExpenses")}: {currencySymbol}{expensePaidTotal.toFixed(2)}</div>
-                </div>
-              </div>
-
-              <div className={`rounded-2xl border p-4 ${netRemaining >= 0 ? "border-[#D5FF00]" : "border-red-200"}`}>
-                <div className="text-sm text-neutral-700">{t("netRemaining")}</div>
-                <div className="text-2xl font-semibold text-neutral-800 mt-1">
-                  <Money value={netRemaining} currency={app.currency} />
-                </div>
-                <div className="text-xs text-neutral-700 mt-2">
-                  {t("savingsRate")}: <span className="font-medium">{savingsRate == null ? "—" : `${savingsRate.toFixed(1)}%`}</span>
-                </div>
-              </div>
-
-              {bankBalance > 0 && (
-                <div className={`rounded-2xl border p-4 ${balanceAfterUnpaid >= 0 ? "border-[#D5FF00]/50" : "border-red-200"}`}>
-                  <div className="text-sm text-neutral-700">{t("balanceAfterUnpaidExpenses")}</div>
-                  <div className="text-2xl font-semibold text-neutral-800 mt-1">
-                    <Money value={balanceAfterUnpaid} currency={app.currency} />
-                  </div>
-                  <div className="text-xs text-neutral-600 mt-2">
-                    {t("projectedBalanceDesc")}
-                  </div>
-                </div>
-              )}
-
-              <div className="rounded-2xl border border-neutral-200 p-4">
-                <div className="text-sm text-neutral-700">{t("quickView")}</div>
-                <div className="mt-2 text-sm text-neutral-700 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span>{t("sections")}</span>
-                    <span className="font-medium text-neutral-800">{(active.expenseGroups || []).length}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>{t("expenseItems")}</span>
-                    <span className="font-medium text-neutral-800">{(active.expenseGroups || []).reduce((s, gg) => s + (gg.items || []).length, 0)}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>{t("unpaidItems")}</span>
-                    <span className="font-medium text-neutral-800">{(active.expenseGroups || []).reduce((s, gg) => s + (gg.items || []).filter((it) => !it.paid).length, 0)}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="text-xs text-neutral-600">{t("tip")}</div>
-            </div>
-              )}
-          </div>
           </div>
         </div>
 
