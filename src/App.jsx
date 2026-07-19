@@ -194,10 +194,24 @@ const lsSet = (key, value) => {
 // UI primitives (MASTER: Check-It)
 // ---------------------------
 
+const BUTTON_FOCUS = "focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D5FF00] focus-visible:ring-offset-2";
+const BUTTON_DISABLED = "disabled:opacity-50 disabled:cursor-not-allowed disabled:active:translate-y-0";
+
+function useModalEscape(open, onClose) {
+  useEffect(() => {
+    if (!open) return undefined;
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open, onClose]);
+}
+
 function SmallButton({ children, onClick, tone = "default", className = "", disabled, title, type = "button" }) {
   const cls =
     tone === "primary"
-      ? "bg-[#D5FF00]/30 border-[#D5FF00]/30 text-neutral-800 shadow-sm hover:bg-white hover:border-neutral-200"
+      ? "bg-[#D5FF00] border-[#D5FF00] text-neutral-900 shadow-sm hover:bg-[#c7f000] hover:border-[#c7f000]"
       : tone === "danger"
         ? "bg-red-50 hover:bg-red-100 text-red-700 border-red-200 shadow-sm"
         : "bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 text-neutral-700 border-neutral-200 shadow-sm";
@@ -208,7 +222,7 @@ function SmallButton({ children, onClick, tone = "default", className = "", disa
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className={`print:hidden px-3 py-2 rounded-xl text-sm font-medium border transition active:translate-y-[1px] disabled:opacity-50 disabled:cursor-not-allowed ${cls} ${className}`}
+      className={`print:hidden min-h-11 sm:min-h-10 px-3 py-2 rounded-xl text-sm font-medium border transition active:translate-y-[1px] ${BUTTON_FOCUS} ${BUTTON_DISABLED} ${cls} ${className}`}
     >
       {children}
     </button>
@@ -217,12 +231,12 @@ function SmallButton({ children, onClick, tone = "default", className = "", disa
 
 /** Normalized Top Actions (mobile-aligned “table/grid”) */
 const ACTION_BASE =
-  "print:hidden h-9 px-6 rounded-xl text-xs font-medium border transition shadow-sm active:translate-y-[1px] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center";
+  `print:hidden min-h-11 sm:min-h-9 px-4 sm:px-6 rounded-xl text-xs font-medium border transition shadow-sm active:translate-y-[1px] focus-within:outline-none focus-within:ring-2 focus-within:ring-[#D5FF00] focus-within:ring-offset-2 ${BUTTON_FOCUS} ${BUTTON_DISABLED} flex items-center justify-center`;
 
 function ActionButton({ children, onClick, tone = "default", disabled, title }) {
   const cls =
     tone === "primary"
-      ? "bg-[#D5FF00]/30 border-[#D5FF00]/30 text-neutral-800 hover:bg-white hover:border-neutral-200"
+      ? "bg-[#D5FF00] border-[#D5FF00] text-neutral-900 hover:bg-[#c7f000] hover:border-[#c7f000]"
       : tone === "danger"
         ? "bg-red-50 hover:bg-red-100 text-red-700 border-red-200"
         : "bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 text-neutral-700 border-neutral-200";
@@ -237,7 +251,7 @@ function ActionButton({ children, onClick, tone = "default", disabled, title }) 
 function ActionFileButton({ children, onFile, accept = "application/json", tone = "primary", title }) {
   const cls =
     tone === "primary"
-      ? "bg-[#D5FF00]/30 border-[#D5FF00]/30 text-neutral-800 hover:bg-white hover:border-neutral-200"
+      ? "bg-[#D5FF00] border-[#D5FF00] text-neutral-900 hover:bg-[#c7f000] hover:border-[#c7f000]"
       : "bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 text-neutral-700 border-neutral-200";
 
   return (
@@ -246,7 +260,7 @@ function ActionFileButton({ children, onFile, accept = "application/json", tone 
       <input
         type="file"
         accept={accept}
-        className="hidden"
+        className="sr-only"
         onChange={(e) => {
           const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
           if (typeof onFile === "function") onFile(file);
@@ -259,7 +273,7 @@ function ActionFileButton({ children, onFile, accept = "application/json", tone 
 function MiniActionButton({ children, onClick, tone = "default", disabled, title, className = "" }) {
   const cls =
     tone === "primary"
-      ? "bg-[#D5FF00]/30 border-[#D5FF00]/30 text-neutral-800 hover:bg-white hover:border-neutral-200"
+      ? "bg-[#D5FF00] border-[#D5FF00] text-neutral-900 hover:bg-[#c7f000] hover:border-[#c7f000]"
       : tone === "danger"
         ? "bg-red-50 hover:bg-red-100 text-red-700 border-red-200"
         : "bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 text-neutral-700 border-neutral-200";
@@ -270,7 +284,7 @@ function MiniActionButton({ children, onClick, tone = "default", disabled, title
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className={`print:hidden h-10 w-full rounded-xl text-sm font-medium border transition shadow-sm active:translate-y-[1px] disabled:opacity-50 disabled:cursor-not-allowed ${cls} ${className}`}
+      className={`print:hidden min-h-11 sm:min-h-10 w-full rounded-xl text-sm font-medium border transition shadow-sm active:translate-y-[1px] ${BUTTON_FOCUS} ${BUTTON_DISABLED} ${cls} ${className}`}
     >
       {children}
     </button>
@@ -300,7 +314,7 @@ function DragHandle({ title = "Drag to reorder" }) {
   return (
     <div
       title={title}
-      className="print:hidden select-none h-10 w-10 rounded-xl border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 shadow-sm flex items-center justify-center text-neutral-700 cursor-grab active:cursor-grabbing"
+      className={`print:hidden select-none h-11 w-11 sm:h-10 sm:w-10 rounded-xl border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 shadow-sm flex items-center justify-center text-neutral-700 cursor-grab active:cursor-grabbing ${BUTTON_FOCUS}`}
       aria-label={title}
     >
       <span className="leading-none text-lg">⋮⋮</span>
@@ -308,11 +322,12 @@ function DragHandle({ title = "Drag to reorder" }) {
   );
 }
 
-function PaidCheck({ checked, onChange }) {
+function PaidCheck({ checked, onChange, label = "Paid" }) {
   return (
     <label className="print:hidden h-6 w-6 rounded-md border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 flex items-center justify-center cursor-pointer">
       <input
         type="checkbox"
+        aria-label={label}
         className="h-3.5 w-3.5 accent-[#D5FF00]"
         checked={!!checked}
         onChange={(e) => {
@@ -444,35 +459,42 @@ function NoteEditorModal({ open, onClose, item, groupName, onSave, onClear, t })
       setPinned(!!item.notePinned);
     }
   }, [open, item]);
+  useModalEscape(open, onClose);
 
   if (!open || !item) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8 print:hidden">
       <div className="absolute inset-0 bg-neutral-900/40 backdrop-blur-sm transition-opacity" onClick={onClose} />
-      <div className="relative w-full max-w-lg bg-white rounded-[32px] shadow-2xl overflow-hidden ring-1 ring-black/5 transform transition-all flex flex-col">
-        <div className="px-6 pt-6 pb-4">
-          <div className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-1">{groupName}</div>
-          <div className="font-bold text-2xl text-neutral-900 tracking-tight">{t("note")} — {item.name || t("unnamed")}</div>
+      <div role="dialog" aria-modal="true" aria-labelledby="note-editor-title" className="relative w-full max-w-lg bg-white rounded-[28px] shadow-2xl overflow-hidden ring-1 ring-black/5 transform transition-all flex flex-col">
+        <div className="px-6 py-5 border-b border-neutral-100 flex items-start justify-between gap-4">
+          <div>
+            <div className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1">{groupName}</div>
+            <h2 id="note-editor-title" className="font-bold text-2xl text-neutral-900 tracking-tight">{t("note")} — {item.name || t("unnamed")}</h2>
+          </div>
+          <button type="button" onClick={onClose} aria-label={t("close")} className={`h-11 w-11 shrink-0 rounded-xl border border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-100 ${BUTTON_FOCUS}`}>×</button>
         </div>
         
-        <div className="px-6 pb-6 space-y-4">
-          <textarea
-            className="w-full h-40 rounded-xl border border-neutral-200 p-4 bg-neutral-50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-[#D5FF00] focus:border-transparent resize-none"
-            placeholder={t("notesPlaceholder")}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            autoFocus
-          />
+        <div className="p-6 space-y-4">
+          <label className="block">
+            <span className="block mb-2 text-sm font-semibold text-neutral-800">{t("notes")}</span>
+            <textarea
+              className="w-full h-40 rounded-xl border border-neutral-200 p-4 bg-neutral-50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-[#D5FF00] focus:border-transparent resize-none"
+              placeholder={t("notesPlaceholder")}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              autoFocus
+            />
+          </label>
           
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => setPinned(!pinned)}
-              className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition ${pinned ? "bg-[#D5FF00] text-neutral-900" : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"}`}
+              className={`min-h-11 flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition ${BUTTON_FOCUS} ${pinned ? "bg-[#D5FF00] text-neutral-900" : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"}`}
             >
               <PinIcon className="h-4 w-4" filled={pinned} />
-              {pinned ? "Pinned" : "Pin note"}
+              {pinned ? t("pinned") : t("pinNote")}
             </button>
           </div>
         </div>
@@ -482,23 +504,23 @@ function NoteEditorModal({ open, onClose, item, groupName, onSave, onClear, t })
             {item.note && (
               <button
                 onClick={() => {
-                  if (window.confirm("Clear this note?")) onClear();
+                  if (window.confirm(t("clearNoteConfirm"))) onClear();
                 }}
-                className="text-red-600 text-sm font-medium hover:underline px-2"
+                className={`min-h-11 rounded-xl border border-red-200 bg-white px-4 py-2 text-red-700 text-sm font-medium hover:bg-red-50 ${BUTTON_FOCUS}`}
               >
-                {t("clear")}
+                {t("deleteNote")}
               </button>
             )}
           </div>
-          <div className="flex gap-2">
-            <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium text-neutral-600 hover:bg-neutral-200 transition">
+          <div className="flex flex-wrap justify-end gap-2">
+            <button onClick={onClose} className={`min-h-11 px-4 py-2 rounded-xl border border-neutral-200 bg-white text-sm font-medium text-neutral-700 hover:bg-neutral-100 transition ${BUTTON_FOCUS}`}>
               {t("cancel")}
             </button>
             <button 
               onClick={() => onSave(text, pinned)}
-              className="px-6 py-2 rounded-xl text-sm font-bold bg-[#D5FF00] text-neutral-900 shadow-sm hover:bg-[#c7f000] transition"
+              className={`min-h-11 px-6 py-2 rounded-xl border border-[#D5FF00] text-sm font-bold bg-[#D5FF00] text-neutral-900 shadow-sm hover:bg-[#c7f000] transition ${BUTTON_FOCUS}`}
             >
-              Save
+              {t("save")}
             </button> 
           </div>
         </div>
@@ -528,14 +550,23 @@ function NotesPanel({ active, onJump, t }) {
     });
   }, [active, t]);
 
-  if (notes.length === 0) return null;
+  if (notes.length === 0) {
+    return (
+      <section className="rounded-2xl border border-neutral-200 bg-white mt-6 p-4" aria-labelledby="notes-empty-title">
+        <h2 id="notes-empty-title" className="font-semibold text-neutral-900">{t("notes")}</h2>
+        <p className="mt-1 text-sm text-neutral-600">{t("noNotes")}</p>
+      </section>
+    );
+  }
 
   return (
     <div className="rounded-2xl border border-neutral-200 bg-white mt-6 overflow-hidden">
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-full px-4 py-3 border-b border-neutral-100 font-semibold text-neutral-800 flex items-center justify-between transition ${isOpen ? "bg-[#D5FF00]" : "bg-white hover:bg-[#D5FF00]/30"}`}
+        aria-expanded={isOpen}
+        aria-controls="notes-panel-content"
+        className={`w-full min-h-11 px-4 py-3 border-b border-neutral-100 font-semibold text-neutral-800 flex items-center justify-between transition ${BUTTON_FOCUS} ${isOpen ? "bg-[#D5FF00]" : "bg-white hover:bg-[#D5FF00]/30"}`}
       >
         <div className="flex items-center gap-2">
           <NoteIcon className="h-5 w-5 text-neutral-500" />
@@ -544,7 +575,7 @@ function NotesPanel({ active, onJump, t }) {
         <ChevronDownIcon className={`h-5 w-5 text-neutral-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
       </button>
       {isOpen && (
-        <div className="divide-y divide-neutral-100">
+        <div id="notes-panel-content" className="divide-y divide-neutral-100">
           {notes.map(note => (
             <div key={note.id} className="p-4 hover:bg-neutral-50 transition">
               <div className="flex items-start justify-between gap-4">
@@ -557,10 +588,11 @@ function NotesPanel({ active, onJump, t }) {
                   <div className="text-sm text-neutral-700 whitespace-pre-wrap leading-relaxed">{note.note}</div>
                 </div>
                 <button
+                  type="button"
                   onClick={() => onJump(note.id)}
-                  className="shrink-0 text-xs font-medium text-[#D5FF00] bg-neutral-900 px-3 py-1.5 rounded-lg hover:bg-neutral-700 transition"
+                  className={`shrink-0 min-h-11 text-xs font-medium text-[#D5FF00] bg-neutral-900 px-3 py-2 rounded-lg hover:bg-neutral-700 transition ${BUTTON_FOCUS}`}
                 >
-                  Jump to item
+                  {t("jumpToItem")}
                 </button>
               </div>
             </div>
@@ -685,7 +717,7 @@ function DuePicker({ ym, value, onChange, lang = "en", t }) {
       labels.push(d.toLocaleDateString(locale, { weekday: "short" }));
     }
     return labels;
-  }, []);
+  }, [lang]);
 
   const days = useMemo(() => {
     const cells = [];
@@ -749,11 +781,11 @@ function DuePicker({ ym, value, onChange, lang = "en", t }) {
             <div className="text-sm font-semibold text-neutral-800">{monthLabel(ym, lang)}</div>
             <button
               type="button"
-              className="h-8 px-3 rounded-xl text-xs font-medium border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 text-neutral-800"
+              className={`min-h-11 px-3 rounded-xl text-xs font-medium border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 text-neutral-800 ${BUTTON_FOCUS}`}
               onClick={() => setOpen(false)}
               title={t("closeTitle")}
             >
-              Close
+              {t("close")}
             </button>
           </div>
 
@@ -774,7 +806,7 @@ function DuePicker({ ym, value, onChange, lang = "en", t }) {
                   <button
                     key={idx}
                     type="button"
-                    className={`h-8 rounded-xl text-sm tabular-nums border transition ${
+                    className={`min-h-10 rounded-xl text-sm tabular-nums border transition ${BUTTON_FOCUS} ${
                       selected
                         ? "bg-[#D5FF00] border-[#D5FF00] text-neutral-800"
                         : "bg-white border-neutral-200 text-neutral-700 hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800"
@@ -795,7 +827,7 @@ function DuePicker({ ym, value, onChange, lang = "en", t }) {
               <div className="text-xs text-neutral-600">{t("clickDay")}</div>
               <button
                 type="button"
-                className="h-8 px-3 rounded-xl text-xs font-medium border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 text-neutral-800"
+                className={`min-h-11 px-3 rounded-xl text-xs font-medium border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 text-neutral-800 ${BUTTON_FOCUS}`}
                 onClick={() => {
                   if (typeof onChange === "function") onChange(null);
                   setOpen(false);
@@ -828,7 +860,7 @@ function TogglePill({ on, labelOn = "On", labelOff = "Off", onClick, title }) {
       type="button"
       title={title}
       onClick={onClick}
-      className="print:hidden h-10 w-full rounded-xl text-sm font-medium border shadow-sm transition active:translate-y-[1px] flex items-center justify-between px-3 gap-2 bg-white border-neutral-200 text-neutral-700 hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 group"
+      className={`print:hidden min-h-11 sm:min-h-10 w-full rounded-xl text-sm font-medium border shadow-sm transition active:translate-y-[1px] flex items-center justify-between px-3 gap-2 bg-white border-neutral-200 text-neutral-700 hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 group ${BUTTON_FOCUS}`}
     >
       <span className="truncate">{on ? labelOn : labelOff}</span>
       <div
@@ -859,19 +891,22 @@ function HelpItem({ title, children }) {
 }
 
 function HelpModal({ open, onClose, t }) {
+  useModalEscape(open, onClose);
   if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 print:hidden">
       <div className="absolute inset-0 bg-neutral-900/60 backdrop-blur-sm transition-opacity" onClick={onClose} />
-      <div className="relative w-full max-w-2xl bg-white rounded-[32px] shadow-2xl overflow-hidden ring-1 ring-black/5 transform transition-all flex flex-col max-h-[90vh]">
+      <div role="dialog" aria-modal="true" aria-labelledby="help-modal-title" className="relative w-full max-w-2xl bg-white rounded-[28px] shadow-2xl overflow-hidden ring-1 ring-black/5 transform transition-all flex flex-col max-h-[90vh]">
         
         {/* Header */}
         <div className="relative px-8 pt-10 pb-8 bg-neutral-50 border-b border-neutral-100">
           <div className="absolute top-6 right-6">
             <button
+              type="button"
               onClick={onClose}
-              className="h-10 w-10 rounded-full bg-white border border-neutral-200 hover:bg-[#D5FF00] hover:border-[#D5FF00] hover:text-neutral-900 flex items-center justify-center text-neutral-500 transition-all shadow-sm"
+              aria-label={t("close")}
+              className={`h-11 w-11 rounded-xl bg-white border border-neutral-200 hover:bg-[#D5FF00] hover:border-[#D5FF00] hover:text-neutral-900 flex items-center justify-center text-neutral-600 transition-all shadow-sm ${BUTTON_FOCUS}`}
             >
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
@@ -881,7 +916,7 @@ function HelpModal({ open, onClose, t }) {
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
             </div>
             <div>
-              <h2 className="text-3xl font-black text-neutral-900 tracking-tight">{t("helpTitle")}</h2>
+              <h2 id="help-modal-title" className="text-3xl font-black text-neutral-900 tracking-tight">{t("helpTitle")}</h2>
               <p className="text-neutral-500 mt-2 font-medium max-w-md">{t("helpSubtitle")}</p>
             </div>
           </div>
@@ -983,7 +1018,8 @@ function HelpModal({ open, onClose, t }) {
   );
 }
 
-function ExportModal({ open, onClose, onPreview, onPrint, onBackup, onImport, t }) {
+function ExportModal({ open, onClose, onPrint, onBackup, onImport, t }) {
+  useModalEscape(open, onClose);
   if (!open) return null;
 
   const IconWrapper = ({ children }) => (
@@ -1012,7 +1048,7 @@ function ExportModal({ open, onClose, onPreview, onPrint, onBackup, onImport, t 
       </>
     );
 
-    const cls = "w-full p-3 rounded-2xl hover:bg-neutral-50 transition flex items-center gap-4 group active:scale-[0.98] border border-transparent hover:border-neutral-100";
+    const cls = `w-full min-h-14 p-3 rounded-2xl hover:bg-neutral-50 transition flex items-center gap-4 group active:scale-[0.98] border border-transparent hover:border-neutral-100 focus-within:outline-none focus-within:ring-2 focus-within:ring-[#D5FF00] focus-within:ring-offset-2 ${BUTTON_FOCUS}`;
 
     if (file) {
       return (
@@ -1021,7 +1057,7 @@ function ExportModal({ open, onClose, onPreview, onPrint, onBackup, onImport, t 
           <input
             type="file"
             accept="application/json"
-            className="hidden"
+            className="sr-only"
             onChange={(e) => {
               const f = e.target.files && e.target.files[0] ? e.target.files[0] : null;
               if (f) {
@@ -1052,27 +1088,23 @@ function ExportModal({ open, onClose, onPreview, onPrint, onBackup, onImport, t 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8 print:hidden"> 
       <div className="absolute inset-0 bg-neutral-900/40 backdrop-blur-sm transition-opacity" onClick={onClose} />
-      <div className="relative w-full max-w-sm bg-white rounded-[32px] shadow-2xl overflow-hidden ring-1 ring-black/5 transform transition-all">
+      <div role="dialog" aria-modal="true" aria-labelledby="export-modal-title" className="relative w-full max-w-sm bg-white rounded-[28px] shadow-2xl overflow-hidden ring-1 ring-black/5 transform transition-all">
         <div className="px-6 pt-6 pb-4 flex items-center justify-between">
           <div>
-            <div className="font-bold text-2xl text-neutral-900 tracking-tight">{t("export_title")}</div>
+            <h2 id="export-modal-title" className="font-bold text-2xl text-neutral-900 tracking-tight">{t("export_title")}</h2>
             <div className="text-sm text-neutral-500 font-medium mt-1">{t("export_subtitle")}</div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="h-8 w-8 rounded-full bg-neutral-100 hover:bg-[#D5FF00] hover:text-neutral-900 flex items-center justify-center text-neutral-600 transition"
+            aria-label={t("close")}
+            className={`h-11 w-11 rounded-xl bg-neutral-100 hover:bg-[#D5FF00] hover:text-neutral-900 flex items-center justify-center text-neutral-600 transition ${BUTTON_FOCUS}`}
           >
             <Icons.Close />
           </button>
         </div>
         
         <div className="px-4 pb-6 flex flex-col gap-2">
-          <ActionRow
-            icon={<Icons.Download />}
-            label={t("export_download_pdf_label")}
-            sub={t("export_download_pdf_sub")}
-            onClick={() => { onClose(); onPrint(); }}
-          />
           <ActionRow
             icon={<Icons.Print />}
             label={t("export_print_pdf_label")}
@@ -1112,13 +1144,7 @@ function MonthCopyModal({ sourceMonthKey, sourceMonth, months, lang, onClose, on
   const [copyEntryNotes, setCopyEntryNotes] = useState(DEFAULT_MONTH_COPY_OPTIONS.copyEntryNotes);
   const [copyMonthNote, setCopyMonthNote] = useState(DEFAULT_MONTH_COPY_OPTIONS.copyMonthNote);
 
-  useEffect(() => {
-    const onKeyDown = (event) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [onClose]);
+  useModalEscape(true, onClose);
 
   const destinationValid = isValidMonthKey(destinationMonthKey) && destinationMonthKey !== sourceMonthKey;
   const destinationState = destinationValid ? classifyMonthDestination(months, destinationMonthKey) : null;
@@ -1143,7 +1169,7 @@ function MonthCopyModal({ sourceMonthKey, sourceMonth, months, lang, onClose, on
             <h2 id="month-copy-title" className="text-2xl font-bold text-neutral-900">{t("copyMonth")}</h2>
             <p className="mt-1 text-sm text-neutral-600">{t("copySource", { month: sourceLabel })}</p>
           </div>
-          <button type="button" onClick={onClose} aria-label={t("close")} className="h-10 w-10 rounded-xl border border-neutral-200 text-neutral-600 hover:bg-neutral-100">×</button>
+          <button type="button" onClick={onClose} aria-label={t("close")} className={`h-11 w-11 rounded-xl border border-neutral-200 text-neutral-600 hover:bg-neutral-100 ${BUTTON_FOCUS}`}>×</button>
         </div>
 
         <div className="p-6 space-y-5">
@@ -1223,15 +1249,15 @@ function MonthCopyModal({ sourceMonthKey, sourceMonth, months, lang, onClose, on
           </div>
         </div>
 
-        <div className="sticky bottom-0 bg-white border-t border-neutral-100 p-4 flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium text-neutral-700 hover:bg-neutral-100">{t("cancel")}</button>
+        <div className="sticky bottom-0 bg-white border-t border-neutral-100 p-4 flex flex-wrap justify-end gap-2">
+          <button type="button" onClick={onClose} className={`min-h-11 px-4 py-2 rounded-xl border border-neutral-200 bg-white text-sm font-medium text-neutral-700 hover:bg-neutral-100 ${BUTTON_FOCUS}`}>{t("cancel")}</button>
           {destructive ? (
             <button
               type="button"
               disabled={!destinationValid}
               aria-describedby="month-copy-warning"
               onClick={() => onCopy({ destinationMonthKey, options, confirmReplace: true })}
-              className="px-5 py-2 rounded-xl text-sm font-bold bg-red-700 text-white hover:bg-red-800 disabled:opacity-40 disabled:cursor-not-allowed"
+              className={`min-h-11 px-5 py-2 rounded-xl border border-red-700 text-sm font-bold bg-red-700 text-white hover:bg-red-800 ${BUTTON_FOCUS} ${BUTTON_DISABLED}`}
             >
               {t("replaceMonthAction", { month: destinationLabel })}
             </button>
@@ -1240,7 +1266,7 @@ function MonthCopyModal({ sourceMonthKey, sourceMonth, months, lang, onClose, on
               type="button"
               disabled={!destinationValid}
               onClick={() => onCopy({ destinationMonthKey, options, confirmReplace: false })}
-              className="px-5 py-2 rounded-xl text-sm font-bold bg-[#D5FF00] text-neutral-900 hover:bg-[#c7f000] disabled:opacity-40 disabled:cursor-not-allowed"
+              className={`min-h-11 px-5 py-2 rounded-xl border border-[#D5FF00] text-sm font-bold bg-[#D5FF00] text-neutral-900 hover:bg-[#c7f000] ${BUTTON_FOCUS} ${BUTTON_DISABLED}`}
             >
               {t("createMonthAction", { month: destinationLabel })}
             </button>
@@ -1319,7 +1345,7 @@ function BalanceCheck({
 
         <div>
           <div className="text-xs text-neutral-600 font-medium">{t("pendingMoneyIn")}</div>
-          <div className="mt-1 grid grid-cols-[1fr_82px_36px] gap-1.5">
+          <div className="mt-1 grid grid-cols-[1fr_82px_44px] gap-1.5">
             <input
               className="min-w-0 rounded-lg border border-neutral-200 px-2 py-1.5 bg-white text-neutral-800 text-xs focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 focus:border-neutral-300"
               value={draftLabel}
@@ -1345,7 +1371,7 @@ function BalanceCheck({
               type="button"
               onClick={addPendingEntry}
               disabled={!canAddPending}
-              className="h-8 rounded-lg border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 text-neutral-700 text-sm font-bold disabled:opacity-40 disabled:cursor-not-allowed"
+              className={`h-11 rounded-lg border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 text-neutral-700 text-sm font-bold ${BUTTON_FOCUS} ${BUTTON_DISABLED}`}
               title={t("addPendingIncome")}
             >
               +
@@ -1361,15 +1387,16 @@ function BalanceCheck({
                   <button
                     type="button"
                     onClick={() => onDeletePendingIncome(entry.id)}
-                    className="h-5 w-5 shrink-0 rounded-md text-neutral-400 hover:text-red-700 hover:bg-red-50"
+                    className={`h-11 w-11 shrink-0 rounded-lg border border-red-200 text-red-700 hover:bg-red-50 ${BUTTON_FOCUS}`}
                     title={t("removeTitle")}
+                    aria-label={`${t("delete")}: ${entry.label || t("pendingIncomeFallback")}`}
                   >
                     x
                   </button>
                 </div>
               ))}
             </div>
-          ) : null}
+          ) : <div className="mt-2 text-xs text-neutral-500">{t("noPendingIncome")}</div>}
 
           <div className="mt-2 flex items-center justify-between text-xs">
             <span className="text-neutral-600">{t("pendingMoneyTotal")}</span>
@@ -1614,11 +1641,12 @@ const TRANSLATIONS = {
     clear: "Clear",
     startAgain: "Start Again",
     income: "Income",
-    addIncome: "+ Add income",
+    addIncome: "Add income",
     totalIncome: "Expected Income",
     totalExpenses: "Planned Expenses",
     expenses: "Expenses",
-    addSection: "+ Add section",
+    addSection: "Add group",
+    addExpense: "Add expense",
     hidePaid: "Hide paid",
     showPaid: "Show paid",
     expandAll: "Expand all",
@@ -1626,7 +1654,7 @@ const TRANSLATIONS = {
     sortDue: "Sort due",
     clearPaid: "Clear paid",
     clearItems: "Clear items",
-    deleteSection: "Delete section",
+    deleteSection: "Delete group",
     notes: "Notes",
     notesPlaceholder: "Optional notes for this month…",
     summary: "Summary",
@@ -1657,10 +1685,18 @@ const TRANSLATIONS = {
     printSave: "Print / Save PDF",
     close: "Close",
     generated: "Generated",
-    noIncome: "No income items yet.",
-    noExpenses: "No expense sections yet. Click “Add section”.",
+    noIncome: "No income added yet.",
+    noExpenses: "No expense groups added yet.",
     noItems: "No items.",
-    noItemsSection: "No items in this section.",
+    noItemsSection: "No expenses in this group.",
+    noPendingIncome: "No pending income.",
+    noNotes: "No notes added.",
+    save: "Save",
+    pinned: "Pinned",
+    pinNote: "Pin note",
+    deleteNote: "Delete note",
+    clearNoteConfirm: "Delete this note?",
+    jumpToItem: "Go to expense",
     collapsedDrop: "Collapsed. Drop an item here to move it into this section.",
     due: "Due",
     backup: "Backup (JSON)",
@@ -1735,9 +1771,9 @@ const TRANSLATIONS = {
     unnamed: "(unnamed)",
     none: "(none)",
     salary: "Salary",
-    newSection: "New section",
+    newSection: "New group",
     expense: "Expense",
-    sectionLabel: "Section label (e.g., Loans)",
+    sectionLabel: "Group name (e.g., Loans)",
     incomeName: "Income name",
     sourceLabel: "Source",
     incomeDate: "Date",
@@ -1782,11 +1818,11 @@ const TRANSLATIONS = {
     monthTitle: "Month",
     dragIncomeTitle: "Drag income item",
     dragSectionTitle: "Drag section",
-    removeTitle: "Remove",
+    removeTitle: "Delete",
     sortDueTitle: "Sort by due day (earliest first)",
     clearPaidTitle: "Remove all PAID items in this section",
     clearItemsTitle: "Clear ALL items in this section",
-    deleteSectionTitle: "Delete this section and all its items",
+    deleteSectionTitle: "Delete this group and all its expenses",
     dragExpenseTitle: "Drag expense item",
     closeTitle: "Close",
     clearDueTitle: "Clear due date",
@@ -1872,9 +1908,9 @@ const TRANSLATIONS = {
     export_print_pdf_sub: "Prints preview sheet only",
     export_email_label: "Create Email Draft",
     export_email_sub: "Share via email",
-    export_download_json_label: "Download JSON",
+    export_download_json_label: "Export backup",
     export_download_json_sub: "Backup your data",
-    export_import_json_label: "Import JSON",
+    export_import_json_label: "Import backup",
     export_import_json_sub: "Import replaces current app data. Export first if unsure.",
   },
   de: {
@@ -1928,11 +1964,12 @@ const TRANSLATIONS = {
     clear: "Leeren",
     startAgain: "Neu starten",
     income: "Einkommen",
-    addIncome: "+ Einkommen",
+    addIncome: "Einnahme hinzufügen",
     totalIncome: "Erwartete Einnahmen",
     totalExpenses: "Geplante Ausgaben",
     expenses: "Ausgaben",
-    addSection: "+ Abschnitt",
+    addSection: "Gruppe hinzufügen",
+    addExpense: "Ausgabe hinzufügen",
     hidePaid: "Bezahlte ausblenden",
     showPaid: "Bezahlte anzeigen",
     expandAll: "Alle erweitern",
@@ -1940,7 +1977,7 @@ const TRANSLATIONS = {
     sortDue: "Fälligkeit sort.",
     clearPaid: "Bezahlte leeren",
     clearItems: "Elemente leeren",
-    deleteSection: "Abschnitt löschen",
+    deleteSection: "Gruppe löschen",
     notes: "Notizen",
     notesPlaceholder: "Optionale Notizen für diesen Monat…",
     summary: "Zusammenfassung",
@@ -1971,10 +2008,18 @@ const TRANSLATIONS = {
     printSave: "Drucken / PDF speichern",
     close: "Schließen",
     generated: "Erstellt",
-    noIncome: "Keine Einkommenselemente.",
-    noExpenses: "Keine Ausgabenabschnitte. Klicken Sie auf „+ Abschnitt“.",
+    noIncome: "Noch keine Einnahmen hinzugefügt.",
+    noExpenses: "Noch keine Ausgabengruppen hinzugefügt.",
     noItems: "Keine Elemente.",
-    noItemsSection: "Keine Elemente in diesem Abschnitt.",
+    noItemsSection: "Keine Ausgaben in dieser Gruppe.",
+    noPendingIncome: "Keine ausstehenden Einnahmen.",
+    noNotes: "Keine Notizen hinzugefügt.",
+    save: "Speichern",
+    pinned: "Angeheftet",
+    pinNote: "Notiz anheften",
+    deleteNote: "Notiz löschen",
+    clearNoteConfirm: "Diese Notiz löschen?",
+    jumpToItem: "Zur Ausgabe",
     collapsedDrop: "Eingeklappt. Element hier ablegen, um es in diesen Abschnitt zu verschieben.",
     due: "Fällig",
     backup: "Sicherung (JSON)",
@@ -2049,9 +2094,9 @@ const TRANSLATIONS = {
     unnamed: "(unbenannt)",
     none: "(keine)",
     salary: "Gehalt",
-    newSection: "Neuer Abschnitt",
+    newSection: "Neue Gruppe",
     expense: "Ausgabe",
-    sectionLabel: "Abschnittsbezeichnung (z. B. Kredite)",
+    sectionLabel: "Gruppenname (z. B. Kredite)",
     incomeName: "Einkommensname",
     sourceLabel: "Quelle",
     incomeDate: "Datum",
@@ -2096,11 +2141,11 @@ const TRANSLATIONS = {
     monthTitle: "Monat",
     dragIncomeTitle: "Einkommenselement ziehen",
     dragSectionTitle: "Abschnitt ziehen",
-    removeTitle: "Entfernen",
+    removeTitle: "Löschen",
     sortDueTitle: "Nach Fälligkeit sortieren (früheste zuerst)",
     clearPaidTitle: "Alle BEZAHLTEN Elemente in diesem Abschnitt entfernen",
     clearItemsTitle: "ALLE Elemente in diesem Abschnitt leeren",
-    deleteSectionTitle: "Diesen Abschnitt und alle seine Elemente löschen",
+    deleteSectionTitle: "Diese Gruppe und alle Ausgaben löschen",
     dragExpenseTitle: "Ausgabenelement ziehen",
     closeTitle: "Schließen",
     clearDueTitle: "Fälligkeitsdatum löschen",
@@ -2186,9 +2231,9 @@ const TRANSLATIONS = {
     export_print_pdf_sub: "Druckt nur das Vorschaublatt",
     export_email_label: "E-Mail-Entwurf erstellen",
     export_email_sub: "Per E-Mail teilen",
-    export_download_json_label: "JSON herunterladen",
+    export_download_json_label: "Sicherung exportieren",
     export_download_json_sub: "Sichern Sie Ihre Daten",
-    export_import_json_label: "JSON importieren",
+    export_import_json_label: "Sicherung importieren",
     export_import_json_sub: "Der Import ersetzt die aktuellen App-Daten. Im Zweifelsfall zuerst exportieren.",
   }
 };
@@ -2209,6 +2254,7 @@ export default function BudgitApp() {
   const toastTimer = useRef(null);
 
   const [previewOpen, setPreviewOpen] = useState(false);
+  useModalEscape(previewOpen, () => setPreviewOpen(false));
   const [helpOpen, setHelpOpen] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
 
@@ -2665,7 +2711,6 @@ export default function BudgitApp() {
     setApp(next);
     setSaveErrorCode(null);
     setSaveStatus("imported");
-    notify(t("imported"));
   };
 
   const openPreview = () => setPreviewOpen(true);
@@ -2823,7 +2868,6 @@ export default function BudgitApp() {
       <ExportModal
         open={exportModalOpen}
         onClose={() => setExportModalOpen(false)}
-        onPreview={openPreview}
         onPrint={() => window.print()}
         onBackup={exportJSON}
         onImport={importJSON}
@@ -2846,27 +2890,30 @@ export default function BudgitApp() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8 print:p-0 print:static print:block print:h-auto">
           <div className="absolute inset-0 bg-neutral-900/40 backdrop-blur-sm transition-opacity print:hidden" onClick={() => setPreviewOpen(false)} />
 
-          <div className="relative w-full max-w-4xl bg-white rounded-[32px] shadow-2xl overflow-hidden ring-1 ring-black/5 transform transition-all flex flex-col max-h-[90vh] print:max-h-none print:rounded-none print:shadow-none print:overflow-visible print:static print:w-full print:max-w-none print:transform-none">
+          <div role="dialog" aria-modal="true" aria-labelledby="print-preview-title" className="relative w-full max-w-4xl bg-white rounded-[28px] shadow-2xl overflow-hidden ring-1 ring-black/5 transform transition-all flex flex-col max-h-[90vh] print:max-h-none print:rounded-none print:shadow-none print:overflow-visible print:static print:w-full print:max-w-none print:transform-none">
             
             <div className="px-8 pt-8 pb-6 flex items-start justify-between shrink-0 print:hidden">
               <div>
                 <div className="inline-block">
-                  <div className="font-bold text-3xl text-neutral-900 tracking-tight">{t("printPreview")}</div>
+                  <h2 id="print-preview-title" className="font-bold text-3xl text-neutral-900 tracking-tight">{t("printPreview")}</h2>
                   <div className="mt-2 h-1 w-full rounded-full bg-[#D5FF00]" />
                 </div>
                 <div className="text-sm text-neutral-500 mt-3 font-medium max-w-md">{t("previewTip")}</div>
               </div>
               <div className="flex items-center gap-3">
                 <button
+                  type="button"
                   onClick={() => window.print()}
-                  className="h-10 px-5 rounded-full bg-[#D5FF00] hover:bg-[#c7f000] text-neutral-900 font-bold text-sm transition flex items-center gap-2 shadow-sm active:scale-[0.98]"
+                  className={`min-h-11 px-5 rounded-xl bg-[#D5FF00] hover:bg-[#c7f000] text-neutral-900 font-bold text-sm transition flex items-center gap-2 shadow-sm active:scale-[0.98] ${BUTTON_FOCUS}`}
                 >
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
                   {t("printSave")}
                 </button>
                 <button
+                  type="button"
                   onClick={() => setPreviewOpen(false)}
-                  className="h-10 w-10 rounded-full bg-neutral-100 hover:bg-[#D5FF00] hover:text-neutral-900 flex items-center justify-center text-neutral-600 transition"
+                  aria-label={t("close")}
+                  className={`h-11 w-11 rounded-xl bg-neutral-100 hover:bg-[#D5FF00] hover:text-neutral-900 flex items-center justify-center text-neutral-600 transition ${BUTTON_FOCUS}`}
                 >
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
@@ -2922,12 +2969,12 @@ export default function BudgitApp() {
                               <div className="text-sm text-neutral-700 print:text-[10px]">
                                 {t("remainingExpenses")}: <span className="font-semibold text-neutral-800">{currencySymbol}{groupRemainingTotal(g).toFixed(2)}</span>
                                 <span className="text-neutral-400"> • </span>
-                                Planned: <span className="font-medium">{currencySymbol}{groupPlannedTotal(g).toFixed(2)}</span>
+                                {t("plannedExpenses")}: <span className="font-medium">{currencySymbol}{groupPlannedTotal(g).toFixed(2)}</span>
                               </div>
                             </div>
                             <div className="p-3 space-y-2 print:p-2 print:space-y-1">
                               {(g.items || []).length === 0 ? (
-                                <div className="text-sm text-neutral-700 print:text-xs">No items.</div>
+                                <div className="text-sm text-neutral-700 print:text-xs">{t("noItemsSection")}</div>
                               ) : (
                                 (g.items || []).map((e) => {
                                   const info = dueInfo(app.activeMonth, e.dueDay, app.lang);
@@ -3465,8 +3512,8 @@ export default function BudgitApp() {
                                 </div>
                               </div>
 
-                              <SmallButton tone="primary" onClick={() => addExpenseItem(g.id)} className="whitespace-nowrap px-4 text-xs sm:text-sm" title="Add item">
-                                +
+                              <SmallButton tone="primary" onClick={() => addExpenseItem(g.id)} className="whitespace-nowrap px-4 text-xs sm:text-sm" title={t("addExpense")}>
+                                {t("addExpense")}
                               </SmallButton>
                             </div>
 
@@ -3586,7 +3633,7 @@ export default function BudgitApp() {
                                     </div>
 
                                     <div className="flex justify-center">
-                                      <PaidCheck checked={!!e.paid} onChange={(v) => updateExpenseItem(g.id, e.id, { paid: !!v })} />
+                                      <PaidCheck checked={!!e.paid} label={e.paid ? t("paidState") : t("unpaidState")} onChange={(v) => updateExpenseItem(g.id, e.id, { paid: !!v })} />
                                     </div>
 
                                     <input
