@@ -34,6 +34,7 @@ import {
   parseMoney,
 } from "./domain/calculations.js";
 import { createExpenseAttentionSummary, formatSavingsRate } from "./domain/dashboardSummary.js";
+import { normalizeExpenseDueDay } from "./domain/dueDay.js";
 import { getMobileExpensePresentation, getMobileIncomePresentation } from "./domain/mobilePresentation.js";
 import { calculateYearOverview } from "./domain/yearOverview.js";
 import {
@@ -1496,7 +1497,7 @@ const normalizeExpenseItem = (x) => ({
   id: x && x.id ? x.id : uid(),
   name: x && typeof x.name === "string" ? x.name : "",
   amount: x && x.amount != null ? x.amount : "0",
-  dueDay: x && x.dueDay != null ? Number(x.dueDay) : null,
+  dueDay: normalizeExpenseDueDay(x?.dueDay),
   paid: !!(x && x.paid),
   note: x && typeof x.note === "string" ? x.note : "",
   notePinned: !!(x && x.notePinned),

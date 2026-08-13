@@ -11,6 +11,7 @@ import {
   isMonthMeaningfullyEmpty,
 } from "../src/domain/monthCopy.js";
 import { validateApplicationState } from "../src/domain/backupSchema.js";
+import { canonicalizeBlankDueDay, normalizeExpenseDueDay } from "../src/domain/dueDay.js";
 
 const emptyMonth = () => ({ incomes: [], expenseGroups: [{ id: "default", label: "General", items: [] }], notes: "", transactions: [], bankBalance: "", overdraftLimit: "", pendingIncomeEntries: [], pendingMoneyIn: "", pendingMoneyLabel: "" });
 const populatedMonth = () => ({
@@ -263,4 +264,69 @@ test("validated copy rejects malformed options and unsafe generated IDs", () => 
   assert.equal(invalidIds.code, "copy_generation_failed");
   assert.equal(invalidIds.validationErrors[0].code, "invalid_generated_id");
   assert.equal(Object.hasOwn(app.months, "2026-08"), false);
+});
+
+test("blank persisted due days normalize before validated month copy", () => {
+  const source = populatedMonth();
+  source.transactions = [];
+  source.expenseGroups[0].items[0].dueDay = normalizeExpenseDueDay("");
+  const snapshot = structuredClone(source);
+  const app = { activeMonth: "2026-07", months: { "2026-07": source }, lang: "en", currency: "EUR" };
+
+  const result = applyValidatedMonthCopyToApp({
+    app,
+    sourceMonthKey: "2026-07",
+    destinationMonthKey: "2026-08",
+    idFactory: deterministicIds(),
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.copiedMonth.expenseGroups[0].items[0].dueDay, null);
+  assert.equal(validateApplicationState(result.app).valid, true);
+  assert.deepEqual(JSON.parse(JSON.stringify(result.app)), result.app);
+  assert.deepEqual(source, snapshot);
+});
+
+test("due-day normalization changes only blank no-value representations", () => {
+  for (const blank of ["", "   ", null, undefined]) {
+    assert.equal(normalizeExpenseDueDay(blank), null);
+  }
+  for (const dueDay of [1, 15, 31]) {
+    assert.equal(normalizeExpenseDueDay(dueDay), dueDay);
+  }
+  for (const invalid of [0, -1, 32]) {
+    assert.equal(normalizeExpenseDueDay(invalid), invalid);
+  }
+  assert.equal(Number.isNaN(normalizeExpenseDueDay("not-a-day")), true);
+});
+
+test("copy retains invalid nonblank due days so focused validation rejects them", () => {
+  for (const dueDay of [0, -1, 32, "not-a-day"]) {
+    const source = populatedMonth();
+    source.expenseGroups[0].items[0].dueDay = dueDay;
+    const snapshot = structuredClone(source);
+    const app = { activeMonth: "2026-07", months: { "2026-07": source }, lang: "en", currency: "EUR" };
+    const result = applyValidatedMonthCopyToApp({
+      app,
+      sourceMonthKey: "2026-07",
+      destinationMonthKey: "2026-08",
+      idFactory: deterministicIds(),
+    });
+
+    assert.equal(result.ok, false);
+    assert.equal(result.code, "invalid_copied_month");
+    assert.equal(result.validationErrors[0].code, "invalid_due_day");
+    assert.equal(Object.hasOwn(app.months, "2026-08"), false);
+    assert.deepEqual(source, snapshot);
+  }
+});
+
+test("copy canonicalizes a directly supplied blank due day without accepting other invalid values", () => {
+  const source = populatedMonth();
+  source.expenseGroups[0].items[0].dueDay = "";
+  const copied = createCopiedMonth({ sourceMonth: source, idFactory: deterministicIds() });
+
+  assert.equal(copied.expenseGroups[0].items[0].dueDay, null);
+  assert.equal(canonicalizeBlankDueDay(0), 0);
+  assert.equal(source.expenseGroups[0].items[0].dueDay, "");
 });

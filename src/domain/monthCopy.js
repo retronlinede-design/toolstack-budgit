@@ -1,4 +1,5 @@
 import { validateApplicationMonth } from "./backupSchema.js";
+import { canonicalizeBlankDueDay } from "./dueDay.js";
 
 const MONTH_KEY = /^(\d{4})-(0[1-9]|1[0-2])$/;
 
@@ -67,7 +68,9 @@ function copyExpenseEntry(expense, options, idFactory, groupId) {
     id: nextId(idFactory, "expense"),
     name: typeof expense?.name === "string" ? expense.name : "",
     amount: expense?.amount ?? "0",
-    dueDay: Number.isInteger(expense?.dueDay) ? expense.dueDay : null,
+    // Blank legacy values mean "no due date". Preserve every other value so
+    // focused destination validation can reject malformed/out-of-range data.
+    dueDay: canonicalizeBlankDueDay(expense?.dueDay),
     paid: false,
     note: options.copyEntryNotes && typeof expense?.note === "string" ? expense.note : "",
     notePinned: options.copyEntryNotes && !!expense?.notePinned,
