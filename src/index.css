@@ -420,6 +420,93 @@ textarea {
     @apply flex w-fit items-center gap-1 rounded-lg border border-neutral-200 bg-white p-1;
   }
 
+  .command-bubble-wrap {
+    @apply relative z-40 w-full max-w-sm md:w-auto;
+  }
+
+  .command-bubble-collapsed {
+    @apply flex min-h-12 w-full items-center justify-between gap-2 rounded-xl border border-neutral-700 bg-neutral-900 p-1.5 pl-3 text-white shadow-sm md:w-auto;
+    box-shadow: inset 2px 0 0 var(--budgit-lime);
+  }
+
+  .command-save-state {
+    @apply flex min-w-0 items-center gap-2 whitespace-nowrap text-[11px] font-semibold text-neutral-300;
+  }
+
+  .command-save-state-error {
+    @apply text-red-300;
+  }
+
+  .command-save-dot {
+    @apply h-1.5 w-1.5 shrink-0 rounded-full bg-[#D5FF00];
+  }
+
+  .command-save-dot-saving {
+    @apply bg-neutral-400;
+  }
+
+  .command-launcher {
+    @apply flex min-h-9 shrink-0 items-center gap-2 rounded-lg border border-neutral-600 bg-neutral-800 px-3 text-xs font-bold text-white transition hover:border-neutral-500 hover:bg-neutral-700;
+  }
+
+  .command-launcher-mark {
+    @apply flex h-5 w-5 items-center justify-center rounded bg-[#D5FF00] text-xs font-black text-neutral-950;
+  }
+
+  .command-save-error {
+    @apply mt-1 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-xs leading-4 text-red-800 md:max-w-sm;
+  }
+
+  .command-panel {
+    @apply absolute right-0 top-[calc(100%+0.5rem)] z-50 w-full overflow-hidden rounded-xl border border-neutral-300 bg-white p-3 shadow-xl md:w-[22rem];
+    max-width: calc(100vw - 2rem);
+  }
+
+  .command-panel-heading {
+    @apply mb-2 flex items-center justify-between border-b border-neutral-200 px-1 pb-2 text-[11px] font-bold uppercase tracking-[0.1em] text-neutral-500;
+  }
+
+  .command-panel-active {
+    @apply font-mono text-[10px] tracking-[0.08em] text-neutral-400;
+  }
+
+  .command-group {
+    @apply border-b border-neutral-100 py-2 last:border-b-0;
+  }
+
+  .command-group-label {
+    @apply mb-1.5 text-[9px] font-bold uppercase tracking-[0.12em] text-neutral-400;
+  }
+
+  .command-grid {
+    @apply grid grid-cols-2 gap-1.5;
+  }
+
+  .command-action {
+    @apply flex min-h-10 w-full items-center gap-2 rounded-lg border border-transparent bg-neutral-50 px-3 text-left text-xs font-semibold text-neutral-800 transition hover:border-neutral-200 hover:bg-neutral-100;
+  }
+
+  .command-action > :first-child {
+    @apply flex w-4 shrink-0 items-center justify-center font-mono text-xs font-bold text-neutral-500;
+  }
+
+  .command-preferences {
+    @apply grid grid-cols-1 gap-3 bg-neutral-50 px-3 py-3 sm:grid-cols-2;
+    margin: 0.5rem -0.75rem -0.75rem;
+  }
+
+  .command-choice-row {
+    @apply flex flex-wrap gap-1;
+  }
+
+  .command-choice {
+    @apply min-h-8 rounded-md border border-neutral-200 bg-white px-2.5 font-mono text-[10px] font-bold text-neutral-600 transition hover:border-neutral-400 hover:bg-neutral-100;
+  }
+
+  .command-choice-active {
+    @apply border-[#D5FF00] bg-[#D5FF00] text-neutral-950 hover:border-[#c7f000] hover:bg-[#c7f000];
+  }
+
   .modal-surface {
     @apply relative overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-xl;
   }
@@ -448,6 +535,17 @@ textarea {
     @apply mt-1 break-words text-2xl font-bold tracking-[-0.03em] tabular-nums text-neutral-900;
   }
 
+}
+
+@media (max-width: 767px) {
+  .command-bubble-wrap {
+    margin-top: -0.25rem;
+  }
+
+  .command-panel {
+    left: 0;
+    right: auto;
+  }
 }
 
 @media print {

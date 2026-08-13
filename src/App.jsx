@@ -1675,6 +1675,15 @@ const TRANSLATIONS = {
     tableActualNet: "Actual Net",
     openMonth: "Open {month}",
     hub: "HUB",
+    commands: "Commands",
+    openCommands: "Open commands",
+    closeCommands: "Close commands",
+    commandNavigate: "Navigate",
+    commandOutput: "Output",
+    commandTools: "Tools",
+    commandPreferences: "Preferences",
+    language: "Language",
+    currency: "Currency",
     preview: "Print preview",
     data: "Backup & export",
     help: "Help",
@@ -2035,6 +2044,15 @@ const TRANSLATIONS = {
     tableActualNet: "Tatsächlicher Saldo",
     openMonth: "{month} öffnen",
     hub: "HUB",
+    commands: "Befehle",
+    openCommands: "Befehle öffnen",
+    closeCommands: "Befehle schließen",
+    commandNavigate: "Navigation",
+    commandOutput: "Ausgabe",
+    commandTools: "Werkzeuge",
+    commandPreferences: "Einstellungen",
+    language: "Sprache",
+    currency: "Währung",
     preview: "Druckvorschau",
     data: "Sicherung & Export",
     help: "Hilfe",
@@ -2558,6 +2576,18 @@ export default function BudgitApp() {
   useModalEscape(previewOpen, () => setPreviewOpen(false));
   const [helpOpen, setHelpOpen] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [commandOpen, setCommandOpen] = useState(false);
+  const commandBubbleRef = useRef(null);
+  useModalEscape(commandOpen, () => setCommandOpen(false));
+
+  useEffect(() => {
+    if (!commandOpen) return undefined;
+    const closeOnOutsidePress = (event) => {
+      if (!commandBubbleRef.current?.contains(event.target)) setCommandOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOnOutsidePress);
+    return () => document.removeEventListener("pointerdown", closeOnOutsidePress);
+  }, [commandOpen]);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
@@ -3031,6 +3061,14 @@ export default function BudgitApp() {
   };
 
   const openPreview = () => setPreviewOpen(true);
+  const openCalculator = () => {
+    const ua = navigator.userAgent.toLowerCase();
+    if (ua.includes("android")) {
+      window.location.href = "intent:#Intent;action=android.intent.action.MAIN;category=android.intent.category.APP_CALCULATOR;end";
+    } else {
+      window.location.href = "ms-calculator:";
+    }
+  };
 
   // ---------------------------
   // Drag & drop helpers
@@ -3412,54 +3450,94 @@ export default function BudgitApp() {
             />
           </div>
 
-          <div className="flex flex-col items-end">
-            <div className="relative flex justify-end gap-2 pt-2 mb-12 md:mb-0 w-full">
-              <div className="flex items-center gap-2">
-                {HUB_URL ? (
-                  <ActionButton onClick={() => { window.location.href = HUB_URL; }}>{t("hub")}</ActionButton>
-                ) : null}
-                <ActionButton onClick={() => {
-                  setOverviewYear(parseYM(app.activeMonth).y || new Date().getFullYear());
-                  setCurrentView("year");
-                }}>{t("yearOverview")}</ActionButton>
-                <ActionButton onClick={openPreview}>{t("preview")}</ActionButton>
-                <ActionButton onClick={() => setExportModalOpen(true)}>{t("data")}</ActionButton>
-              </div>
-
-              <button
-                type="button"
-                title="Help"
-                onClick={() => setHelpOpen(true)}
-                className={`print:hidden flex h-10 w-10 items-center justify-center rounded-lg border border-neutral-200 bg-white text-sm font-bold text-neutral-700 transition hover:border-neutral-300 hover:bg-neutral-100 ${BUTTON_FOCUS}`}
-                aria-label="Help"
-              >
-                ?
-              </button>
-
-              <div className="print:hidden absolute right-0 top-12">
-                <div className="utility-segment">
-                  <button
-                    onClick={() => setLang("en")}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-                      app.lang === "en"
-                        ? "bg-[#D5FF00] text-neutral-900 shadow-sm"
-                        : "text-neutral-500 hover:text-neutral-900 hover:bg-[#D5FF00]/30"
-                    }`}
-                  >
-                    EN
-                  </button>
-                  <button
-                    onClick={() => setLang("de")}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-                      app.lang === "de"
-                        ? "bg-[#D5FF00] text-neutral-900 shadow-sm"
-                        : "text-neutral-500 hover:text-neutral-900 hover:bg-[#D5FF00]/30"
-                    }`}
-                  >
-                    DE
-                  </button>
+          <div className="flex flex-col items-end pt-2 print:hidden">
+            <div className="command-bubble-wrap" ref={commandBubbleRef}>
+              <div className="command-bubble-collapsed">
+                <div
+                  role="status"
+                  aria-live={saveStatus === "error" || saveStatus === "load_error" ? "assertive" : "polite"}
+                  title={saveErrorCode || undefined}
+                  className={`command-save-state ${saveStatus === "error" || saveStatus === "load_error" ? "command-save-state-error" : ""}`}
+                >
+                  <span className={`command-save-dot ${saveStatus === "saving" ? "command-save-dot-saving" : ""}`} aria-hidden="true" />
+                  <span>
+                    {saveStatus === "saving" && t("saveStatusSaving")}
+                    {saveStatus === "saved" && t("saveStatusSaved")}
+                    {saveStatus === "imported" && t("saveStatusImported")}
+                    {saveStatus === "error" && t("saveStatusError")}
+                    {saveStatus === "load_error" && t("saveStatusLoadError")}
+                  </span>
                 </div>
+                <button
+                  type="button"
+                  className={`command-launcher ${BUTTON_FOCUS}`}
+                  onClick={() => setCommandOpen((open) => !open)}
+                  aria-expanded={commandOpen}
+                  aria-haspopup="dialog"
+                  aria-controls="budgit-command-panel"
+                  aria-label={commandOpen ? t("closeCommands") : t("openCommands")}
+                >
+                  <span className="command-launcher-mark" aria-hidden="true">⌘</span>
+                  <span>{t("commands")}</span>
+                  <ChevronDownIcon className={`h-4 w-4 transition-transform ${commandOpen ? "rotate-180" : ""}`} />
+                </button>
               </div>
+
+              {saveStatus === "error" || saveStatus === "load_error" ? (
+                <div className="command-save-error">
+                  {saveStatus === "error" ? t("saveFailureAdvice") : t("loadFailureAdvice")}
+                </div>
+              ) : null}
+
+              {commandOpen ? (
+                <div id="budgit-command-panel" role="dialog" aria-label={t("commands")} className="command-panel">
+                  <div className="command-panel-heading">
+                    <span>{t("commands")}</span>
+                    <span className="command-panel-active">{app.lang.toUpperCase()} · {app.currency}</span>
+                  </div>
+
+                  <div className="command-group">
+                    <div className="command-group-label">{t("commandNavigate")}</div>
+                    <button type="button" className={`command-action ${BUTTON_FOCUS}`} onClick={() => {
+                      setCommandOpen(false);
+                      setOverviewYear(parseYM(app.activeMonth).y || new Date().getFullYear());
+                      setCurrentView("year");
+                    }}><span aria-hidden="true">12</span><span>{t("yearOverview")}</span></button>
+                  </div>
+
+                  <div className="command-group">
+                    <div className="command-group-label">{t("commandOutput")}</div>
+                    <div className="command-grid">
+                      <button type="button" className={`command-action ${BUTTON_FOCUS}`} onClick={() => { setCommandOpen(false); openPreview(); }}><span aria-hidden="true">▤</span><span>{t("preview")}</span></button>
+                      <button type="button" className={`command-action ${BUTTON_FOCUS}`} onClick={() => { setCommandOpen(false); setExportModalOpen(true); }}><span aria-hidden="true">⇩</span><span>{t("data")}</span></button>
+                    </div>
+                  </div>
+
+                  <div className="command-group">
+                    <div className="command-group-label">{t("commandTools")}</div>
+                    <div className="command-grid">
+                      <button type="button" className={`command-action ${BUTTON_FOCUS}`} onClick={() => { setCommandOpen(false); openCalculator(); }}><CalculatorIcon className="h-4 w-4" /><span>{t("calculator")}</span></button>
+                      <button type="button" className={`command-action ${BUTTON_FOCUS}`} onClick={() => { setCommandOpen(false); setHelpOpen(true); }}><span aria-hidden="true">?</span><span>{t("help")}</span></button>
+                      {HUB_URL ? <button type="button" className={`command-action ${BUTTON_FOCUS}`} onClick={() => { setCommandOpen(false); window.location.href = HUB_URL; }}><span aria-hidden="true">↗</span><span>{t("hub")}</span></button> : null}
+                    </div>
+                  </div>
+
+                  <div className="command-preferences">
+                    <div>
+                      <div className="command-group-label">{t("language")}</div>
+                      <div className="command-choice-row" aria-label={t("language")}>
+                        {["en", "de"].map((lang) => <button key={lang} type="button" aria-pressed={app.lang === lang} onClick={() => setLang(lang)} className={`command-choice ${app.lang === lang ? "command-choice-active" : ""} ${BUTTON_FOCUS}`}>{lang.toUpperCase()}</button>)}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="command-group-label">{t("currency")}</div>
+                      <div className="command-choice-row" aria-label={t("currency")}>
+                        {Object.keys(CURRENCIES).map((currency) => <button key={currency} type="button" aria-pressed={app.currency === currency} onClick={() => setApp((current) => ({ ...current, currency }))} className={`command-choice ${app.currency === currency ? "command-choice-active" : ""} ${BUTTON_FOCUS}`}>{currency}</button>)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
             </div>
           </div>
         </div>
@@ -3542,22 +3620,6 @@ export default function BudgitApp() {
                     )}
                   </div>
                   <div className="technical-meta hidden sm:block">{app.activeMonth}</div>
-                </div>
-                <div
-                  role="status"
-                  aria-live={saveStatus === "error" || saveStatus === "load_error" ? "assertive" : "polite"}
-                  title={saveErrorCode || undefined}
-                  className={`mt-2 text-xs ${saveStatus === "error" || saveStatus === "load_error" ? "text-red-700" : "text-neutral-500"}`}
-                >
-                  {saveStatus === "saving" && t("saveStatusSaving")}
-                  {saveStatus === "saved" && t("saveStatusSaved")}
-                  {saveStatus === "imported" && t("saveStatusImported")}
-                  {saveStatus === "error" && (
-                    <><span className="font-semibold">{t("saveStatusError")}</span> — {t("saveFailureAdvice")}</>
-                  )}
-                  {saveStatus === "load_error" && (
-                    <><span className="font-semibold">{t("saveStatusLoadError")}</span> — {t("loadFailureAdvice")}</>
-                  )}
                 </div>
                 <div className="accent-rule" />
               </div>
@@ -4220,36 +4282,6 @@ export default function BudgitApp() {
 
           {/* Summary */}
           <div className="flex flex-col gap-3">
-            <div className="flex justify-end gap-2 print:hidden">
-              <button
-                type="button"
-                onClick={() => {
-                  const ua = navigator.userAgent.toLowerCase();
-                  if (ua.indexOf("android") > -1) {
-                    window.location.href = "intent:#Intent;action=android.intent.action.MAIN;category=android.intent.category.APP_CALCULATOR;end";
-                  } else {
-                    window.location.href = "ms-calculator:";
-                  }
-                }}
-                className="h-10 w-10 rounded-xl border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 shadow-sm flex items-center justify-center text-neutral-600 transition"
-                title={t("calculator")}
-              >
-                <CalculatorIcon className="h-5 w-5" />
-              </button>
-
-              <div className="utility-segment">
-                {Object.keys(CURRENCIES).map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => setApp((a) => ({ ...a, currency: c }))}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${app.currency === c ? "bg-[#D5FF00] text-neutral-900 shadow-sm" : "text-neutral-500 hover:text-neutral-900 hover:bg-[#D5FF00]/30"}`}
-                  >
-                    {c}
-                  </button>
-                ))}
-              </div>
-            </div>
-
             <div className="summary-panel print:shadow-none">
               <div className="summary-heading">{t("summary")}</div>
               <div className="p-4 space-y-4">
