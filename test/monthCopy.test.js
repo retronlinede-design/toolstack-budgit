@@ -3,12 +3,14 @@ import assert from "node:assert/strict";
 
 import {
   applyMonthCopyToApp,
+  applyValidatedMonthCopyToApp,
   classifyMonthDestination,
   createCopiedMonth,
   getMonthCopySummary,
   getNextMonthKey,
   isMonthMeaningfullyEmpty,
 } from "../src/domain/monthCopy.js";
+import { validateApplicationState } from "../src/domain/backupSchema.js";
 
 const emptyMonth = () => ({ incomes: [], expenseGroups: [{ id: "default", label: "General", items: [] }], notes: "", transactions: [], bankBalance: "", overdraftLimit: "", pendingIncomeEntries: [], pendingMoneyIn: "", pendingMoneyLabel: "" });
 const populatedMonth = () => ({
@@ -152,4 +154,113 @@ test("confirmed state update changes only destination and active month", () => {
   assert.equal(result.app.months["2026-07"], source);
   assert.equal(result.app.months["2026-06"], unrelated);
   assert.notEqual(result.app.months["2026-08"], destination);
+});
+
+test("validated copy creates an absent next month and produces fresh persistable data", () => {
+  const source = { ...populatedMonth(), transactions: [] };
+  const sourceSnapshot = structuredClone(source);
+  const app = { activeMonth: "2026-07", months: { "2026-07": source }, lang: "en", currency: "EUR" };
+  const result = applyValidatedMonthCopyToApp({
+    app,
+    sourceMonthKey: "2026-07",
+    destinationMonthKey: "2026-08",
+    idFactory: deterministicIds(),
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.destinationState, "not_created");
+  assert.equal(result.app.activeMonth, "2026-08");
+  assert.deepEqual(source, sourceSnapshot);
+  assert.notEqual(result.copiedMonth.incomes[0].id, source.incomes[0].id);
+  assert.notEqual(result.copiedMonth.expenseGroups[0].items[0].id, source.expenseGroups[0].items[0].id);
+  assert.equal(validateApplicationState(result.app).valid, true);
+  assert.deepEqual(JSON.parse(JSON.stringify(result.app)), result.app);
+});
+
+test("unrelated invalid historical data does not block a valid copy or get rewritten", () => {
+  const source = { ...populatedMonth(), transactions: [] };
+  const invalidHistory = {
+    ...emptyMonth(),
+    incomes: [{ id: "old-income", name: "Legacy bad value", amount: "not-money", date: "", status: "expected", notes: "keep exactly" }],
+  };
+  const app = {
+    activeMonth: "2026-07",
+    months: { "2026-05": invalidHistory, "2026-07": source },
+    lang: "en",
+    currency: "EUR",
+  };
+  assert.equal(validateApplicationState(app).valid, false);
+
+  const result = applyValidatedMonthCopyToApp({
+    app,
+    sourceMonthKey: "2026-07",
+    destinationMonthKey: "2026-08",
+    idFactory: deterministicIds(),
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.app.months["2026-05"], invalidHistory);
+  assert.deepEqual(result.app.months["2026-05"], invalidHistory);
+  assert.equal(result.app.months["2026-07"], source);
+  assert.equal(result.app.months["2026-08"], result.copiedMonth);
+});
+
+test("invalid copied source data is rejected with a precise field error", () => {
+  const source = {
+    ...emptyMonth(),
+    incomes: [{ id: "bad", name: "Broken", amount: "not-money", date: "", status: "expected", notes: "" }],
+  };
+  const snapshot = structuredClone(source);
+  const app = { activeMonth: "2026-07", months: { "2026-07": source }, lang: "en", currency: "EUR" };
+  const result = applyValidatedMonthCopyToApp({
+    app,
+    sourceMonthKey: "2026-07",
+    destinationMonthKey: "2026-08",
+    idFactory: deterministicIds(),
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.code, "invalid_copied_month");
+  assert.equal(result.validationErrors[0].path, "months.2026-08.incomes[0].amount");
+  assert.equal(result.validationErrors[0].code, "invalid_amount");
+  assert.deepEqual(source, snapshot);
+  assert.equal(Object.hasOwn(app.months, "2026-08"), false);
+});
+
+test("validated copy still requires authorization before replacing meaningful data", () => {
+  const destination = populatedMonth();
+  const app = { activeMonth: "2026-07", months: { "2026-07": populatedMonth(), "2026-08": destination }, lang: "en", currency: "EUR" };
+  const result = applyValidatedMonthCopyToApp({
+    app,
+    sourceMonthKey: "2026-07",
+    destinationMonthKey: "2026-08",
+    idFactory: deterministicIds(),
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.code, "confirmation_required");
+  assert.equal(app.months["2026-08"], destination);
+});
+
+test("validated copy rejects malformed options and unsafe generated IDs", () => {
+  const app = { activeMonth: "2026-07", months: { "2026-07": populatedMonth() }, lang: "en", currency: "EUR" };
+  const invalidOptions = applyValidatedMonthCopyToApp({
+    app,
+    sourceMonthKey: "2026-07",
+    destinationMonthKey: "2026-08",
+    options: { copyIncome: "yes" },
+    idFactory: deterministicIds(),
+  });
+  assert.equal(invalidOptions.code, "invalid_copy_options");
+  assert.equal(invalidOptions.validationErrors[0].path, "copyOptions.copyIncome");
+
+  const invalidIds = applyValidatedMonthCopyToApp({
+    app,
+    sourceMonthKey: "2026-07",
+    destinationMonthKey: "2026-08",
+    idFactory: () => "",
+  });
+  assert.equal(invalidIds.code, "copy_generation_failed");
+  assert.equal(invalidIds.validationErrors[0].code, "invalid_generated_id");
+  assert.equal(Object.hasOwn(app.months, "2026-08"), false);
 });

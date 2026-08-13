@@ -1,3 +1,5 @@
+import { validateApplicationMonth } from "./backupSchema.js";
+
 const MONTH_KEY = /^(\d{4})-(0[1-9]|1[0-2])$/;
 
 export const DEFAULT_MONTH_COPY_OPTIONS = Object.freeze({
@@ -159,4 +161,53 @@ export function applyMonthCopyToApp({
       months: { ...(app.months || {}), [destinationMonthKey]: copiedMonth },
     },
   };
+}
+
+function validateCopyOptions(options) {
+  if (options == null) return [];
+  if (typeof options !== "object" || Array.isArray(options)) {
+    return [{ path: "copyOptions", code: "invalid_copy_options", message: "Copy choices are invalid." }];
+  }
+
+  return Object.keys(DEFAULT_MONTH_COPY_OPTIONS).flatMap((key) => (
+    Object.prototype.hasOwnProperty.call(options, key) && typeof options[key] !== "boolean"
+      ? [{ path: `copyOptions.${key}`, code: "invalid_copy_option", message: "Must be selected or cleared." }]
+      : []
+  ));
+}
+
+/**
+ * Orchestrate a copy and validate only the generated destination month.
+ * Unrelated months are carried through by reference and are deliberately not
+ * normalized or subjected to backup-wide validation here.
+ */
+export function applyValidatedMonthCopyToApp(args) {
+  const optionErrors = validateCopyOptions(args?.options);
+  if (optionErrors.length) {
+    return { ok: false, code: "invalid_copy_options", validationErrors: optionErrors };
+  }
+
+  let result;
+  try {
+    result = applyMonthCopyToApp(args || {});
+  } catch {
+    return {
+      ok: false,
+      code: "copy_generation_failed",
+      validationErrors: [{ path: "copiedMonth.id", code: "invalid_generated_id", message: "A safe ID could not be created." }],
+    };
+  }
+  if (!result.ok) return result;
+
+  const validation = validateApplicationMonth(result.copiedMonth, args.destinationMonthKey);
+  if (!validation.valid) {
+    return {
+      ok: false,
+      code: "invalid_copied_month",
+      destinationState: result.destinationState,
+      validationErrors: validation.errors,
+    };
+  }
+
+  return result;
 }

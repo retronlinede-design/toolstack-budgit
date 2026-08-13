@@ -40,13 +40,12 @@ import {
   createBackupEnvelope,
   parseAndValidateBackup,
   prepareRestoredApp,
-  validateApplicationState,
 } from "./domain/backupSchema.js";
 import { getBrowserStorage, readStorageValue, writeStorageValue } from "./domain/storage.js";
 import { writeUiPreference } from "./domain/uiPreferences.js";
 import {
   DEFAULT_MONTH_COPY_OPTIONS,
-  applyMonthCopyToApp,
+  applyValidatedMonthCopyToApp,
   classifyMonthDestination,
   getMonthCopySummary,
   getNextMonthKey,
@@ -1663,6 +1662,7 @@ const TRANSLATIONS = {
     monthCopied: "Month copied successfully",
     monthCopyNotSaved: "The month was copied in this open page, but it could not be saved. Download a backup now.",
     monthCopyInvalid: "The copied month could not be validated. No data was changed.",
+    monthCopyValidationError: "Could not copy {month}. Check {field}: {problem}",
     copyAll: "Copy ALL",
     copyUnpaid: "Copy UNPAID only",
     cancel: "Cancel",
@@ -2014,6 +2014,7 @@ const TRANSLATIONS = {
     monthCopied: "Monat erfolgreich kopiert",
     monthCopyNotSaved: "Der Monat wurde auf dieser geöffneten Seite kopiert, konnte aber nicht gespeichert werden. Laden Sie jetzt eine Sicherung herunter.",
     monthCopyInvalid: "Der kopierte Monat konnte nicht validiert werden. Es wurden keine Daten geändert.",
+    monthCopyValidationError: "{month} konnte nicht kopiert werden. Prüfen Sie {field}: {problem}",
     copyAll: "ALLES kopieren",
     copyUnpaid: "Nur UNBEZAHLTE kopieren",
     cancel: "Abbrechen",
@@ -2817,7 +2818,7 @@ export default function BudgitApp() {
   };
 
   const performMonthCopy = ({ destinationMonthKey, options, confirmReplace }) => {
-    const result = applyMonthCopyToApp({
+    const result = applyValidatedMonthCopyToApp({
       app,
       sourceMonthKey: app.activeMonth,
       destinationMonthKey,
@@ -2826,13 +2827,24 @@ export default function BudgitApp() {
       confirmReplace,
     });
     if (!result.ok) {
-      notify(result.code === "same_month" ? t("copySameMonthError") : t("monthCopyInvalid"));
-      return;
-    }
-
-    const validation = validateApplicationState(result.app);
-    if (!validation.valid) {
-      notify(t("monthCopyInvalid"));
+      if (result.code === "same_month") {
+        notify(t("copySameMonthError"));
+      } else if (result.validationErrors?.length) {
+        const issue = result.validationErrors[0];
+        const field = issue.path
+          .replace(`months.${destinationMonthKey}.`, "")
+          .replace(/expenseGroups\[(\d+)\]/, (_, index) => `expense group ${Number(index) + 1}`)
+          .replace(/\.items\[(\d+)\]/, (_, index) => `, item ${Number(index) + 1}`)
+          .replace(/incomes\[(\d+)\]/, (_, index) => `income ${Number(index) + 1}`)
+          .replace(/\./g, ", ");
+        notify(t("monthCopyValidationError", {
+          month: monthLabel(destinationMonthKey, app.lang),
+          field,
+          problem: issue.message,
+        }));
+      } else {
+        notify(t("monthCopyInvalid"));
+      }
       return;
     }
 

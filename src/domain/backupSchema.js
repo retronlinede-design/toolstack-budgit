@@ -307,6 +307,23 @@ function validateApplicationData(data, { legacy = false } = {}) {
   };
 }
 
+/**
+ * Validate one month without making unrelated application history part of the
+ * operation. This uses the same field and collection rules as backups while
+ * leaving the supplied month untouched.
+ */
+export function validateApplicationMonth(month, monthKey) {
+  const ctx = createContext();
+  if (!MONTH_KEY.test(monthKey)) {
+    ctx.add(`months.${String(monthKey)}`, "invalid_month_key", "Month key must use valid YYYY-MM format.");
+    return { valid: false, errors: ctx.errors };
+  }
+
+  const data = validateMonth(ctx, month, monthKey, false);
+  if (ctx.errors.length) return { valid: false, errors: ctx.errors };
+  return { valid: true, errors: [], data };
+}
+
 export function validateApplicationState(data) {
   return validateApplicationData(data);
 }
