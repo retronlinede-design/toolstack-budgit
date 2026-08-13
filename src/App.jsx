@@ -43,6 +43,7 @@ import {
   prepareRestoredApp,
 } from "./domain/backupSchema.js";
 import { getBrowserStorage, readStorageValue, writeStorageValue } from "./domain/storage.js";
+import { attachPersistenceLifecycle, createPersistenceCoordinator } from "./domain/persistenceCoordinator.js";
 import { writeUiPreference } from "./domain/uiPreferences.js";
 import {
   DEFAULT_MONTH_COPY_OPTIONS,
@@ -2520,13 +2521,35 @@ function YearOverviewView({ app, year, onYearChange, onBack, onOpenMonth, onPrin
 
 export default function BudgitApp() {
   const [initialLoad] = useState(loadInitialAppState);
-  const [app, setApp] = useState(initialLoad.app);
+  const [app, setReactApp] = useState(initialLoad.app);
   const [currentView, setCurrentView] = useState("month");
   const [overviewYear, setOverviewYear] = useState(() => parseYM(initialLoad.app.activeMonth).y || new Date().getFullYear());
   const [saveStatus, setSaveStatus] = useState(initialLoad.loadFailure ? "load_error" : "saved");
   const [saveErrorCode, setSaveErrorCode] = useState(initialLoad.loadFailure);
-  const persistenceLocked = useRef(!!initialLoad.loadFailure);
-  const skipNextSave = useRef(false);
+  const [persistenceCoordinator] = useState(() =>
+    createPersistenceCoordinator({
+      initialState: initialLoad.app,
+      storage: getBrowserStorage(),
+      storageKey: LS_KEY,
+      locked: !!initialLoad.loadFailure,
+      onSaveStart: () => setSaveStatus("saving"),
+      onSaveResult: (result) => {
+        if (result.ok) {
+          setSaveErrorCode(null);
+          setSaveStatus("saved");
+        } else {
+          setSaveErrorCode(result.code);
+          setSaveStatus("error");
+        }
+      },
+    })
+  );
+  const setApp = (updater, options) => {
+    const current = persistenceCoordinator.getLatest();
+    const next = typeof updater === "function" ? updater(current) : updater;
+    persistenceCoordinator.setLatest(next, options);
+    setReactApp(next);
+  };
 
   const [toast, setToast] = useState(null);
   const toastTimer = useRef(null);
@@ -2566,28 +2589,17 @@ export default function BudgitApp() {
   };
 
   useEffect(() => {
-    if (persistenceLocked.current) return;
-    if (skipNextSave.current) {
-      skipNextSave.current = false;
-      return;
-    }
-
-    const statusTimer = setTimeout(() => setSaveStatus("saving"), 0);
-    const saveTimer = setTimeout(() => {
-      const result = writeStorageValue(getBrowserStorage(), LS_KEY, JSON.stringify(app));
-      if (result.ok) {
-        setSaveErrorCode(null);
-        setSaveStatus("saved");
-      } else {
-        setSaveErrorCode(result.code);
-        setSaveStatus("error");
-      }
-    }, 200);
+    persistenceCoordinator.schedule();
+    const detachLifecycle = attachPersistenceLifecycle({
+      windowTarget: window,
+      documentTarget: document,
+      flush: persistenceCoordinator.flush,
+    });
     return () => {
-      clearTimeout(statusTimer);
-      clearTimeout(saveTimer);
+      detachLifecycle();
+      persistenceCoordinator.cancelPending();
     };
-  }, [app]);
+  }, [persistenceCoordinator]);
 
   const active = useMemo(() => {
     const m = app.activeMonth;
@@ -2935,19 +2947,16 @@ export default function BudgitApp() {
       return;
     }
 
-    const persisted = persistenceLocked.current
-      ? { ok: false, code: saveErrorCode || "storage_unavailable" }
-      : writeStorageValue(getBrowserStorage(), LS_KEY, JSON.stringify(result.app));
-
-    skipNextSave.current = true;
-    setApp(result.app);
+    const persisted = persistenceCoordinator.persistExplicit(result.app);
+    if (!persisted.ok) setApp(result.app, { scheduleSave: false });
+    else setReactApp(result.app);
     setCopyOpen(false);
     if (persisted.ok) {
       setSaveErrorCode(null);
       setSaveStatus("saved");
       notify(t("monthCopied"));
     } else {
-      setSaveErrorCode(persisted.code);
+      setSaveErrorCode(persisted.locked ? (saveErrorCode || persisted.code) : persisted.code);
       setSaveStatus("error");
       notify(t("monthCopyNotSaved"));
     }
@@ -3005,16 +3014,15 @@ export default function BudgitApp() {
     if (!ok) return;
 
     const next = prepareRestoredApp(validation.data, app.lang);
-    const persisted = writeStorageValue(getBrowserStorage(), LS_KEY, JSON.stringify(next));
+    const persisted = persistenceCoordinator.persistExplicit(next, { allowWhileLocked: true });
     if (!persisted.ok) {
       setSaveErrorCode(persisted.code);
       setSaveStatus("error");
       notify(t("importSaveFailed"));
       return;
     }
-    persistenceLocked.current = false;
-    skipNextSave.current = true;
-    setApp(next);
+    persistenceCoordinator.setLocked(false);
+    setReactApp(next);
     setSaveErrorCode(null);
     setSaveStatus("imported");
   };
