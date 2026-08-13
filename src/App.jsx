@@ -30,6 +30,7 @@ import {
   calculateExpenseGroupTotals,
   calculateMoneyListTotal,
   calculateMonthTotals,
+  getMoneyDisplayValue,
   parseMoney,
 } from "./domain/calculations.js";
 import { createExpenseAttentionSummary, formatSavingsRate } from "./domain/dashboardSummary.js";
@@ -299,8 +300,12 @@ const CURRENCIES = {
   ZAR: "R",
 };
 
-function Money({ value, currency = "EUR" }) {
-  const v = Number(value) || 0;
+function Money({ value, currency = "EUR", invalidLabel = "Invalid amount" }) {
+  const display = getMoneyDisplayValue(value);
+  if (!display.valid) {
+    return <span className="tabular-nums" aria-label={invalidLabel} title={invalidLabel}>—</span>;
+  }
+  const v = display.value;
   const sign = v < 0 ? "-" : "";
   const abs = Math.abs(v);
   const symbol = CURRENCIES[currency] || "€";
@@ -339,7 +344,19 @@ function PaidCheck({ checked, onChange, label = "Paid" }) {
   );
 }
 
-function SelectAllNumberInput({ className = "", value, onChange, onKeyDown, placeholder, inputMode = "decimal", title }) {
+function SelectAllNumberInput({
+  className = "",
+  value,
+  onChange,
+  onKeyDown,
+  onBlur,
+  placeholder,
+  inputMode = "decimal",
+  title,
+  id,
+  ariaInvalid,
+  ariaDescribedBy,
+}) {
   // Click/focus selects all so you can type immediately over defaults.
   return (
     <input
@@ -347,9 +364,13 @@ function SelectAllNumberInput({ className = "", value, onChange, onKeyDown, plac
       value={value == null ? "0" : value}
       onChange={onChange}
       onKeyDown={onKeyDown}
+      onBlur={onBlur}
       placeholder={placeholder}
       inputMode={inputMode}
       title={title}
+      id={id}
+      aria-invalid={ariaInvalid || undefined}
+      aria-describedby={ariaDescribedBy || undefined}
       onFocus={(e) => {
         try {
           e.target.select();
@@ -1671,6 +1692,11 @@ const TRANSLATIONS = {
     income: "Income",
     addIncome: "Add income",
     totalIncome: "Expected Income",
+    invalidAmount: "Enter a valid amount.",
+    negativeExpenseAmount: "Expense amount cannot be negative.",
+    excludesInvalidAmount: "Excludes {count} invalid amount",
+    excludesInvalidAmounts: "Excludes {count} invalid amounts",
+    totalsIncomplete: "Totals are incomplete.",
     totalExpenses: "Planned Expenses",
     expenses: "Expenses",
     addSection: "Add group",
@@ -2023,6 +2049,11 @@ const TRANSLATIONS = {
     income: "Einkommen",
     addIncome: "Einnahme hinzufügen",
     totalIncome: "Erwartete Einnahmen",
+    invalidAmount: "Geben Sie einen gültigen Betrag ein.",
+    negativeExpenseAmount: "Der Ausgabenbetrag darf nicht negativ sein.",
+    excludesInvalidAmount: "Schließt {count} ungültigen Betrag aus",
+    excludesInvalidAmounts: "Schließt {count} ungültige Beträge aus",
+    totalsIncomplete: "Die Summen sind unvollständig.",
     totalExpenses: "Geplante Ausgaben",
     expenses: "Ausgaben",
     addSection: "Gruppe hinzufügen",
@@ -2487,6 +2518,7 @@ export default function BudgitApp() {
   // Note Modal State
   const [noteModal, setNoteModal] = useState(null); // { groupId, itemId }
   const [highlightItem, setHighlightItem] = useState(null);
+  const [touchedAmountFields, setTouchedAmountFields] = useState(() => new Set());
 
   const notify = (msg) => {
     setToast(msg);
@@ -2527,6 +2559,17 @@ export default function BudgitApp() {
     const txt = TRANSLATIONS[app.lang || "en"][key] || key;
     // simple replacement for {name}
     return txt.replace(/\{(\w+)\}/g, (_, k) => args[k] || "");
+  };
+
+  const incomeAmountTouchKey = (id) => `${app.activeMonth}:income:${id}`;
+  const expenseAmountTouchKey = (groupId, id) => `${app.activeMonth}:expense:${groupId}:${id}`;
+  const markAmountTouched = (key) => {
+    setTouchedAmountFields((current) => {
+      if (current.has(key)) return current;
+      const next = new Set(current);
+      next.add(key);
+      return next;
+    });
   };
 
   const updateMonth = (updater) => {
@@ -2970,6 +3013,26 @@ export default function BudgitApp() {
   // ---------------------------
 
   const monthTotals = useMemo(() => calculateMonthTotals(active), [active]);
+  const invalidIncomeAmounts = useMemo(
+    () => monthTotals.invalidAmounts.filter((issue) => issue.scope === "income"),
+    [monthTotals.invalidAmounts],
+  );
+  const invalidExpenseAmounts = useMemo(
+    () => monthTotals.invalidAmounts.filter((issue) => issue.scope === "expense"),
+    [monthTotals.invalidAmounts],
+  );
+  const incomeAmountIssues = useMemo(
+    () => new Map(invalidIncomeAmounts.map((issue) => [issue.id, issue])),
+    [invalidIncomeAmounts],
+  );
+  const expenseAmountIssues = useMemo(
+    () => new Map(invalidExpenseAmounts.map((issue) => [`${issue.groupId}:${issue.id}`, issue])),
+    [invalidExpenseAmounts],
+  );
+  const invalidIncomeCount = invalidIncomeAmounts.length;
+  const invalidExpenseCount = invalidExpenseAmounts.length;
+  const invalidAmountNotice = (count) => t(count === 1 ? "excludesInvalidAmount" : "excludesInvalidAmounts", { count });
+  const amountIssueMessage = (issue) => t(issue?.reason === "negative_not_allowed" ? "negativeExpenseAmount" : "invalidAmount");
   const incomeTotal = monthTotals.expectedIncome;
   const expensePlannedTotal = monthTotals.plannedExpenses;
   const expenseRemainingTotal = monthTotals.unpaidExpenses;
@@ -3179,13 +3242,16 @@ export default function BudgitApp() {
                           <div key={i.id} className="flex items-center justify-between gap-3 print:text-xs">
                             <div className="text-neutral-800 break-words font-medium">{i.name || t("unnamed")}</div>
                             <div className="font-semibold text-neutral-800">
-                              <Money value={toNumber(i.amount)} currency={app.currency} />
+                              <Money value={i.amount} currency={app.currency} invalidLabel={t("invalidAmount")} />
                             </div>
                           </div>
                         ))
                       )}
                       <div className="pt-3 mt-3 border-t border-neutral-100 flex items-center justify-between print:pt-2 print:mt-2">
-                        <div className="font-semibold text-neutral-800 print:text-sm">{t("totalIncome")}</div>
+                        <div>
+                          <div className="font-semibold text-neutral-800 print:text-sm">{t("totalIncome")}</div>
+                          {invalidIncomeCount > 0 ? <div className="text-xs font-medium text-red-700">{invalidAmountNotice(invalidIncomeCount)}</div> : null}
+                        </div>
                         <div className="font-semibold text-neutral-800 print:text-sm">
                           <Money value={incomeTotal} currency={app.currency} />
                         </div>
@@ -3227,7 +3293,7 @@ export default function BudgitApp() {
                                         ) : null}
                                       </div>
                                       <div className="text-neutral-800">
-                                        <Money value={toNumber(e.amount)} currency={app.currency} />
+                                        <Money value={e.amount} currency={app.currency} invalidLabel={amountIssueMessage(expenseAmountIssues.get(`${g.id}:${e.id}`))} />
                                       </div>
                                     </div>
                                   );
@@ -3242,6 +3308,7 @@ export default function BudgitApp() {
                         <div>
                           <div className="font-semibold text-neutral-800 print:text-sm">{t("remainingExpenses")}</div>
                           <div className="text-xs text-neutral-600 print:text-[10px]">{t("plannedExpenses")}: {currencySymbol}{expensePlannedTotal.toFixed(2)}</div>
+                          {invalidExpenseCount > 0 ? <div className="text-xs font-medium text-red-700">{invalidAmountNotice(invalidExpenseCount)}</div> : null}
                         </div>
                         <div className="font-semibold text-neutral-800 print:text-sm">
                           <Money value={expenseRemainingTotal} currency={app.currency} />
@@ -3478,6 +3545,10 @@ export default function BudgitApp() {
                     <div className="mobile-entry-list">
                       {visibleIncomes.map((income) => {
                         const mobileIncome = getMobileIncomePresentation(income);
+                        const amountIssue = incomeAmountIssues.get(income.id);
+                        const amountTouched = touchedAmountFields.has(incomeAmountTouchKey(income.id));
+                        const showAmountError = amountTouched && !!amountIssue;
+                        const amountErrorId = `mobile-income-amount-error-${income.id}`;
                         return (
                           <article key={income.id} className="mobile-entry-card" aria-labelledby={`mobile-income-${income.id}`}>
                             <div className="flex items-start gap-3">
@@ -3488,12 +3559,22 @@ export default function BudgitApp() {
                                 <span className="mobile-entry-label">{t("incomeName")}</span>
                                 <input id={`mobile-income-${income.id}`} className="mobile-entry-input font-semibold" value={mobileIncome.name} onChange={(event) => updateIncome(income.id, { name: event.target.value })} placeholder={t("incomeName")} />
                               </label>
-                              <div className="mobile-entry-amount pt-5"><Money value={mobileIncome.amount} currency={app.currency} /></div>
+                              <div className="mobile-entry-amount pt-5"><Money value={mobileIncome.amount} currency={app.currency} invalidLabel={t("invalidAmount")} /></div>
                             </div>
                             <div className="mobile-entry-meta mt-3 grid-cols-2">
                               <label>
                                 <span className="mobile-entry-label">{t("amount")}</span>
-                                <SelectAllNumberInput className="mobile-entry-input text-right tabular-nums" value={mobileIncome.amount == null ? "0" : mobileIncome.amount} onChange={(event) => updateIncome(income.id, { amount: event.target.value })} inputMode="decimal" title={t("amount")} />
+                                <SelectAllNumberInput
+                                  className={`mobile-entry-input text-right tabular-nums ${showAmountError ? "border-red-400 ring-1 ring-red-200" : ""}`}
+                                  value={mobileIncome.amount == null ? "0" : mobileIncome.amount}
+                                  onChange={(event) => updateIncome(income.id, { amount: event.target.value })}
+                                  onBlur={() => markAmountTouched(incomeAmountTouchKey(income.id))}
+                                  inputMode="decimal"
+                                  title={t("amount")}
+                                  ariaInvalid={showAmountError}
+                                  ariaDescribedBy={showAmountError ? amountErrorId : undefined}
+                                />
+                                {showAmountError ? <span id={amountErrorId} className="mt-1 block text-xs font-medium text-red-700">{amountIssueMessage(amountIssue)}</span> : null}
                               </label>
                               <label>
                                 <span className="mobile-entry-label">{t("status")}</span>
@@ -3524,7 +3605,12 @@ export default function BudgitApp() {
                           <div className="text-center">{t("actions")}</div>
                         </div>
                         <div>
-                    {visibleIncomes.map((i, idx) => (
+                    {visibleIncomes.map((i, idx) => {
+                      const amountIssue = incomeAmountIssues.get(i.id);
+                      const amountTouched = touchedAmountFields.has(incomeAmountTouchKey(i.id));
+                      const showAmountError = amountTouched && !!amountIssue;
+                      const amountErrorId = `desktop-income-amount-error-${i.id}`;
+                      return (
                       <div key={i.id}>
                         <div className="ledger-grid-income ledger-table-row">
                           <div
@@ -3575,14 +3661,20 @@ export default function BudgitApp() {
                             }}
                           />
 
-                          <SelectAllNumberInput
-                            className="ledger-table-control ledger-table-amount"
-                            value={i.amount == null ? "0" : i.amount}
-                            onChange={(e) => updateIncome(i.id, { amount: e.target.value })}
-                            inputMode="decimal"
-                            placeholder="0"
-                            title={t("amount")}
-                          />
+                          <div className="min-w-0">
+                            <SelectAllNumberInput
+                              className={`ledger-table-control ledger-table-amount ${showAmountError ? "border-red-400 ring-1 ring-red-200" : ""}`}
+                              value={i.amount == null ? "0" : i.amount}
+                              onChange={(e) => updateIncome(i.id, { amount: e.target.value })}
+                              onBlur={() => markAmountTouched(incomeAmountTouchKey(i.id))}
+                              inputMode="decimal"
+                              placeholder="0"
+                              title={t("amount")}
+                              ariaInvalid={showAmountError}
+                              ariaDescribedBy={showAmountError ? amountErrorId : undefined}
+                            />
+                            {showAmountError ? <div id={amountErrorId} className="mt-0.5 text-left text-[10px] font-medium leading-tight text-red-700">{amountIssueMessage(amountIssue)}</div> : null}
+                          </div>
 
                           <select
                             className="ledger-table-control ledger-table-status text-neutral-700"
@@ -3646,7 +3738,8 @@ export default function BudgitApp() {
                           />
                         )}
                       </div>
-                    ))}
+                      );
+                    })}
                         </div>
                       </div>
                     </div>
@@ -3655,7 +3748,10 @@ export default function BudgitApp() {
 
                   {(active.incomes || []).length ? (
                     <div className="pt-3 mt-2 flex items-center justify-between px-2">
-                      <div className="text-sm text-neutral-700">{t("totalIncome")}</div>
+                      <div>
+                        <div className="text-sm text-neutral-700">{t("totalIncome")}</div>
+                        {invalidIncomeCount > 0 ? <div className="text-xs font-medium text-red-700">{invalidAmountNotice(invalidIncomeCount)}</div> : null}
+                      </div>
                       <div className="ledger-table-amount font-semibold text-neutral-800">
                         <Money value={incomeTotal} currency={app.currency} />
                       </div>
@@ -3811,6 +3907,10 @@ export default function BudgitApp() {
                               <div className="mobile-entry-list">
                                 {itemsVisible.map((expense) => {
                                   const mobileExpense = getMobileExpensePresentation(expense, { activeMonth: app.activeMonth, language: app.lang });
+                                  const amountIssue = expenseAmountIssues.get(`${g.id}:${expense.id}`);
+                                  const amountTouched = touchedAmountFields.has(expenseAmountTouchKey(g.id, expense.id));
+                                  const showAmountError = amountTouched && !!amountIssue;
+                                  const amountErrorId = `mobile-expense-amount-error-${expense.id}`;
                                   return (
                                     <article key={expense.id} data-expense-item={expense.id} className={`mobile-entry-card ${highlightItem === expense.id ? "ring-2 ring-[#D5FF00]" : ""}`} aria-labelledby={`mobile-expense-${expense.id}`}>
                                       <div className="flex items-start gap-3">
@@ -3819,7 +3919,7 @@ export default function BudgitApp() {
                                           <span className="mobile-entry-label">{t("expenseName")}</span>
                                           <input id={`mobile-expense-${expense.id}`} className={`mobile-entry-input font-semibold ${mobileExpense.paid ? "line-through text-neutral-500" : ""}`} value={mobileExpense.name} onChange={(event) => updateExpenseItem(g.id, expense.id, { name: event.target.value })} placeholder={t("expenseName")} />
                                         </label>
-                                        <div className={`mobile-entry-amount pt-5 ${mobileExpense.paid ? "line-through text-neutral-500" : ""}`}><Money value={mobileExpense.amount} currency={app.currency} /></div>
+                                        <div className={`mobile-entry-amount pt-5 ${mobileExpense.paid ? "line-through text-neutral-500" : ""}`}><Money value={mobileExpense.amount} currency={app.currency} invalidLabel={amountIssueMessage(amountIssue)} /></div>
                                       </div>
                                       <div className="mt-3 flex items-center justify-between gap-3">
                                         <span className={`rounded-full border px-3 py-1 text-sm font-semibold ${mobileExpense.paid ? "border-[#D5FF00] bg-[#D5FF00]/20 text-neutral-800" : "border-neutral-300 text-neutral-700"}`}>{mobileExpense.paidLabel}</span>
@@ -3827,7 +3927,17 @@ export default function BudgitApp() {
                                       </div>
                                       <label className="mt-3 block">
                                         <span className="mobile-entry-label">{t("amount")}</span>
-                                        <SelectAllNumberInput className="mobile-entry-input text-right tabular-nums" value={mobileExpense.amount == null ? "0" : mobileExpense.amount} onChange={(event) => updateExpenseItem(g.id, expense.id, { amount: event.target.value })} inputMode="decimal" title={t("amount")} />
+                                        <SelectAllNumberInput
+                                          className={`mobile-entry-input text-right tabular-nums ${showAmountError ? "border-red-400 ring-1 ring-red-200" : ""}`}
+                                          value={mobileExpense.amount == null ? "0" : mobileExpense.amount}
+                                          onChange={(event) => updateExpenseItem(g.id, expense.id, { amount: event.target.value })}
+                                          onBlur={() => markAmountTouched(expenseAmountTouchKey(g.id, expense.id))}
+                                          inputMode="decimal"
+                                          title={t("amount")}
+                                          ariaInvalid={showAmountError}
+                                          ariaDescribedBy={showAmountError ? amountErrorId : undefined}
+                                        />
+                                        {showAmountError ? <span id={amountErrorId} className="mt-1 block text-xs font-medium text-red-700">{amountIssueMessage(amountIssue)}</span> : null}
                                       </label>
                                       <div className="mt-3">
                                         <span className="mobile-entry-label">{t("dueDate")}</span>
@@ -3855,7 +3965,12 @@ export default function BudgitApp() {
                                     <div className="text-center">{t("actions")}</div>
                                   </div>
                                   <div>
-                              {itemsVisible.map((e, idx) => (
+                              {itemsVisible.map((e, idx) => {
+                                const amountIssue = expenseAmountIssues.get(`${g.id}:${e.id}`);
+                                const amountTouched = touchedAmountFields.has(expenseAmountTouchKey(g.id, e.id));
+                                const showAmountError = amountTouched && !!amountIssue;
+                                const amountErrorId = `desktop-expense-amount-error-${e.id}`;
+                                return (
                                 <div key={e.id} id={`item-${e.id}`} data-expense-item={e.id} className={`transition-colors duration-1000 rounded-2xl ${highlightItem === e.id ? "bg-[#D5FF00]/20" : ""}`}>
                                   <div className={`ledger-grid-expense ledger-table-row ${e.paid ? "ledger-table-row-paid" : "ledger-table-row-unpaid"}`}>
                                     <div
@@ -3912,16 +4027,22 @@ export default function BudgitApp() {
                                       }}
                                     />
 
-                                    <SelectAllNumberInput
-                                      className={`ledger-table-control ledger-table-amount ${
-                                        e.paid ? "line-through text-neutral-600 decoration-[#D5FF00] decoration-2" : "text-neutral-800"
-                                      }`}
-                                      value={e.amount == null ? "0" : e.amount}
-                                      onChange={(ev) => updateExpenseItem(g.id, e.id, { amount: ev.target.value })}
-                                      inputMode="decimal"
-                                      placeholder="0"
-                                      title={t("amount")}
-                                    />
+                                    <div className="min-w-0">
+                                      <SelectAllNumberInput
+                                        className={`ledger-table-control ledger-table-amount ${
+                                          e.paid ? "line-through text-neutral-600 decoration-[#D5FF00] decoration-2" : "text-neutral-800"
+                                        } ${showAmountError ? "border-red-400 ring-1 ring-red-200" : ""}`}
+                                        value={e.amount == null ? "0" : e.amount}
+                                        onChange={(ev) => updateExpenseItem(g.id, e.id, { amount: ev.target.value })}
+                                        onBlur={() => markAmountTouched(expenseAmountTouchKey(g.id, e.id))}
+                                        inputMode="decimal"
+                                        placeholder="0"
+                                        title={t("amount")}
+                                        ariaInvalid={showAmountError}
+                                        ariaDescribedBy={showAmountError ? amountErrorId : undefined}
+                                      />
+                                      {showAmountError ? <div id={amountErrorId} className="mt-0.5 text-left text-[10px] font-medium leading-tight text-red-700">{amountIssueMessage(amountIssue)}</div> : null}
+                                    </div>
 
                                     <div className="ledger-table-due">
                                       <DuePicker
@@ -3990,7 +4111,8 @@ export default function BudgitApp() {
                                     />
                                   )}
                                 </div>
-                              ))}
+                                );
+                              })}
                                   </div>
                                 </div>
                               </div>
@@ -4027,6 +4149,7 @@ export default function BudgitApp() {
                       <div>
                         <div className="text-sm text-neutral-700">{t("remainingExpenses")}</div>
                         <div className="text-xs text-neutral-600">{t("plannedExpenses")}: {currencySymbol}{expensePlannedTotal.toFixed(2)}</div>
+                        {invalidExpenseCount > 0 ? <div className="text-xs font-medium text-red-700">{invalidAmountNotice(invalidExpenseCount)}</div> : null}
                       </div>
                       <div className="ledger-table-amount font-semibold text-neutral-800">
                         <Money value={expenseRemainingTotal} currency={app.currency} />
@@ -4075,6 +4198,13 @@ export default function BudgitApp() {
             <div className="rounded-2xl bg-white shadow-sm border border-neutral-200 print:shadow-none overflow-hidden">
               <div className="px-4 py-3 border-b border-neutral-100 font-semibold text-neutral-800">{t("summary")}</div>
               <div className="p-4 space-y-4">
+              {invalidIncomeCount > 0 || invalidExpenseCount > 0 ? (
+                <div role="status" className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                  <div className="font-semibold">{t("totalsIncomplete")}</div>
+                  {invalidIncomeCount > 0 ? <div>{t("income")}: {invalidAmountNotice(invalidIncomeCount)}</div> : null}
+                  {invalidExpenseCount > 0 ? <div>{t("expenses")}: {invalidAmountNotice(invalidExpenseCount)}</div> : null}
+                </div>
+              ) : null}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {[["expectedIncome", incomeTotal, false], ["plannedExpenses", expensePlannedTotal, false], ["leftAfterPlannedExpenses", netRemaining, netRemaining < 0], ["unpaidExpenses", expenseRemainingTotal, false]].map(([label, value, negative]) => (
                   <div key={label} className={`rounded-2xl border p-4 min-w-0 ${negative ? "border-red-200" : "border-neutral-200"}`}>

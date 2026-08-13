@@ -8,6 +8,7 @@ import {
   calculateIncomeTotals,
   calculateMonthTotals,
   calculateSavingsRate,
+  getMoneyDisplayValue,
   normalizeIncomeStatus,
   parseMoney,
 } from "../src/domain/calculations.js";
@@ -67,6 +68,55 @@ test("strict money parsing distinguishes valid zero from invalid input", () => {
   assert.equal(parseMoney("").valid, false);
   assert.equal(parseMoney("abc").valid, false);
   assert.equal(parseMoney(Infinity).valid, false);
+});
+
+test("money display uses domain parsing for dot and comma decimals without mutating input", () => {
+  for (const raw of ["12.50", "12,50"]) {
+    const before = raw;
+    assert.deepEqual(getMoneyDisplayValue(raw), { valid: true, value: 12.5, reason: null });
+    assert.equal(raw, before);
+  }
+  assert.deepEqual(getMoneyDisplayValue("not-money"), { valid: false, value: null, reason: "invalid_format" });
+  assert.deepEqual(getMoneyDisplayValue(""), { valid: false, value: null, reason: "empty" });
+});
+
+test("income amount policy accepts zero and negatives while exposing blank and malformed values", () => {
+  const values = [
+    { id: "dot", amount: "10.25", status: "expected" },
+    { id: "comma", amount: "20,25", status: "expected" },
+    { id: "zero", amount: "0", status: "expected" },
+    { id: "negative", amount: "-5", status: "expected" },
+    { id: "blank", amount: "", status: "expected" },
+    { id: "malformed", amount: "oops", status: "expected" },
+  ];
+  const before = structuredClone(values);
+  const totals = calculateIncomeTotals(values);
+  assert.equal(totals.expectedIncome, 25.5);
+  assert.deepEqual(totals.invalidAmounts.map(({ id, reason }) => ({ id, reason })), [
+    { id: "blank", reason: "empty" },
+    { id: "malformed", reason: "invalid_format" },
+  ]);
+  assert.deepEqual(values, before);
+});
+
+test("expense amount policy accepts dot, comma, and zero but exposes negative, blank, and malformed values", () => {
+  const values = [
+    { id: "dot", amount: "10.25", paid: false },
+    { id: "comma", amount: "20,25", paid: false },
+    { id: "zero", amount: "0", paid: false },
+    { id: "negative", amount: "-5", paid: false },
+    { id: "blank", amount: "", paid: false },
+    { id: "malformed", amount: "oops", paid: false },
+  ];
+  const before = structuredClone(values);
+  const totals = calculateExpenseGroupTotals({ items: values });
+  assert.equal(totals.expenseGroupPlannedTotal, 30.5);
+  assert.deepEqual(totals.invalidAmounts.map(({ id, reason }) => ({ id, reason })), [
+    { id: "negative", reason: "negative_not_allowed" },
+    { id: "blank", reason: "empty" },
+    { id: "malformed", reason: "invalid_format" },
+  ]);
+  assert.deepEqual(values, before);
 });
 
 test("paid and unpaid expenses form planned expense totals", () => {

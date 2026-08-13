@@ -32,6 +32,17 @@ export function parseMoney(input) {
     : { valid: false, value: 0, reason: "not_finite", input };
 }
 
+/**
+ * Convert a raw monetary value for formatted display without treating invalid
+ * input as an intentional zero. The raw input is never changed.
+ */
+export function getMoneyDisplayValue(input) {
+  const parsed = parseMoney(input);
+  return parsed.valid
+    ? { valid: true, value: parsed.value, reason: null }
+    : { valid: false, value: null, reason: parsed.reason };
+}
+
 export function normalizeIncomeStatus(status) {
   return INCOME_STATUSES.includes(status) ? status : "expected";
 }
