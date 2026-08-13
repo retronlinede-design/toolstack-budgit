@@ -2,13 +2,40 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  color-scheme: light;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-synthesis: none;
+  --budgit-lime: #d5ff00;
+  --budgit-ink: #171717;
+  --budgit-line: #e5e5e5;
+  --budgit-page: #f5f5f4;
+  --budgit-inset: #fafafa;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: var(--budgit-page);
+  color: var(--budgit-ink);
+  font-feature-settings: "tnum" 1, "ss01" 1;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
 @layer components {
   .mobile-entry-list {
     @apply space-y-3 md:hidden print:hidden;
   }
 
   .mobile-entry-card {
-    @apply rounded-xl border border-neutral-200 bg-white p-3 shadow-sm;
+    @apply rounded-lg border border-neutral-200 bg-white p-3;
   }
 
   .mobile-entry-heading {
@@ -24,11 +51,11 @@
   }
 
   .mobile-entry-label {
-    @apply block text-xs font-medium text-neutral-500;
+    @apply block text-[11px] font-semibold uppercase tracking-[0.08em] text-neutral-500;
   }
 
   .mobile-entry-input {
-    @apply mt-1 w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50;
+    @apply mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 focus:border-neutral-500 focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50;
   }
 
   .mobile-entry-notes {
@@ -40,7 +67,7 @@
   }
 
   .mobile-entry-action {
-    @apply min-h-11 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50;
+    @apply min-h-11 rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm font-semibold text-neutral-700 hover:border-neutral-300 hover:bg-neutral-100 focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50;
   }
 
   .mobile-entry-action-danger {
@@ -52,7 +79,7 @@
   }
 
   .ledger-section {
-    @apply min-w-0 max-w-full overflow-hidden rounded-2xl border border-neutral-200 bg-white;
+    @apply min-w-0 max-w-full overflow-hidden rounded-xl border border-neutral-200 bg-white;
   }
 
   .ledger-section-header {
@@ -60,7 +87,7 @@
   }
 
   .ledger-section-title {
-    @apply text-xl font-bold leading-7 tracking-tight text-neutral-900;
+    @apply text-lg font-bold leading-7 tracking-[-0.02em] text-neutral-900;
   }
 
   .ledger-group-title {
@@ -68,11 +95,11 @@
   }
 
   .ledger-group {
-    @apply min-w-0 max-w-full overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm md:rounded-xl md:shadow-none;
+    @apply min-w-0 max-w-full overflow-hidden rounded-lg border border-neutral-200 bg-white;
   }
 
   .ledger-group-header {
-    @apply border-b border-neutral-100 bg-neutral-50 px-3 py-3 md:border-neutral-200 md:py-2.5;
+    @apply border-b border-neutral-200 bg-neutral-50/80 px-3 py-3 md:py-2.5;
   }
 
   .ledger-group-meta {
@@ -120,7 +147,7 @@
   }
 
   .ledger-table-heading {
-    @apply items-center rounded-lg bg-neutral-50 px-1.5 py-1.5 text-xs font-semibold leading-4 tracking-normal text-neutral-600;
+    @apply items-center border-b border-neutral-200 bg-neutral-50 px-1.5 py-1.5 text-[10px] font-bold uppercase leading-4 tracking-[0.08em] text-neutral-500;
   }
 
   .ledger-table-heading > * {
@@ -145,7 +172,7 @@
   }
 
   .ledger-table-control {
-    @apply h-8 w-full min-w-0 rounded-md border border-neutral-200 bg-white px-2 py-1 text-sm text-neutral-800 hover:border-neutral-300 focus:border-neutral-300 focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-500;
+    @apply h-8 w-full min-w-0 rounded-md border border-neutral-200 bg-white px-2 py-1 text-sm text-neutral-900 hover:border-neutral-400 focus:border-neutral-500 focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-500;
   }
 
   .ledger-table-amount {
@@ -179,7 +206,7 @@
   }
 
   .year-overview-page {
-    @apply mx-auto min-h-screen w-full max-w-7xl space-y-5 bg-neutral-50 px-4 py-5 text-neutral-800 sm:px-6 lg:px-8;
+    @apply mx-auto min-h-screen w-full max-w-7xl space-y-5 bg-stone-100 px-4 py-5 text-neutral-800 sm:px-6 lg:px-8;
   }
 
   .year-overview-header {
@@ -201,7 +228,7 @@
   .year-secondary-button,
   .year-nav-button,
   .year-month-open-button {
-    @apply min-h-11 rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 hover:border-[#D5FF00] hover:bg-[#D5FF00]/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D5FF00]/60;
+    @apply min-h-11 rounded-lg border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 hover:border-neutral-300 hover:bg-neutral-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D5FF00]/60;
   }
 
   .year-navigation {
@@ -221,15 +248,15 @@
   }
 
   .year-summary-card {
-    @apply min-w-0 rounded-2xl border border-neutral-200 bg-white p-4;
+    @apply min-w-0 rounded-xl border border-neutral-200 bg-white p-4;
   }
 
   .year-summary-card h2 {
-    @apply text-sm font-semibold leading-5 text-neutral-600;
+    @apply text-[11px] font-bold uppercase leading-5 tracking-[0.08em] text-neutral-500;
   }
 
   .year-summary-value {
-    @apply mt-2 break-words text-2xl font-black tabular-nums text-neutral-900;
+    @apply mt-2 break-words text-2xl font-bold tracking-[-0.025em] tabular-nums text-neutral-900;
   }
 
   .year-summary-card-negative {
@@ -246,7 +273,7 @@
   }
 
   .year-section {
-    @apply min-w-0 rounded-2xl border border-neutral-200 bg-white p-4;
+    @apply min-w-0 rounded-xl border border-neutral-200 bg-white p-4;
   }
 
   .year-section-title {
@@ -361,6 +388,66 @@
     @apply rounded-xl bg-neutral-50 px-3 py-4 text-sm text-neutral-600;
   }
 
+  .app-shell {
+    @apply min-h-screen bg-stone-100 text-neutral-800;
+  }
+
+  .brand-header {
+    @apply grid grid-cols-1 items-start gap-3 md:grid-cols-3;
+  }
+
+  .primary-surface {
+    @apply min-w-0 max-w-full overflow-hidden rounded-xl border border-neutral-200 bg-white;
+  }
+
+  .month-toolbar {
+    @apply border-b border-neutral-200 bg-white px-4 py-3;
+  }
+
+  .month-title {
+    @apply text-3xl font-bold tracking-[-0.035em] text-neutral-900 sm:text-4xl;
+  }
+
+  .technical-meta {
+    @apply font-mono text-[10px] font-medium uppercase tracking-[0.1em] text-neutral-400;
+  }
+
+  .accent-rule {
+    @apply mt-3 h-0.5 w-16 bg-[#D5FF00];
+  }
+
+  .utility-segment {
+    @apply flex w-fit items-center gap-1 rounded-lg border border-neutral-200 bg-white p-1;
+  }
+
+  .modal-surface {
+    @apply relative overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-xl;
+  }
+
+  .summary-panel {
+    @apply overflow-hidden rounded-xl border border-neutral-200 bg-white;
+  }
+
+  .summary-heading {
+    @apply border-b border-neutral-200 px-4 py-3 text-[11px] font-bold uppercase tracking-[0.1em] text-neutral-500;
+  }
+
+  .summary-stat {
+    @apply min-w-0 border-b border-neutral-200 py-3 last:border-b-0 sm:border-b-0 sm:border-r sm:px-4 sm:last:border-r-0;
+  }
+
+  .summary-stat-primary {
+    @apply border-l-2 border-l-[#D5FF00] pl-3 sm:border-l-0 sm:border-t-2 sm:border-t-[#D5FF00] sm:pl-4;
+  }
+
+  .summary-label {
+    @apply text-[10px] font-bold uppercase leading-4 tracking-[0.08em] text-neutral-500;
+  }
+
+  .summary-value {
+    @apply mt-1 break-words text-2xl font-bold tracking-[-0.03em] tabular-nums text-neutral-900;
+  }
+
 }
 
 @media print {
@@ -386,6 +473,28 @@
 }
 
 @layer utilities {
+  .app-shell button[class~="bg-white"]:hover,
+  .modal-surface button[class~="bg-white"]:hover {
+    background-color: rgb(245 245 245) !important;
+    border-color: rgb(212 212 212) !important;
+  }
+
+  .app-shell input[type="text"],
+  .app-shell input[type="month"],
+  .app-shell input[type="date"],
+  .app-shell select,
+  .app-shell textarea,
+  .modal-surface input[type="text"],
+  .modal-surface input[type="month"],
+  .modal-surface select,
+  .modal-surface textarea {
+    border-radius: 0.5rem;
+  }
+
+  .modal-surface button {
+    border-radius: 0.5rem;
+  }
+
   .ts-graffiti-stroke {
     -webkit-text-stroke: 3px black;
     paint-order: stroke fill;

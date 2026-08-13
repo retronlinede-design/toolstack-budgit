@@ -217,7 +217,7 @@ function SmallButton({ children, onClick, tone = "default", className = "", disa
       ? "bg-[#D5FF00] border-[#D5FF00] text-neutral-900 shadow-sm hover:bg-[#c7f000] hover:border-[#c7f000]"
       : tone === "danger"
         ? "bg-red-50 hover:bg-red-100 text-red-700 border-red-200 shadow-sm"
-        : "bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 text-neutral-700 border-neutral-200 shadow-sm";
+        : "bg-white hover:bg-neutral-100 hover:border-neutral-300 text-neutral-700 border-neutral-200";
 
   return (
     <button
@@ -225,7 +225,7 @@ function SmallButton({ children, onClick, tone = "default", className = "", disa
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className={`print:hidden min-h-11 sm:min-h-10 px-3 py-2 rounded-xl text-sm font-medium border transition active:translate-y-[1px] ${BUTTON_FOCUS} ${BUTTON_DISABLED} ${cls} ${className}`}
+      className={`print:hidden min-h-11 sm:min-h-10 px-3 py-2 rounded-lg text-sm font-semibold border transition active:translate-y-[1px] ${BUTTON_FOCUS} ${BUTTON_DISABLED} ${cls} ${className}`}
     >
       {children}
     </button>
@@ -234,7 +234,7 @@ function SmallButton({ children, onClick, tone = "default", className = "", disa
 
 /** Normalized Top Actions (mobile-aligned “table/grid”) */
 const ACTION_BASE =
-  `print:hidden min-h-11 sm:min-h-9 px-4 sm:px-6 rounded-xl text-xs font-medium border transition shadow-sm active:translate-y-[1px] focus-within:outline-none focus-within:ring-2 focus-within:ring-[#D5FF00] focus-within:ring-offset-2 ${BUTTON_FOCUS} ${BUTTON_DISABLED} flex items-center justify-center`;
+  `print:hidden min-h-11 sm:min-h-10 px-4 rounded-lg text-sm font-semibold border transition active:translate-y-[1px] focus-within:outline-none focus-within:ring-2 focus-within:ring-[#D5FF00] focus-within:ring-offset-2 ${BUTTON_FOCUS} ${BUTTON_DISABLED} flex items-center justify-center`;
 
 function ActionButton({ children, onClick, tone = "default", disabled, title }) {
   const cls =
@@ -242,7 +242,7 @@ function ActionButton({ children, onClick, tone = "default", disabled, title }) 
       ? "bg-[#D5FF00] border-[#D5FF00] text-neutral-900 hover:bg-[#c7f000] hover:border-[#c7f000]"
       : tone === "danger"
         ? "bg-red-50 hover:bg-red-100 text-red-700 border-red-200"
-        : "bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 text-neutral-700 border-neutral-200";
+        : "bg-white hover:bg-neutral-100 hover:border-neutral-300 text-neutral-700 border-neutral-200";
 
   return (
     <button type="button" onClick={onClick} disabled={disabled} title={title} className={`${ACTION_BASE} ${cls}`}>
@@ -255,7 +255,7 @@ function ActionFileButton({ children, onFile, accept = "application/json", tone 
   const cls =
     tone === "primary"
       ? "bg-[#D5FF00] border-[#D5FF00] text-neutral-900 hover:bg-[#c7f000] hover:border-[#c7f000]"
-      : "bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 text-neutral-700 border-neutral-200";
+      : "bg-white hover:bg-neutral-100 hover:border-neutral-300 text-neutral-700 border-neutral-200";
 
   return (
     <label title={title} className={`${ACTION_BASE} ${cls} cursor-pointer`}>
@@ -279,7 +279,7 @@ function MiniActionButton({ children, onClick, tone = "default", disabled, title
       ? "bg-[#D5FF00] border-[#D5FF00] text-neutral-900 hover:bg-[#c7f000] hover:border-[#c7f000]"
       : tone === "danger"
         ? "bg-red-50 hover:bg-red-100 text-red-700 border-red-200"
-        : "bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 text-neutral-700 border-neutral-200";
+        : "bg-white hover:bg-neutral-100 hover:border-neutral-300 text-neutral-700 border-neutral-200";
 
   return (
     <button
@@ -287,7 +287,7 @@ function MiniActionButton({ children, onClick, tone = "default", disabled, title
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className={`print:hidden min-h-11 sm:min-h-10 w-full rounded-xl text-sm font-medium border transition shadow-sm active:translate-y-[1px] ${BUTTON_FOCUS} ${BUTTON_DISABLED} ${cls} ${className}`}
+      className={`print:hidden min-h-11 sm:min-h-10 w-full rounded-lg text-sm font-semibold border transition active:translate-y-[1px] ${BUTTON_FOCUS} ${BUTTON_DISABLED} ${cls} ${className}`}
     >
       {children}
     </button>
@@ -482,7 +482,7 @@ function NoteEditorModal({ open, onClose, item, groupName, onSave, onClear, t })
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8 print:hidden">
       <div className="absolute inset-0 bg-neutral-900/40 backdrop-blur-sm transition-opacity" onClick={onClose} />
-      <div role="dialog" aria-modal="true" aria-labelledby="note-editor-title" className="relative w-full max-w-lg bg-white rounded-[28px] shadow-2xl overflow-hidden ring-1 ring-black/5 transform transition-all flex flex-col">
+      <div role="dialog" aria-modal="true" aria-labelledby="note-editor-title" className="modal-surface flex w-full max-w-lg flex-col">
         <div className="px-6 py-5 border-b border-neutral-100 flex items-start justify-between gap-4">
           <div>
             <div className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1">{groupName}</div>
@@ -912,7 +912,7 @@ function HelpModal({ open, onClose, t }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 print:hidden">
       <div className="absolute inset-0 bg-neutral-900/60 backdrop-blur-sm transition-opacity" onClick={onClose} />
-      <div role="dialog" aria-modal="true" aria-labelledby="help-modal-title" className="relative w-full max-w-2xl bg-white rounded-[28px] shadow-2xl overflow-hidden ring-1 ring-black/5 transform transition-all flex flex-col max-h-[90vh]">
+      <div role="dialog" aria-modal="true" aria-labelledby="help-modal-title" className="modal-surface flex max-h-[90vh] w-full max-w-2xl flex-col">
         
         {/* Header */}
         <div className="relative px-8 pt-10 pb-8 bg-neutral-50 border-b border-neutral-100">
@@ -1110,7 +1110,7 @@ function ExportModal({ open, onClose, onPrint, onBackup, onImport, t }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8 print:hidden"> 
       <div className="absolute inset-0 bg-neutral-900/40 backdrop-blur-sm transition-opacity" onClick={onClose} />
-      <div role="dialog" aria-modal="true" aria-labelledby="export-modal-title" className="relative w-full max-w-sm bg-white rounded-[28px] shadow-2xl overflow-hidden ring-1 ring-black/5 transform transition-all">
+      <div role="dialog" aria-modal="true" aria-labelledby="export-modal-title" className="modal-surface w-full max-w-sm">
         <div className="px-6 pt-6 pb-4 flex items-center justify-between">
           <div>
             <h2 id="export-modal-title" className="font-bold text-2xl text-neutral-900 tracking-tight">{t("export_title")}</h2>
@@ -1185,7 +1185,7 @@ function MonthCopyModal({ sourceMonthKey, sourceMonth, months, lang, onClose, on
         aria-modal="true"
         aria-labelledby="month-copy-title"
         aria-describedby={destructive ? "month-copy-warning" : "month-copy-reset-summary"}
-        className="relative w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-[28px] bg-white shadow-2xl ring-1 ring-black/5"
+        className="modal-surface max-h-[90vh] w-full max-w-xl overflow-y-auto"
       >
         <div className="px-6 pt-6 pb-4 border-b border-neutral-100 flex items-start justify-between gap-4">
           <div>
@@ -1197,7 +1197,7 @@ function MonthCopyModal({ sourceMonthKey, sourceMonth, months, lang, onClose, on
 
         <div className="p-6 space-y-5">
           <label className="block">
-            <span className="text-sm font-semibold text-neutral-800">{t("copyTo")}</span>
+            <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-neutral-500">{t("copyTo")}</span>
             <input
               autoFocus
               type="month"
@@ -1355,10 +1355,10 @@ function BalanceCheck({
   };
 
   return (
-    <div className={`rounded-2xl bg-white shadow-sm border p-4 print:hidden ${isShort ? "border-red-200" : "border-neutral-200"}`}>
+    <div className={`rounded-xl bg-white border p-4 print:hidden ${isShort ? "border-red-200" : "border-neutral-200"}`}>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-sm font-bold text-neutral-900">{t("balanceCheck")}</div>
+          <div className="text-[11px] font-bold uppercase tracking-[0.1em] text-neutral-600">{t("balanceCheck")}</div>
           <div className="text-xs text-neutral-500 mt-1">{t("balanceCheckDesc")}</div>
         </div>
         <div className={`text-xs font-bold px-2 py-1 rounded-lg ${isShort ? "bg-red-50 text-red-700" : "bg-neutral-100 text-neutral-600"}`}>
@@ -1368,12 +1368,12 @@ function BalanceCheck({
 
       <div className="mt-4 space-y-3">
         <label htmlFor="bank-balance-input" className="block">
-          <span className="text-xs text-neutral-600 font-medium">{t("currentBalance")}</span>
+          <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-neutral-500">{t("currentBalance")}</span>
           <div className="relative mt-1">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500 font-semibold">{currencySymbol}</span>
             <SelectAllNumberInput
               id="bank-balance-input"
-              className={`w-full rounded-xl border pl-8 pr-3 py-2 bg-white text-right text-neutral-800 font-semibold text-lg tabular-nums focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 ${balanceTouched && balanceInvalid ? "border-red-400" : "border-neutral-200 focus:border-neutral-300"}`}
+              className={`w-full rounded-lg border pl-8 pr-3 py-2 bg-white text-right text-neutral-900 font-bold text-lg tracking-tight tabular-nums focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 ${balanceTouched && balanceInvalid ? "border-red-400" : "border-neutral-300 focus:border-neutral-500"}`}
               value={balance}
               onChange={onBalanceUpdate}
               onBlur={() => setBalanceTouched(true)}
@@ -1388,7 +1388,7 @@ function BalanceCheck({
         </label>
 
         <div>
-          <div className="text-xs text-neutral-600 font-medium">{t("pendingMoneyIn")}</div>
+          <div className="text-[10px] font-bold uppercase tracking-[0.08em] text-neutral-500">{t("pendingMoneyIn")}</div>
           <div className="mt-1 grid grid-cols-[1fr_82px_44px] gap-1.5">
             <input
               className="min-w-0 rounded-lg border border-neutral-200 px-2 py-1.5 bg-white text-neutral-800 text-xs focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 focus:border-neutral-300"
@@ -1418,7 +1418,7 @@ function BalanceCheck({
               type="button"
               onClick={addPendingEntry}
               disabled={!canAttemptPending}
-              className={`h-11 rounded-lg border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 text-neutral-700 text-sm font-bold ${BUTTON_FOCUS} ${BUTTON_DISABLED}`}
+              className={`h-11 rounded-lg border border-neutral-200 bg-white hover:bg-neutral-100 hover:border-neutral-300 text-neutral-700 text-sm font-bold ${BUTTON_FOCUS} ${BUTTON_DISABLED}`}
               title={t("addPendingIncome")}
             >
               +
@@ -1457,12 +1457,12 @@ function BalanceCheck({
         </div>
 
         <label htmlFor="overdraft-limit-input" className="block">
-          <span className="text-xs text-neutral-600 font-medium">{t("overdraftLimit")}</span>
+          <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-neutral-500">{t("overdraftLimit")}</span>
           <div className="relative mt-1">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500 font-semibold">{currencySymbol}</span>
             <SelectAllNumberInput
               id="overdraft-limit-input"
-              className={`w-full rounded-xl border pl-8 pr-3 py-2 bg-white text-right text-neutral-800 font-semibold text-lg tabular-nums focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 ${overdraftTouched && overdraftInvalid ? "border-red-400" : "border-neutral-200 focus:border-neutral-300"}`}
+              className={`w-full rounded-lg border pl-8 pr-3 py-2 bg-white text-right text-neutral-900 font-bold text-lg tracking-tight tabular-nums focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 ${overdraftTouched && overdraftInvalid ? "border-red-400" : "border-neutral-300 focus:border-neutral-500"}`}
               value={overdraftLimit}
               onChange={onOverdraftLimitUpdate}
               onBlur={() => setOverdraftTouched(true)}
@@ -1648,7 +1648,7 @@ function initializeAppData(source) {
 const TRANSLATIONS = {
   en: {
     subtitle: "Monthly personal budgeting tool",
-    yearOverview: "Year Overview",
+    yearOverview: "Year view",
     backToMonth: "Back to Month",
     previousYear: "Previous year",
     nextYear: "Next year",
@@ -1675,8 +1675,8 @@ const TRANSLATIONS = {
     tableActualNet: "Actual Net",
     openMonth: "Open {month}",
     hub: "HUB",
-    preview: "Preview",
-    data: "Export",
+    preview: "Print preview",
+    data: "Backup & export",
     help: "Help",
     month: "Month",
     prevMonth: "◀ Prev",
@@ -1714,15 +1714,15 @@ const TRANSLATIONS = {
     resetBalance: "Current bank balance and overdraft are not copied.",
     resetPending: "Expected incoming money is not copied.",
     resetTransactions: "Transaction remnants are not copied.",
-    monthCopied: "Month copied successfully",
+    monthCopied: "{destination} created from {source}.",
     monthCopyNotSaved: "The month was copied in this open page, but it could not be saved. Download a backup now.",
     monthCopyInvalid: "The copied month could not be validated. No data was changed.",
     monthCopyValidationError: "Could not copy {month}. Check {field}: {problem}",
-    copyAll: "Copy ALL",
-    copyUnpaid: "Copy UNPAID only",
+    copyAll: "Copy all",
+    copyUnpaid: "Copy unpaid only",
     cancel: "Cancel",
     clear: "Clear",
-    startAgain: "Start Again",
+    startAgain: "Clear month",
     income: "Income",
     addIncome: "Add income",
     totalIncome: "Expected Income",
@@ -1753,12 +1753,12 @@ const TRANSLATIONS = {
     groupPlanned: "Planned",
     groupUnpaid: "Unpaid",
     netRemaining: "Left After Planned Expenses",
-    leftAfterPlannedExpenses: "Left After Planned Expenses",
+    leftAfterPlannedExpenses: "Projected remainder",
     financialDetails: "Financial details",
     receivedIncome: "Received income",
     delayedIncome: "Delayed income",
     cancelledIncome: "Cancelled income",
-    expenseAttention: "Expense attention summary",
+    expenseAttention: "Expense status",
     unpaidExpenseSingular: "unpaid expense",
     unpaidExpensePlural: "unpaid expenses",
     overdue: "overdue",
@@ -1795,7 +1795,7 @@ const TRANSLATIONS = {
     helpTitle: "Help",
     helpSubtitle: "How your data is saved + how to keep continuity.",
     autosave: "Autosave (default)",
-    autosaveDesc: "Budgit saves automatically in your browser (localStorage) under:",
+    autosaveDesc: "BudgIt saves automatically in your browser (localStorage) under:",
     autosaveWarn: "If you clear browser data or switch devices/browsers, your local data won’t follow automatically.",
     bestPractice: "Best practice (continuity)",
     bp1: "Use",
@@ -1808,8 +1808,8 @@ const TRANSLATIONS = {
     reorderingDesc2: "handle. Drop on the small lines between items to insert exactly where you want.",
     paidItems: "Paid items",
     paidItemsDesc: "Tick the checkbox to mark an expense as paid. Paid items don’t count toward remaining totals.",
-    sectionsHelp: "Sections",
-    sectionsHelpDesc: "Group expenses by category. Click the section name to rename it. Use “Add section” to create new ones.",
+    sectionsHelp: "Groups",
+    sectionsHelpDesc: "Organise expenses by group. Select a group name to rename it, or use “Add group” to create one.",
     dueDatesHelp: "Due Dates",
     dueDatesHelpDesc: "Set due dates to track when bills are due. Use “Sort due” to organize items by date.",
     copyingHelp: "Rolling Over",
@@ -1819,7 +1819,7 @@ const TRANSLATIONS = {
     printingDesc2: "to check the layout, then",
     printingDesc3: "and choose “Save as PDF”.",
     privacy: "Privacy",
-    privacyDesc: "Budgit runs in your browser. There’s no account system here yet, and nothing is uploaded unless you choose to share your exported file.",
+    privacyDesc: "BudgIt runs in your browser. There’s no account system here yet, and nothing is uploaded unless you choose to share your exported file.",
     footer: "ToolStack • Help Pack v2",
     copyUnpaidMsg: "Copied unpaid → next month",
     copyAllMsg: "Copied month → next month",
@@ -1841,9 +1841,9 @@ const TRANSLATIONS = {
     saveStatusLoadError: "Could not load saved data",
     saveFailureAdvice: "Download a backup now. Your latest changes are only in this open page.",
     loadFailureAdvice: "Existing browser data was left unchanged. Restore a known backup to continue safely.",
-    balanceCheck: "Balance Check",
+    balanceCheck: "Balance projection",
     balanceCheckDesc: "Bank balance plus pending money, minus remaining expenses.",
-    pendingMoneyIn: "Pending money in",
+    pendingMoneyIn: "Expected incoming",
     pendingIncomeLabel: "Pending money description",
     pendingIncomeLabelPlaceholder: "Overtime, eBay, refund",
     pendingIncomeFallback: "Pending",
@@ -2008,7 +2008,7 @@ const TRANSLATIONS = {
   },
   de: {
     subtitle: "Monatliches persönliches Budgetierungstool",
-    yearOverview: "Jahresübersicht",
+    yearOverview: "Jahresansicht",
     backToMonth: "Zurück zum Monat",
     previousYear: "Vorheriges Jahr",
     nextYear: "Nächstes Jahr",
@@ -2035,8 +2035,8 @@ const TRANSLATIONS = {
     tableActualNet: "Tatsächlicher Saldo",
     openMonth: "{month} öffnen",
     hub: "HUB",
-    preview: "Vorschau",
-    data: "Export",
+    preview: "Druckvorschau",
+    data: "Sicherung & Export",
     help: "Hilfe",
     month: "Monat",
     prevMonth: "◀ Zurück",
@@ -2074,15 +2074,15 @@ const TRANSLATIONS = {
     resetBalance: "Aktueller Kontostand und Dispokredit werden nicht kopiert.",
     resetPending: "Erwartete Geldeingänge werden nicht kopiert.",
     resetTransactions: "Transaktionsreste werden nicht kopiert.",
-    monthCopied: "Monat erfolgreich kopiert",
+    monthCopied: "{destination} wurde aus {source} erstellt.",
     monthCopyNotSaved: "Der Monat wurde auf dieser geöffneten Seite kopiert, konnte aber nicht gespeichert werden. Laden Sie jetzt eine Sicherung herunter.",
     monthCopyInvalid: "Der kopierte Monat konnte nicht validiert werden. Es wurden keine Daten geändert.",
     monthCopyValidationError: "{month} konnte nicht kopiert werden. Prüfen Sie {field}: {problem}",
-    copyAll: "ALLES kopieren",
-    copyUnpaid: "Nur UNBEZAHLTE kopieren",
+    copyAll: "Alles kopieren",
+    copyUnpaid: "Nur offene kopieren",
     cancel: "Abbrechen",
     clear: "Leeren",
-    startAgain: "Neu starten",
+    startAgain: "Monat leeren",
     income: "Einkommen",
     addIncome: "Einnahme hinzufügen",
     totalIncome: "Erwartete Einnahmen",
@@ -2113,12 +2113,12 @@ const TRANSLATIONS = {
     groupPlanned: "Geplant",
     groupUnpaid: "Offen",
     netRemaining: "Verfügbar nach geplanten Ausgaben",
-    leftAfterPlannedExpenses: "Verfügbar nach geplanten Ausgaben",
+    leftAfterPlannedExpenses: "Voraussichtlicher Restbetrag",
     financialDetails: "Finanzdetails",
     receivedIncome: "Erhaltene Einnahmen",
     delayedIncome: "Verspätete Einnahmen",
     cancelledIncome: "Stornierte Einnahmen",
-    expenseAttention: "Übersicht offener Ausgaben",
+    expenseAttention: "Ausgabenstatus",
     unpaidExpenseSingular: "offene Ausgabe",
     unpaidExpensePlural: "offene Ausgaben",
     overdue: "überfällig",
@@ -2155,7 +2155,7 @@ const TRANSLATIONS = {
     helpTitle: "Hilfe",
     helpSubtitle: "Wie Ihre Daten gespeichert werden + wie Sie Kontinuität wahren.",
     autosave: "Automatische Speicherung (Standard)",
-    autosaveDesc: "Budgit speichert automatisch in Ihrem Browser (localStorage) unter:",
+    autosaveDesc: "BudgIt speichert automatisch in Ihrem Browser (localStorage) unter:",
     autosaveWarn: "Wenn Sie Browserdaten löschen oder Geräte/Browser wechseln, folgen Ihre lokalen Daten nicht automatisch.",
     bestPractice: "Best Practice (Kontinuität)",
     bp1: "Verwenden Sie",
@@ -2168,8 +2168,8 @@ const TRANSLATIONS = {
     reorderingDesc2: "Griff. Lassen Sie auf die kleinen Linien zwischen den Elementen fallen, um genau dort einzufügen.",
     paidItems: "Bezahlte Elemente",
     paidItemsDesc: "Aktivieren Sie das Kontrollkästchen, um eine Ausgabe als bezahlt zu markieren. Bezahlte Elemente zählen nicht zu den verbleibenden Summen.",
-    sectionsHelp: "Abschnitte",
-    sectionsHelpDesc: "Gruppieren Sie Ausgaben nach Kategorie. Klicken Sie auf den Abschnittsnamen, um ihn umzubenennen. Verwenden Sie „+ Abschnitt“, um neue zu erstellen.",
+    sectionsHelp: "Gruppen",
+    sectionsHelpDesc: "Ordnen Sie Ausgaben in Gruppen. Wählen Sie einen Gruppennamen zum Umbenennen oder erstellen Sie eine neue Gruppe über „Gruppe hinzufügen“.",
     dueDatesHelp: "Fälligkeitsdaten",
     dueDatesHelpDesc: "Legen Sie Fälligkeitsdaten fest, um Rechnungen zu verfolgen. Verwenden Sie „Fälligkeit sort.“, um Elemente nach Datum zu ordnen.",
     copyingHelp: "Übertrag",
@@ -2179,7 +2179,7 @@ const TRANSLATIONS = {
     printingDesc2: "um das Layout zu überprüfen, dann",
     printingDesc3: "und wählen Sie „Als PDF speichern“.",
     privacy: "Datenschutz",
-    privacyDesc: "Budgit läuft in Ihrem Browser. Es gibt hier noch kein Kontosystem, und nichts wird hochgeladen, es sei denn, Sie entscheiden sich, Ihre exportierte Datei zu teilen.",
+    privacyDesc: "BudgIt läuft in Ihrem Browser. Es gibt hier noch kein Kontosystem, und nichts wird hochgeladen, es sei denn, Sie entscheiden sich, Ihre exportierte Datei zu teilen.",
     footer: "ToolStack • Help Pack v2",
     copyUnpaidMsg: "Unbezahlte kopiert → nächster Monat",
     copyAllMsg: "Monat kopiert → nächster Monat",
@@ -2201,9 +2201,9 @@ const TRANSLATIONS = {
     saveStatusLoadError: "Gespeicherte Daten konnten nicht geladen werden",
     saveFailureAdvice: "Laden Sie jetzt eine Sicherung herunter. Ihre neuesten Änderungen sind nur auf dieser geöffneten Seite vorhanden.",
     loadFailureAdvice: "Vorhandene Browserdaten wurden nicht verändert. Stellen Sie eine bekannte Sicherung wieder her, um sicher fortzufahren.",
-    balanceCheck: "Kontostand-Check",
+    balanceCheck: "Kontostandsprognose",
     balanceCheckDesc: "Kontostand plus erwartetes Geld, minus verbleibende Ausgaben.",
-    pendingMoneyIn: "Erwartetes Geld",
+    pendingMoneyIn: "Erwartete Eingänge",
     pendingIncomeLabel: "Beschreibung für erwartetes Geld",
     pendingIncomeLabelPlaceholder: "Überstunden, eBay, Erstattung",
     pendingIncomeFallback: "Erwartet",
@@ -2954,7 +2954,10 @@ export default function BudgitApp() {
     if (persisted.ok) {
       setSaveErrorCode(null);
       setSaveStatus("saved");
-      notify(t("monthCopied"));
+      notify(t("monthCopied", {
+        source: monthLabel(app.activeMonth, app.lang),
+        destination: monthLabel(destinationMonthKey, app.lang),
+      }));
     } else {
       setSaveErrorCode(persisted.locked ? (saveErrorCode || persisted.code) : persisted.code);
       setSaveStatus("error");
@@ -3176,7 +3179,7 @@ export default function BudgitApp() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-50 text-neutral-800">
+    <div className="app-shell">
       <style>{`
         :root { color-scheme: light; }
         @media print {
@@ -3242,7 +3245,7 @@ export default function BudgitApp() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8 print:p-0 print:static print:block print:h-auto">
           <div className="absolute inset-0 bg-neutral-900/40 backdrop-blur-sm transition-opacity print:hidden" onClick={() => setPreviewOpen(false)} />
 
-          <div role="dialog" aria-modal="true" aria-labelledby="print-preview-title" className="relative w-full max-w-4xl bg-white rounded-[28px] shadow-2xl overflow-hidden ring-1 ring-black/5 transform transition-all flex flex-col max-h-[90vh] print:max-h-none print:rounded-none print:shadow-none print:overflow-visible print:static print:w-full print:max-w-none print:transform-none">
+          <div role="dialog" aria-modal="true" aria-labelledby="print-preview-title" className="modal-surface flex max-h-[90vh] w-full max-w-4xl flex-col print:static print:max-h-none print:w-full print:max-w-none print:transform-none print:overflow-visible print:rounded-none print:border-0 print:shadow-none">
             
             <div className="px-8 pt-8 pb-6 flex items-start justify-between shrink-0 print:hidden">
               <div>
@@ -3393,7 +3396,7 @@ export default function BudgitApp() {
       ) : null}
 
       <div className="max-w-5xl mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
+        <div className="brand-header">
           <div>
             {/* Master heading style */}
             <div className="relative flex flex-wrap items-center gap-3 w-full">
@@ -3405,7 +3408,7 @@ export default function BudgitApp() {
             <img
               src={budgitSub}
               alt="BudgIt Subheading"
-              className="h-24 sm:h-32 w-auto object-contain max-w-[90%] select-none"
+                className="h-20 w-auto max-w-[88%] select-none object-contain opacity-90 sm:h-28"
             />
           </div>
 
@@ -3427,14 +3430,14 @@ export default function BudgitApp() {
                 type="button"
                 title="Help"
                 onClick={() => setHelpOpen(true)}
-                className="print:hidden h-9 w-9 rounded-xl border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 shadow-sm flex items-center justify-center font-bold text-neutral-800 text-sm"
+                className={`print:hidden flex h-10 w-10 items-center justify-center rounded-lg border border-neutral-200 bg-white text-sm font-bold text-neutral-700 transition hover:border-neutral-300 hover:bg-neutral-100 ${BUTTON_FOCUS}`}
                 aria-label="Help"
               >
                 ?
               </button>
 
               <div className="print:hidden absolute right-0 top-12">
-                <div className="flex items-center gap-1 p-1 bg-white border border-neutral-200 rounded-xl w-fit shadow-sm">
+                <div className="utility-segment">
                   <button
                     onClick={() => setLang("en")}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
@@ -3462,8 +3465,8 @@ export default function BudgitApp() {
         </div>
 
         <div className="mt-5 grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div className="md:col-span-2 min-w-0 max-w-full rounded-2xl bg-white shadow-sm border border-neutral-200 print:shadow-none">
-            <div className="px-4 py-3 border-b border-neutral-100">
+          <div className="primary-surface md:col-span-2 print:shadow-none">
+            <div className="month-toolbar">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 w-full sm:w-auto">
                   <MiniActionButton onClick={() => ensureMonth(addMonths(app.activeMonth, -1))} title={t("prevMonthTitle")}>
@@ -3476,7 +3479,7 @@ export default function BudgitApp() {
                   <select
                     value={activeYM.y || new Date().getFullYear()}
                     onChange={(e) => setActiveYear(Number(e.target.value))}
-                    className="print:hidden h-10 w-full rounded-xl text-sm font-medium border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 shadow-sm px-3 text-neutral-700 cursor-pointer"
+                    className="print:hidden h-10 w-full cursor-pointer rounded-lg border border-neutral-200 bg-white px-3 text-sm font-semibold text-neutral-700 hover:border-neutral-300 hover:bg-neutral-100 focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50"
                     title={t("yearTitle")}
                   >
                     {years.map((y) => (
@@ -3489,7 +3492,7 @@ export default function BudgitApp() {
                   <select
                     value={activeYM.m || 1}
                     onChange={(e) => setActiveMonthNum(Number(e.target.value))}
-                    className="print:hidden h-10 w-full rounded-xl text-sm font-medium border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 shadow-sm px-3 text-neutral-700 cursor-pointer"
+                    className="print:hidden h-10 w-full cursor-pointer rounded-lg border border-neutral-200 bg-white px-3 text-sm font-semibold text-neutral-700 hover:border-neutral-300 hover:bg-neutral-100 focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50"
                     title={t("monthTitle")}
                   >
                     {Array.from({ length: 12 }).map((_, i) => (
@@ -3514,7 +3517,7 @@ export default function BudgitApp() {
               <div className="mt-3">
                 <div className="flex items-end justify-between gap-3">
                   <div className="flex items-center gap-6">
-                    <div className="text-3xl sm:text-4xl font-black tracking-tight text-neutral-600">{monthLabel(app.activeMonth, app.lang)}</div>
+                    <div className="month-title">{monthLabel(app.activeMonth, app.lang)}</div>
                     {searchOpen ? (
                       <div className="relative flex items-center">
                         <input 
@@ -3538,7 +3541,7 @@ export default function BudgitApp() {
                       </button>
                     )}
                   </div>
-                  <div className="hidden sm:block text-xs text-neutral-500 font-medium tabular-nums">{app.activeMonth}</div>
+                  <div className="technical-meta hidden sm:block">{app.activeMonth}</div>
                 </div>
                 <div
                   role="status"
@@ -3556,7 +3559,7 @@ export default function BudgitApp() {
                     <><span className="font-semibold">{t("saveStatusLoadError")}</span> — {t("loadFailureAdvice")}</>
                   )}
                 </div>
-                <div className="mt-2 h-[2px] w-72 rounded-full bg-gradient-to-r from-[#D5FF00]/0 via-[#D5FF00] to-[#D5FF00]/0" />
+                <div className="accent-rule" />
               </div>
             </div>
 
@@ -4234,7 +4237,7 @@ export default function BudgitApp() {
                 <CalculatorIcon className="h-5 w-5" />
               </button>
 
-              <div className="flex items-center gap-1 p-1 bg-white border border-neutral-200 rounded-xl w-fit shadow-sm">
+              <div className="utility-segment">
                 {Object.keys(CURRENCIES).map((c) => (
                   <button
                     key={c}
@@ -4247,8 +4250,8 @@ export default function BudgitApp() {
               </div>
             </div>
 
-            <div className="rounded-2xl bg-white shadow-sm border border-neutral-200 print:shadow-none overflow-hidden">
-              <div className="px-4 py-3 border-b border-neutral-100 font-semibold text-neutral-800">{t("summary")}</div>
+            <div className="summary-panel print:shadow-none">
+              <div className="summary-heading">{t("summary")}</div>
               <div className="p-4 space-y-4">
               {invalidIncomeCount > 0 || invalidExpenseCount > 0 ? (
                 <div role="status" className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
@@ -4257,11 +4260,11 @@ export default function BudgitApp() {
                   {invalidExpenseCount > 0 ? <div>{t("expenses")}: {invalidAmountNotice(invalidExpenseCount)}</div> : null}
                 </div>
               ) : null}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 border-y border-neutral-200 sm:grid-cols-2">
                 {[["expectedIncome", incomeTotal, false], ["plannedExpenses", expensePlannedTotal, false], ["leftAfterPlannedExpenses", netRemaining, netRemaining < 0], ["unpaidExpenses", expenseRemainingTotal, false]].map(([label, value, negative]) => (
-                  <div key={label} className={`rounded-2xl border p-4 min-w-0 ${negative ? "border-red-200" : "border-neutral-200"}`}>
-                    <div className="text-sm leading-5 text-neutral-700 break-words">{t(label)}</div>
-                    <div className={`text-2xl font-semibold mt-1 tabular-nums ${negative ? "text-red-700" : "text-neutral-800"}`}>
+                  <div key={label} className={`summary-stat ${label === "leftAfterPlannedExpenses" ? "summary-stat-primary" : ""}`}>
+                    <div className="summary-label break-words">{t(label)}</div>
+                    <div className={`summary-value ${negative ? "text-red-700" : ""}`}>
                       {negative ? <span className="sr-only">{t("negativeValue")}: </span> : null}
                       <Money value={value} currency={app.currency} />
                     </div>
