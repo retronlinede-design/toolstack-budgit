@@ -171,17 +171,63 @@ export function calculateMoneyListTotal(items, scope = "money") {
   return result;
 }
 
-function finiteMoneyValue(input) {
+export function parseOptionalMoney(input, { nonNegative = false } = {}) {
+  if (typeof input === "string" && input.trim() === "") {
+    return { valid: true, blank: true, value: 0, reason: null, input };
+  }
   const parsed = parseMoney(input);
-  return parsed.valid ? parsed.value : 0;
+  if (!parsed.valid) return { ...parsed, blank: false, value: null };
+  if (nonNegative && parsed.value < 0) {
+    return { valid: false, blank: false, value: null, reason: "negative_not_allowed", input };
+  }
+  return { ...parsed, blank: false };
+}
+
+export function calculateBalanceProjection({ bankBalance, overdraftLimit, pendingIncomeEntries, remainingExpenses }) {
+  const balance = parseOptionalMoney(bankBalance);
+  const overdraft = parseOptionalMoney(overdraftLimit, { nonNegative: true });
+  const pending = calculateMoneyListTotal(pendingIncomeEntries, "expectedIncomingMoney");
+  const remaining = parseMoney(remainingExpenses);
+  const currentBalance = balance.valid ? balance.value : null;
+  const expenses = remaining.valid ? remaining.value : null;
+  const pendingComplete = pending.invalidAmounts.length === 0;
+  const balanceAfterUnpaid = currentBalance !== null && expenses !== null
+    ? currentBalance - expenses
+    : null;
+  const projectedAfterMoneyIn = currentBalance !== null && pendingComplete
+    ? currentBalance + pending.total
+    : null;
+  const balanceAfterIncomingMoney = projectedAfterMoneyIn !== null && expenses !== null
+    ? projectedAfterMoneyIn - expenses
+    : null;
+  const availableWithOverdraft = balanceAfterIncomingMoney !== null && overdraft.valid
+    ? balanceAfterIncomingMoney + overdraft.value
+    : null;
+
+  return {
+    balance,
+    overdraft,
+    pendingTotal: pending.total,
+    invalidPendingAmounts: pending.invalidAmounts,
+    currentBalance,
+    projectedAfterMoneyIn,
+    balanceAfterUnpaid,
+    balanceAfterIncomingMoney,
+    availableWithOverdraft,
+  };
 }
 
 export function balanceAfterUnpaidExpenses(currentBankBalance, unpaidExpenses) {
-  const result = finiteMoneyValue(currentBankBalance) - finiteMoneyValue(unpaidExpenses);
-  return Number.isFinite(result) ? result : 0;
+  const balance = parseMoney(currentBankBalance);
+  const expenses = parseMoney(unpaidExpenses);
+  if (!balance.valid || !expenses.valid) return null;
+  return balance.value - expenses.value;
 }
 
 export function balanceAfterExpectedIncomingMoney(currentBankBalance, expectedIncomingMoney, unpaidExpenses) {
-  const result = finiteMoneyValue(currentBankBalance) + finiteMoneyValue(expectedIncomingMoney) - finiteMoneyValue(unpaidExpenses);
-  return Number.isFinite(result) ? result : 0;
+  const balance = parseMoney(currentBankBalance);
+  const pending = parseMoney(expectedIncomingMoney);
+  const expenses = parseMoney(unpaidExpenses);
+  if (!balance.valid || !pending.valid || !expenses.valid) return null;
+  return balance.value + pending.value - expenses.value;
 }

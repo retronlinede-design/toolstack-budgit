@@ -25,10 +25,8 @@ import budgitLogo from "./assets/budgit-graffiti.png";
 import budgitSub from "./assets/budgit-sub.png";
 import {
   INCOME_STATUSES,
-  balanceAfterExpectedIncomingMoney,
-  balanceAfterUnpaidExpenses,
+  calculateBalanceProjection,
   calculateExpenseGroupTotals,
-  calculateMoneyListTotal,
   calculateMonthTotals,
   getMoneyDisplayValue,
   parseMoney,
@@ -36,6 +34,7 @@ import {
 import { createExpenseAttentionSummary, formatSavingsRate } from "./domain/dashboardSummary.js";
 import { normalizeExpenseDueDay } from "./domain/dueDay.js";
 import { getMobileExpensePresentation, getMobileIncomePresentation } from "./domain/mobilePresentation.js";
+import { preparePendingIncomeEntry } from "./domain/pendingIncome.js";
 import { calculateYearOverview } from "./domain/yearOverview.js";
 import {
   BACKUP_LIMITS,
@@ -1315,26 +1314,43 @@ function BalanceCheck({
 }) {
   const [draftLabel, setDraftLabel] = useState("");
   const [draftAmount, setDraftAmount] = useState("");
-  const currentBalance = toNumber(balance);
+  const [balanceTouched, setBalanceTouched] = useState(false);
+  const [overdraftTouched, setOverdraftTouched] = useState(false);
+  const [draftAmountTouched, setDraftAmountTouched] = useState(false);
+  const [draftAttempted, setDraftAttempted] = useState(false);
   const pendingEntries = Array.isArray(pendingIncomeEntries) ? pendingIncomeEntries : [];
-  const totalPendingMoneyIn = calculateMoneyListTotal(pendingEntries, "expectedIncomingMoney").total;
-  const projectedAfterMoneyIn = currentBalance + totalPendingMoneyIn;
-  const balanceAfterUnpaid = balanceAfterUnpaidExpenses(currentBalance, remainingExpenses);
-  const balanceAfterIncomingMoney = balanceAfterExpectedIncomingMoney(currentBalance, totalPendingMoneyIn, remainingExpenses);
-  const overdraftAmount = toNumber(overdraftLimit);
-  const availableWithOverdraft = balanceAfterIncomingMoney + overdraftAmount;
-  const isShort = availableWithOverdraft < 0;
-  const canAddPending = !!String(draftLabel || "").trim() || toNumber(draftAmount) !== 0;
+  const projection = calculateBalanceProjection({ bankBalance: balance, overdraftLimit, pendingIncomeEntries: pendingEntries, remainingExpenses });
+  const {
+    currentBalance,
+    pendingTotal: totalPendingMoneyIn,
+    projectedAfterMoneyIn,
+    balanceAfterUnpaid,
+    balanceAfterIncomingMoney,
+    availableWithOverdraft,
+  } = projection;
+  const balanceInvalid = !projection.balance.valid;
+  const overdraftInvalid = !projection.overdraft.valid;
+  const invalidPendingCount = projection.invalidPendingAmounts.length;
+  const draftValidation = parseMoney(draftAmount);
+  const draftInvalidVisible = (draftAmountTouched || draftAttempted) && !draftValidation.valid;
+  const canAttemptPending = !!String(draftLabel || "").trim() || !!String(draftAmount || "").trim();
+  const isShort = typeof availableWithOverdraft === "number" && availableWithOverdraft < 0;
+  const invalidAmountNotice = (count) => t(count === 1 ? "excludesInvalidAmount" : "excludesInvalidAmounts", { count });
 
   const addPendingEntry = () => {
-    if (!canAddPending) return;
-    onAddPendingIncome({
+    setDraftAttempted(true);
+    const prepared = preparePendingIncomeEntry({
       id: uid(),
       label: String(draftLabel || "").trim() || t("pendingIncomeFallback"),
       amount: draftAmount,
+      fallbackLabel: t("pendingIncomeFallback"),
     });
+    if (!prepared.ok) return;
+    onAddPendingIncome(prepared.entry);
     setDraftLabel("");
     setDraftAmount("");
+    setDraftAmountTouched(false);
+    setDraftAttempted(false);
   };
 
   return (
@@ -1356,14 +1372,18 @@ function BalanceCheck({
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500 font-semibold">{currencySymbol}</span>
             <SelectAllNumberInput
               id="bank-balance-input"
-              className="w-full rounded-xl border border-neutral-200 pl-8 pr-3 py-2 bg-white text-right text-neutral-800 font-semibold text-lg tabular-nums focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 focus:border-neutral-300"
+              className={`w-full rounded-xl border pl-8 pr-3 py-2 bg-white text-right text-neutral-800 font-semibold text-lg tabular-nums focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 ${balanceTouched && balanceInvalid ? "border-red-400" : "border-neutral-200 focus:border-neutral-300"}`}
               value={balance}
               onChange={onBalanceUpdate}
+              onBlur={() => setBalanceTouched(true)}
               placeholder="0.00"
               title={t("currentBalance")}
               inputMode="decimal"
+              ariaInvalid={balanceTouched && balanceInvalid}
+              ariaDescribedBy={balanceTouched && balanceInvalid ? "bank-balance-error" : undefined}
             />
           </div>
+          {balanceTouched && balanceInvalid ? <span id="bank-balance-error" className="mt-1 block text-xs font-medium text-red-700">{t("invalidAmount")}</span> : null}
         </label>
 
         <div>
@@ -1380,33 +1400,40 @@ function BalanceCheck({
               title={t("pendingIncomeLabel")}
             />
             <SelectAllNumberInput
-              className="min-w-0 rounded-lg border border-neutral-200 px-2 py-1.5 bg-white text-right text-neutral-800 text-xs tabular-nums focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 focus:border-neutral-300"
+              className={`min-w-0 rounded-lg border px-2 py-1.5 bg-white text-right text-neutral-800 text-xs tabular-nums focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 ${draftInvalidVisible ? "border-red-400" : "border-neutral-200 focus:border-neutral-300"}`}
               value={draftAmount}
               onChange={(e) => setDraftAmount(e.target.value)}
+              onBlur={() => setDraftAmountTouched(true)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") addPendingEntry();
               }}
               placeholder="0"
               title={t("amount")}
               inputMode="decimal"
+              ariaInvalid={draftInvalidVisible}
+              ariaDescribedBy={draftInvalidVisible ? "pending-draft-amount-error" : undefined}
             />
             <button
               type="button"
               onClick={addPendingEntry}
-              disabled={!canAddPending}
+              disabled={!canAttemptPending}
               className={`h-11 rounded-lg border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 text-neutral-700 text-sm font-bold ${BUTTON_FOCUS} ${BUTTON_DISABLED}`}
               title={t("addPendingIncome")}
             >
               +
             </button>
           </div>
+          {draftInvalidVisible ? <div id="pending-draft-amount-error" className="mt-1 text-xs font-medium text-red-700">{t("invalidAmount")}</div> : null}
 
           {pendingEntries.length ? (
             <div className="mt-2 max-h-56 overflow-y-auto pr-1 space-y-1">
-              {pendingEntries.map((entry) => (
-                <div key={entry.id} className="flex items-center gap-2 text-xs leading-5">
+              {pendingEntries.map((entry) => {
+                const entryValid = getMoneyDisplayValue(entry.amount).valid;
+                return <div key={entry.id} className="flex items-center gap-2 text-xs leading-5">
                   <span className="min-w-0 flex-1 truncate text-neutral-700">{entry.label || t("pendingIncomeFallback")}</span>
-                  <span className="w-16 text-right tabular-nums font-medium text-neutral-800">{currencySymbol}{toNumber(entry.amount).toFixed(2)}</span>
+                  <span className={`w-16 text-right tabular-nums font-medium ${entryValid ? "text-neutral-800" : "text-red-700"}`}>
+                    <Money value={entry.amount} currency={currency} invalidLabel={t("invalidAmount")} />
+                  </span>
                   <button
                     type="button"
                     onClick={() => onDeletePendingIncome(entry.id)}
@@ -1416,8 +1443,8 @@ function BalanceCheck({
                   >
                     x
                   </button>
-                </div>
-              ))}
+                </div>;
+              })}
             </div>
           ) : <div className="mt-2 text-xs text-neutral-500">{t("noPendingIncome")}</div>}
 
@@ -1425,6 +1452,7 @@ function BalanceCheck({
             <span className="text-neutral-600">{t("pendingMoneyTotal")}</span>
             <span className="font-semibold text-neutral-900"><Money value={totalPendingMoneyIn} currency={currency} /></span>
           </div>
+          {invalidPendingCount > 0 ? <div className="mt-1 text-xs font-medium text-red-700">{invalidAmountNotice(invalidPendingCount)}</div> : null}
         </div>
 
         <label htmlFor="overdraft-limit-input" className="block">
@@ -1433,25 +1461,29 @@ function BalanceCheck({
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500 font-semibold">{currencySymbol}</span>
             <SelectAllNumberInput
               id="overdraft-limit-input"
-              className="w-full rounded-xl border border-neutral-200 pl-8 pr-3 py-2 bg-white text-right text-neutral-800 font-semibold text-lg tabular-nums focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 focus:border-neutral-300"
+              className={`w-full rounded-xl border pl-8 pr-3 py-2 bg-white text-right text-neutral-800 font-semibold text-lg tabular-nums focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 ${overdraftTouched && overdraftInvalid ? "border-red-400" : "border-neutral-200 focus:border-neutral-300"}`}
               value={overdraftLimit}
               onChange={onOverdraftLimitUpdate}
+              onBlur={() => setOverdraftTouched(true)}
               placeholder="0.00"
               title={t("overdraftLimit")}
               inputMode="decimal"
+              ariaInvalid={overdraftTouched && overdraftInvalid}
+              ariaDescribedBy={overdraftTouched && overdraftInvalid ? "overdraft-limit-error" : undefined}
             />
           </div>
+          {overdraftTouched && overdraftInvalid ? <span id="overdraft-limit-error" className="mt-1 block text-xs font-medium text-red-700">{t(projection.overdraft.reason === "negative_not_allowed" ? "negativeOverdraft" : "invalidAmount")}</span> : null}
         </label>
       </div>
 
       <div className="mt-4 pt-3 border-t border-neutral-100 space-y-2 text-sm">
         <div className="flex items-center justify-between gap-3">
           <span className="text-neutral-600">{t("currentBalanceShort")}</span>
-          <span className="font-semibold text-neutral-800"><Money value={currentBalance} currency={currency} /></span>
+          <span className="font-semibold text-neutral-800"><Money value={currentBalance} currency={currency} invalidLabel={t("projectionUnavailable")} /></span>
         </div>
         <div className="flex items-center justify-between gap-3">
           <span className="text-neutral-600">{t("projectedAfterMoneyIn")}</span>
-          <span className="font-semibold text-neutral-800"><Money value={projectedAfterMoneyIn} currency={currency} /></span>
+          <span className="font-semibold text-neutral-800"><Money value={projectedAfterMoneyIn} currency={currency} invalidLabel={t("projectionUnavailable")} /></span>
         </div>
         <div className="flex items-center justify-between gap-3">
           <span className="text-neutral-600">{t("remainingExpenses")}</span>
@@ -1459,15 +1491,15 @@ function BalanceCheck({
         </div>
         <div className="flex items-center justify-between gap-3">
           <span className="text-neutral-600">{t("balanceAfterUnpaidExpenses")}</span>
-          <span className={`font-semibold ${balanceAfterUnpaid < 0 ? "text-red-700" : "text-neutral-800"}`}><Money value={balanceAfterUnpaid} currency={currency} /></span>
+          <span className={`font-semibold ${typeof balanceAfterUnpaid === "number" && balanceAfterUnpaid < 0 ? "text-red-700" : "text-neutral-800"}`}><Money value={balanceAfterUnpaid} currency={currency} invalidLabel={t("projectionUnavailable")} /></span>
         </div>
         <div className="flex items-center justify-between gap-3">
           <span className="text-neutral-600">{t("balanceAfterExpectedIncomingMoney")}</span>
-          <span className={`font-semibold ${balanceAfterIncomingMoney < 0 ? "text-red-700" : "text-neutral-800"}`}><Money value={balanceAfterIncomingMoney} currency={currency} /></span>
+          <span className={`font-semibold ${typeof balanceAfterIncomingMoney === "number" && balanceAfterIncomingMoney < 0 ? "text-red-700" : "text-neutral-800"}`}><Money value={balanceAfterIncomingMoney} currency={currency} invalidLabel={t("projectionUnavailable")} /></span>
         </div>
         <div className="flex items-center justify-between gap-3 text-xs">
           <span className="text-neutral-500">{t("availableWithOverdraft")}</span>
-          <span className={`font-medium ${isShort ? "text-red-700" : "text-neutral-600"}`}><Money value={availableWithOverdraft} currency={currency} /></span>
+          <span className={`font-medium ${isShort ? "text-red-700" : "text-neutral-600"}`}><Money value={availableWithOverdraft} currency={currency} invalidLabel={t("projectionUnavailable")} /></span>
         </div>
       </div>
     </div>
@@ -1819,6 +1851,9 @@ const TRANSLATIONS = {
     pendingMoneyLabel: "Pending label / notes",
     pendingMoneyPlaceholder: "Salary, refund, transfer expected",
     overdraftLimit: "Overdraft limit",
+    negativeOverdraft: "Overdraft cannot be negative.",
+    projectionUnavailable: "Unavailable while related amounts are invalid.",
+    pendingSourceInvalid: "Enter a valid income amount before adding it to pending money.",
     availableWithOverdraft: "Available with overdraft",
     currentBalanceShort: "Current balance",
     projectedAfterMoneyIn: "Projected balance after money in",
@@ -2176,6 +2211,9 @@ const TRANSLATIONS = {
     pendingMoneyLabel: "Label / Notizen",
     pendingMoneyPlaceholder: "Gehalt, Erstattung, erwartete Überweisung",
     overdraftLimit: "Dispolimit",
+    negativeOverdraft: "Der Dispo darf nicht negativ sein.",
+    projectionUnavailable: "Nicht verfügbar, solange zugehörige Beträge ungültig sind.",
+    pendingSourceInvalid: "Geben Sie einen gültigen Einkommensbetrag ein, bevor Sie ihn als erwartetes Geld hinzufügen.",
     availableWithOverdraft: "Verfügbar mit Dispo",
     currentBalanceShort: "Aktueller Kontostand",
     projectedAfterMoneyIn: "Voraussichtlicher Kontostand nach Eingang",
@@ -2651,14 +2689,19 @@ export default function BudgitApp() {
   };
 
   const addIncomeToPending = (item) => {
-    const entry = {
+    const prepared = preparePendingIncomeEntry({
       id: uid(),
       label: String(item && item.name ? item.name : t("pendingIncomeFallback")).trim(),
       amount: item && item.amount != null ? item.amount : "0",
-    };
+      fallbackLabel: t("pendingIncomeFallback"),
+    });
+    if (!prepared.ok) {
+      notify(t("pendingSourceInvalid"));
+      return;
+    }
     updateMonth((cur) => ({
       ...cur,
-      pendingIncomeEntries: [...(cur.pendingIncomeEntries || []), entry],
+      pendingIncomeEntries: [...(cur.pendingIncomeEntries || []), prepared.entry],
     }));
   };
 

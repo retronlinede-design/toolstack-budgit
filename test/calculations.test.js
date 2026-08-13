@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   balanceAfterExpectedIncomingMoney,
   balanceAfterUnpaidExpenses,
+  calculateBalanceProjection,
   calculateExpenseGroupTotals,
   calculateIncomeTotals,
   calculateMonthTotals,
@@ -11,7 +12,9 @@ import {
   getMoneyDisplayValue,
   normalizeIncomeStatus,
   parseMoney,
+  parseOptionalMoney,
 } from "../src/domain/calculations.js";
+import { preparePendingIncomeEntry } from "../src/domain/pendingIncome.js";
 
 test("expected income counts toward expected monthly income", () => {
   assert.equal(calculateIncomeTotals([{ amount: "1000", status: "expected" }]).expectedIncome, 1000);
@@ -166,7 +169,8 @@ test("no calculation result becomes NaN or Infinity", () => {
   for (const [key, value] of Object.entries(totals)) {
     if (typeof value === "number") assert.equal(Number.isFinite(value), true, `${key} must be finite`);
   }
-  assert.equal(Number.isFinite(balanceAfterExpectedIncomingMoney(Infinity, "bad", NaN)), true);
+  assert.equal(balanceAfterExpectedIncomingMoney(Infinity, "bad", NaN), null);
+  assert.equal(balanceAfterUnpaidExpenses("bad", 10), null);
 });
 
 test("group-level totals use the same paid, unpaid, and validation rules", () => {
@@ -207,4 +211,68 @@ test("existing normalized application month data is accepted without reshaping p
   assert.equal(totals.unpaidExpenses, 800);
   assert.equal(totals.leftAfterPlannedExpenses, 1200);
   assert.deepEqual(totals.invalidAmounts, []);
+});
+
+test("optional bank balance follows strict money parsing while allowing blank values", () => {
+  for (const raw of ["", "   "]) assert.deepEqual(parseOptionalMoney(raw), { valid: true, blank: true, value: 0, reason: null, input: raw });
+  for (const [raw, value] of [["0", 0], ["125", 125], ["-25", -25], ["12.50", 12.5], ["12,50", 12.5]]) {
+    assert.deepEqual(parseOptionalMoney(raw), { valid: true, blank: false, value, reason: null, input: raw });
+  }
+  const malformed = parseOptionalMoney("not-money");
+  assert.equal(malformed.valid, false);
+  assert.equal(malformed.value, null);
+  assert.equal(malformed.reason, "invalid_format");
+});
+
+test("optional overdraft permits blank and non-negative amounts but rejects negative and malformed values", () => {
+  for (const raw of ["", "   "]) assert.equal(parseOptionalMoney(raw, { nonNegative: true }).valid, true);
+  for (const raw of ["0", "125", "12.50", "12,50"]) assert.equal(parseOptionalMoney(raw, { nonNegative: true }).valid, true);
+  assert.deepEqual(parseOptionalMoney("-1", { nonNegative: true }), { valid: false, blank: false, value: null, reason: "negative_not_allowed", input: "-1" });
+  assert.equal(parseOptionalMoney("bad", { nonNegative: true }).valid, false);
+});
+
+test("invalid balance inputs make only dependent projections unavailable", () => {
+  const invalidBalance = calculateBalanceProjection({ bankBalance: "bad", overdraftLimit: "100", pendingIncomeEntries: [{ id: "p", amount: "25" }], remainingExpenses: 40 });
+  assert.equal(invalidBalance.currentBalance, null);
+  assert.equal(invalidBalance.balanceAfterUnpaid, null);
+  assert.equal(invalidBalance.projectedAfterMoneyIn, null);
+  assert.equal(invalidBalance.availableWithOverdraft, null);
+
+  const invalidOverdraft = calculateBalanceProjection({ bankBalance: "100", overdraftLimit: "-10", pendingIncomeEntries: [], remainingExpenses: 40 });
+  assert.equal(invalidOverdraft.balanceAfterIncomingMoney, 60);
+  assert.equal(invalidOverdraft.availableWithOverdraft, null);
+});
+
+test("pending totals retain valid subtotals while invalid entries make dependent projections incomplete", () => {
+  const entries = [
+    { id: "dot", amount: "10.25" },
+    { id: "comma", amount: "20,25" },
+    { id: "zero", amount: "0" },
+    { id: "negative", amount: "-5" },
+    { id: "blank", amount: "" },
+    { id: "bad", amount: "oops" },
+  ];
+  const before = structuredClone(entries);
+  const projection = calculateBalanceProjection({ bankBalance: "100", overdraftLimit: "50", pendingIncomeEntries: entries, remainingExpenses: 25 });
+  assert.equal(projection.pendingTotal, 25.5);
+  assert.deepEqual(projection.invalidPendingAmounts.map(({ id, reason }) => ({ id, reason })), [
+    { id: "blank", reason: "empty" },
+    { id: "bad", reason: "invalid_format" },
+  ]);
+  assert.equal(projection.balanceAfterUnpaid, 75);
+  assert.equal(projection.projectedAfterMoneyIn, null);
+  assert.equal(projection.balanceAfterIncomingMoney, null);
+  assert.equal(projection.availableWithOverdraft, null);
+  assert.deepEqual(entries, before);
+});
+
+test("pending entry preparation preserves valid raw amounts and rejects blank or malformed drafts", () => {
+  for (const amount of ["0", "12.50", "12,50", "-5"]) {
+    const result = preparePendingIncomeEntry({ id: "pending", label: " Refund ", amount });
+    assert.equal(result.ok, true);
+    assert.deepEqual(result.entry, { id: "pending", label: "Refund", amount });
+  }
+  for (const amount of ["", "   ", "not-money"]) {
+    assert.equal(preparePendingIncomeEntry({ id: "pending", label: "Refund", amount }).ok, false);
+  }
 });
