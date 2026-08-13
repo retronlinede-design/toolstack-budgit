@@ -9,6 +9,7 @@ import {
   getMonthCopySummary,
   getNextMonthKey,
   isMonthMeaningfullyEmpty,
+  validateCopiedMonth,
 } from "../src/domain/monthCopy.js";
 import { validateApplicationState } from "../src/domain/backupSchema.js";
 import { canonicalizeBlankDueDay, normalizeExpenseDueDay } from "../src/domain/dueDay.js";
@@ -329,4 +330,94 @@ test("copy canonicalizes a directly supplied blank due day without accepting oth
   assert.equal(copied.expenseGroups[0].items[0].dueDay, null);
   assert.equal(canonicalizeBlankDueDay(0), 0);
   assert.equal(source.expenseGroups[0].items[0].dueDay, "");
+});
+
+test("raw editable blank expense amounts survive copy validation", () => {
+  const source = emptyMonth();
+  source.expenseGroups[0].items = [
+    { id: "blank-expense", name: "Unfinished bill", amount: "", dueDay: null, paid: false, note: "", notePinned: false, noteUpdatedAt: null },
+    { id: "space-expense", name: "Another bill", amount: "   ", dueDay: null, paid: false, note: "", notePinned: false, noteUpdatedAt: null },
+  ];
+  const snapshot = structuredClone(source);
+  const app = { activeMonth: "2026-07", months: { "2026-07": source }, lang: "en", currency: "EUR" };
+  const result = applyValidatedMonthCopyToApp({ app, sourceMonthKey: "2026-07", destinationMonthKey: "2026-08", idFactory: deterministicIds() });
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.copiedMonth.expenseGroups[0].items.map((item) => item.amount), ["", "   "]);
+  assert.equal(validateCopiedMonth(result.copiedMonth, "2026-08").valid, true);
+  assert.equal(validateApplicationState(result.app).valid, false);
+  const reloaded = JSON.parse(JSON.stringify(result.app));
+  assert.deepEqual(reloaded, result.app);
+  assert.deepEqual(reloaded.months["2026-08"].expenseGroups[0].items.map((item) => item.amount), ["", "   "]);
+  assert.equal(validateCopiedMonth(reloaded.months["2026-08"], "2026-08").valid, true);
+  assert.deepEqual(source, snapshot);
+});
+
+test("blank income amounts copy unchanged under the live month contract", () => {
+  const source = emptyMonth();
+  source.incomes = [{ id: "blank-income", name: "Unfinished income", amount: "", date: "", status: "expected", notes: "" }];
+  const snapshot = structuredClone(source);
+  const result = applyValidatedMonthCopyToApp({
+    app: { activeMonth: "2026-07", months: { "2026-07": source }, lang: "en", currency: "EUR" },
+    sourceMonthKey: "2026-07",
+    destinationMonthKey: "2026-08",
+    idFactory: deterministicIds(),
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.copiedMonth.incomes[0].amount, "");
+  assert.equal(validateCopiedMonth(result.copiedMonth, "2026-08").valid, true);
+  assert.deepEqual(source, snapshot);
+});
+
+test("copy accepts supported decimals and negative income without normalizing raw amounts", () => {
+  const source = emptyMonth();
+  source.incomes = [
+    { id: "dot-income", name: "Dot", amount: "12.50", date: "", status: "expected", notes: "" },
+    { id: "comma-income", name: "Comma", amount: "12,50", date: "", status: "expected", notes: "" },
+    { id: "negative-income", name: "Adjustment", amount: "-5", date: "", status: "expected", notes: "" },
+  ];
+  source.expenseGroups[0].items = [
+    { id: "dot-expense", name: "Dot", amount: "7.25", dueDay: null, paid: false, note: "", notePinned: false, noteUpdatedAt: null },
+    { id: "comma-expense", name: "Comma", amount: "7,25", dueDay: null, paid: false, note: "", notePinned: false, noteUpdatedAt: null },
+  ];
+  const result = applyValidatedMonthCopyToApp({
+    app: { activeMonth: "2026-07", months: { "2026-07": source }, lang: "en", currency: "EUR" },
+    sourceMonthKey: "2026-07",
+    destinationMonthKey: "2026-08",
+    idFactory: deterministicIds(),
+  });
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.copiedMonth.incomes.map((item) => item.amount), ["12.50", "12,50", "-5"]);
+  assert.deepEqual(result.copiedMonth.expenseGroups[0].items.map((item) => item.amount), ["7.25", "7,25"]);
+});
+
+test("copy rejects malformed nonblank amounts, negative expenses, and unsupported values", () => {
+  const cases = [
+    { collection: "income", amount: "not-money", expectedPath: "incomes[0].amount" },
+    { collection: "expense", amount: "not-money", expectedPath: "expenseGroups[0].items[0].amount" },
+    { collection: "expense", amount: "-1", expectedPath: "expenseGroups[0].items[0].amount", expectedCode: "negative_amount" },
+    { collection: "income", amount: null, expectedPath: "incomes[0].amount" },
+  ];
+
+  for (const testCase of cases) {
+    const source = emptyMonth();
+    if (testCase.collection === "income") {
+      source.incomes = [{ id: "income", name: "Income", amount: testCase.amount, date: "", status: "expected", notes: "" }];
+    } else {
+      source.expenseGroups[0].items = [{ id: "expense", name: "Expense", amount: testCase.amount, dueDay: null, paid: false, note: "", notePinned: false, noteUpdatedAt: null }];
+    }
+    const result = applyValidatedMonthCopyToApp({
+      app: { activeMonth: "2026-07", months: { "2026-07": source }, lang: "en", currency: "EUR" },
+      sourceMonthKey: "2026-07",
+      destinationMonthKey: "2026-08",
+      idFactory: deterministicIds(),
+    });
+
+    assert.equal(result.ok, false);
+    assert.equal(result.code, "invalid_copied_month");
+    assert.equal(result.validationErrors[0].path, `months.2026-08.${testCase.expectedPath}`);
+    assert.equal(result.validationErrors[0].code, testCase.expectedCode || "invalid_amount");
+  }
 });

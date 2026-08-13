@@ -52,11 +52,15 @@ function nextId(idFactory, kind) {
   return id;
 }
 
+function copyAmount(entry) {
+  return entry && Object.prototype.hasOwnProperty.call(entry, "amount") ? entry.amount : "0";
+}
+
 function copyIncomeEntry(income, options, idFactory) {
   return {
     id: nextId(idFactory, "income"),
     name: typeof income?.name === "string" ? income.name : "",
-    amount: income?.amount ?? "0",
+    amount: copyAmount(income),
     date: "",
     status: "expected",
     notes: options.copyEntryNotes && typeof income?.notes === "string" ? income.notes : "",
@@ -67,7 +71,7 @@ function copyExpenseEntry(expense, options, idFactory, groupId) {
   const copy = {
     id: nextId(idFactory, "expense"),
     name: typeof expense?.name === "string" ? expense.name : "",
-    amount: expense?.amount ?? "0",
+    amount: copyAmount(expense),
     // Blank legacy values mean "no due date". Preserve every other value so
     // focused destination validation can reject malformed/out-of-range data.
     dueDay: canonicalizeBlankDueDay(expense?.dueDay),
@@ -179,6 +183,39 @@ function validateCopyOptions(options) {
   ));
 }
 
+function isBlankEditableAmount(value) {
+  return typeof value === "string" && value.trim() === "";
+}
+
+function amountValidationRecord(record) {
+  return isBlankEditableAmount(record?.amount) ? { ...record, amount: "0" } : record;
+}
+
+/**
+ * Validate a generated live month copy. Blank editable amounts are legitimate
+ * unfinished values in live state, but all other backup-schema safeguards
+ * still apply. The validation candidate is detached and the supplied month is
+ * returned unchanged.
+ */
+export function validateCopiedMonth(month, monthKey) {
+  const validationCandidate = {
+    ...month,
+    incomes: Array.isArray(month?.incomes)
+      ? month.incomes.map(amountValidationRecord)
+      : month?.incomes,
+    expenseGroups: Array.isArray(month?.expenseGroups)
+      ? month.expenseGroups.map((group) => ({
+          ...group,
+          items: Array.isArray(group?.items)
+            ? group.items.map(amountValidationRecord)
+            : group?.items,
+        }))
+      : month?.expenseGroups,
+  };
+  const validation = validateApplicationMonth(validationCandidate, monthKey);
+  return validation.valid ? { valid: true, errors: [], data: month } : validation;
+}
+
 /**
  * Orchestrate a copy and validate only the generated destination month.
  * Unrelated months are carried through by reference and are deliberately not
@@ -202,7 +239,7 @@ export function applyValidatedMonthCopyToApp(args) {
   }
   if (!result.ok) return result;
 
-  const validation = validateApplicationMonth(result.copiedMonth, args.destinationMonthKey);
+  const validation = validateCopiedMonth(result.copiedMonth, args.destinationMonthKey);
   if (!validation.valid) {
     return {
       ok: false,
