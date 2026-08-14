@@ -35,6 +35,7 @@ import { normalizeExpenseDueDay } from "./domain/dueDay.js";
 import { getMobileExpensePresentation, getMobileIncomePresentation } from "./domain/mobilePresentation.js";
 import { analyzeExpenseBreakdown, EXPENSE_BREAKDOWN_CATEGORIES, normalizeExpenseBreakdown } from "./domain/expenseBreakdown.js";
 import { INCOME_CATEGORIES, normalizeIncomeCategory } from "./domain/incomeCategory.js";
+import { calculateIncomeComposition } from "./domain/incomeComposition.js";
 import { preparePendingIncomeEntry } from "./domain/pendingIncome.js";
 import { calculateYearOverview } from "./domain/yearOverview.js";
 import { analyzeHistoricalIncome, calendarMonthKey } from "./domain/historicalIncome.js";
@@ -1829,7 +1830,7 @@ const TRANSLATIONS = {
     yearInsights: "Year Insights",
     strongestMonth: "Strongest month",
     weakestMonth: "Weakest month",
-    averageMonthlyActualNet: "Average monthly actual net",
+    averageMonthlyActualNet: "Average monthly actual cash net",
     incomeStatusIncomplete: "Income status incomplete",
     unresolvedIncome: "Unresolved income",
     expectedEntrySingular: "expected entry",
@@ -1838,27 +1839,27 @@ const TRANSLATIONS = {
     unresolvedSubtotalIncompleteSingular: "Unresolved subtotal excludes 1 invalid amount.",
     unresolvedSubtotalIncompletePlural: "Unresolved subtotal excludes {count} invalid amounts.",
     historicalIncomePrintWarning: "Some expected income has not been reconciled.",
-    provisionalActualNet: "Provisional actual net",
+    provisionalActualNet: "Provisional actual cash net",
     annualActualNetProvisional: "Includes unresolved historical income",
     nonProvisionalMonthBasisSingular: "Based on 1 non-provisional month",
     nonProvisionalMonthBasisPlural: "Based on {count} non-provisional months",
     unavailable: "Unavailable",
     noData: "No data",
     noYearData: "No yearly data available yet.",
-    yearReceivedIncome: "Received Income",
+    yearReceivedIncome: "Received cash",
     yearPaidExpenses: "Paid Expenses",
     yearUnpaidExpenses: "Unpaid Expenses",
-    actualNet: "Actual Net",
+    actualNet: "Actual cash net",
     monthsWithData: "Months with Data",
     monthsWithUnpaidExpenses: "Months with Unpaid Expenses",
     yearLeftAfterPlanned: "Left After Planned Expenses",
     tableMonth: "Month",
-    tableExpected: "Expected",
-    tableReceived: "Received",
+    tableExpected: "Expected cash",
+    tableReceived: "Received cash",
     tablePlanned: "Planned",
     tablePaid: "Paid",
     tableUnpaid: "Unpaid",
-    tableActualNet: "Actual Net",
+    tableActualNet: "Actual cash net",
     openMonth: "Open {month}",
     hub: "HUB",
     commands: "Commands",
@@ -1939,7 +1940,7 @@ const TRANSLATIONS = {
     startAgain: "Clear month",
     income: "Income",
     addIncome: "Add income",
-    totalIncome: "Expected Income",
+    totalIncome: "Planned cash in",
     invalidAmount: "Enter a valid amount.",
     negativeExpenseAmount: "Expense amount cannot be negative.",
     excludesInvalidAmount: "Excludes {count} invalid amount",
@@ -1960,7 +1961,7 @@ const TRANSLATIONS = {
     notes: "Notes",
     notesPlaceholder: "Optional notes for this month…",
     summary: "Summary",
-    expectedIncome: "Expected Income",
+    expectedIncome: "Expected cash in",
     remainingExpenses: "Unpaid Expenses",
     unpaidExpenses: "Unpaid Expenses",
     plannedExpenses: "Planned Expenses",
@@ -1969,9 +1970,9 @@ const TRANSLATIONS = {
     netRemaining: "Left After Planned Expenses",
     leftAfterPlannedExpenses: "Projected remainder",
     financialDetails: "Financial details",
-    receivedIncome: "Received income",
-    delayedIncome: "Delayed income",
-    cancelledIncome: "Cancelled income",
+    receivedIncome: "Received cash",
+    delayedIncome: "Delayed cash in",
+    cancelledIncome: "Cancelled cash in",
     expenseAttention: "Expense status",
     unpaidExpenseSingular: "unpaid expense",
     unpaidExpensePlural: "unpaid expenses",
@@ -1979,7 +1980,14 @@ const TRANSLATIONS = {
     nextDue: "Next due",
     noUnpaidExpenses: "No unpaid expenses",
     negativeValue: "Negative value",
-    savingsRate: "Savings rate",
+    savingsRate: "Planned remainder rate",
+    classifiedEarnings: "Classified earnings",
+    employerContributions: "Employer contributions",
+    reimbursements: "Reimbursements",
+    ambiguousOtherCash: "Other / unknown cash",
+    unclassifiedCash: "Unclassified cash",
+    incomeComposition: "Planned cash composition",
+    incomeClassificationIncomplete: "Earnings classification is incomplete.",
     quickView: "Quick view",
     sections: "Sections",
     expenseItems: "Expense items",
@@ -2082,7 +2090,7 @@ const TRANSLATIONS = {
     projectionDetails: "Projection details",
     budgetSummary: "Budget summary",
     budgetPlan: "Budget plan",
-    projectedRemainderFormula: "Expected income − planned expenses",
+    projectedRemainderFormula: "Expected cash in − planned expenses",
     balanceCheckDesc: "Bank balance plus pending money, minus remaining expenses.",
     pendingMoneyIn: "Expected incoming",
     pendingIncomeLabel: "Pending money description",
@@ -2311,7 +2319,7 @@ const TRANSLATIONS = {
     yearInsights: "Jahresanalyse",
     strongestMonth: "Stärkster Monat",
     weakestMonth: "Schwächster Monat",
-    averageMonthlyActualNet: "Durchschnittlicher monatlicher Saldo",
+    averageMonthlyActualNet: "Durchschnittlicher monatlicher Cashflow-Saldo",
     incomeStatusIncomplete: "Einnahmenstatus unvollständig",
     unresolvedIncome: "Ungeklärte Einnahmen",
     expectedEntrySingular: "erwarteter Eintrag",
@@ -2320,27 +2328,27 @@ const TRANSLATIONS = {
     unresolvedSubtotalIncompleteSingular: "Die ungeklärte Zwischensumme schließt 1 ungültigen Betrag aus.",
     unresolvedSubtotalIncompletePlural: "Die ungeklärte Zwischensumme schließt {count} ungültige Beträge aus.",
     historicalIncomePrintWarning: "Einige erwartete Einnahmen wurden noch nicht abgestimmt.",
-    provisionalActualNet: "Vorläufiger tatsächlicher Saldo",
+    provisionalActualNet: "Vorläufiger Cashflow-Saldo",
     annualActualNetProvisional: "Enthält ungeklärte historische Einnahmen",
     nonProvisionalMonthBasisSingular: "Basiert auf 1 nicht vorläufigen Monat",
     nonProvisionalMonthBasisPlural: "Basiert auf {count} nicht vorläufigen Monaten",
     unavailable: "Nicht verfügbar",
     noData: "Keine Daten",
     noYearData: "Noch keine Jahresdaten verfügbar.",
-    yearReceivedIncome: "Erhaltene Einnahmen",
+    yearReceivedIncome: "Erhaltener Geldeingang",
     yearPaidExpenses: "Bezahlte Ausgaben",
     yearUnpaidExpenses: "Offene Ausgaben",
-    actualNet: "Tatsächlicher Saldo",
+    actualNet: "Tatsächlicher Cashflow-Saldo",
     monthsWithData: "Monate mit Daten",
     monthsWithUnpaidExpenses: "Monate mit offenen Ausgaben",
     yearLeftAfterPlanned: "Nach geplanten Ausgaben übrig",
     tableMonth: "Monat",
-    tableExpected: "Erwartet",
-    tableReceived: "Erhalten",
+    tableExpected: "Erwarteter Geldeingang",
+    tableReceived: "Erhaltener Geldeingang",
     tablePlanned: "Geplant",
     tablePaid: "Bezahlt",
     tableUnpaid: "Offen",
-    tableActualNet: "Tatsächlicher Saldo",
+    tableActualNet: "Cashflow-Saldo",
     openMonth: "{month} öffnen",
     hub: "HUB",
     commands: "Befehle",
@@ -2421,7 +2429,7 @@ const TRANSLATIONS = {
     startAgain: "Monat leeren",
     income: "Einkommen",
     addIncome: "Einnahme hinzufügen",
-    totalIncome: "Erwartete Einnahmen",
+    totalIncome: "Geplanter Geldeingang",
     invalidAmount: "Geben Sie einen gültigen Betrag ein.",
     negativeExpenseAmount: "Der Ausgabenbetrag darf nicht negativ sein.",
     excludesInvalidAmount: "Schließt {count} ungültigen Betrag aus",
@@ -2442,7 +2450,7 @@ const TRANSLATIONS = {
     notes: "Notizen",
     notesPlaceholder: "Optionale Notizen für diesen Monat…",
     summary: "Zusammenfassung",
-    expectedIncome: "Erwartete Einnahmen",
+    expectedIncome: "Erwarteter Geldeingang",
     remainingExpenses: "Offene Ausgaben",
     unpaidExpenses: "Offene Ausgaben",
     plannedExpenses: "Geplante Ausgaben",
@@ -2451,9 +2459,9 @@ const TRANSLATIONS = {
     netRemaining: "Verfügbar nach geplanten Ausgaben",
     leftAfterPlannedExpenses: "Voraussichtlicher Restbetrag",
     financialDetails: "Finanzdetails",
-    receivedIncome: "Erhaltene Einnahmen",
-    delayedIncome: "Verspätete Einnahmen",
-    cancelledIncome: "Stornierte Einnahmen",
+    receivedIncome: "Erhaltener Geldeingang",
+    delayedIncome: "Verspäteter Geldeingang",
+    cancelledIncome: "Stornierter Geldeingang",
     expenseAttention: "Ausgabenstatus",
     unpaidExpenseSingular: "offene Ausgabe",
     unpaidExpensePlural: "offene Ausgaben",
@@ -2461,7 +2469,14 @@ const TRANSLATIONS = {
     nextDue: "Als Nächstes fällig",
     noUnpaidExpenses: "Keine offenen Ausgaben",
     negativeValue: "Negativer Wert",
-    savingsRate: "Sparquote",
+    savingsRate: "Geplante Restquote",
+    classifiedEarnings: "Klassifizierter Verdienst",
+    employerContributions: "Arbeitgeberbeiträge",
+    reimbursements: "Erstattungen",
+    ambiguousOtherCash: "Sonstiger / unbekannter Geldeingang",
+    unclassifiedCash: "Nicht klassifizierter Geldeingang",
+    incomeComposition: "Zusammensetzung des geplanten Geldeingangs",
+    incomeClassificationIncomplete: "Die Verdienstklassifizierung ist unvollständig.",
     quickView: "Schnellansicht",
     sections: "Abschnitte",
     expenseItems: "Ausgabenelemente",
@@ -2564,7 +2579,7 @@ const TRANSLATIONS = {
     projectionDetails: "Prognosedetails",
     budgetSummary: "Budgetübersicht",
     budgetPlan: "Budgetplanung",
-    projectedRemainderFormula: "Erwartete Einnahmen − geplante Ausgaben",
+    projectedRemainderFormula: "Erwarteter Geldeingang − geplante Ausgaben",
     balanceCheckDesc: "Kontostand plus erwartetes Geld, minus verbleibende Ausgaben.",
     pendingMoneyIn: "Erwartete Eingänge",
     pendingIncomeLabel: "Beschreibung für erwartetes Geld",
@@ -2877,6 +2892,11 @@ function YearOverviewView({ app, year, onYearChange, onBack, onOpenMonth, onPrin
             </div>
           ))}
         </dl>
+        {hasYearData ? <div className="year-income-composition">
+          <div><span>{t("classifiedEarnings")}</span><strong><Money value={overview.incomeComposition.planned.classifiedEarnings} currency={app.currency} /></strong></div>
+          <div><span>{t("employerContributions")}</span><strong><Money value={overview.incomeComposition.planned.employerContributions} currency={app.currency} /></strong></div>
+          {!overview.incomeComposition.planned.classificationComplete ? <p>{t("incomeClassificationIncomplete")}</p> : null}
+        </div> : null}
       </section>
 
       <section className="year-section" aria-labelledby="monthly-overview-title">
@@ -3645,6 +3665,7 @@ export default function BudgitApp() {
   // ---------------------------
 
   const monthTotals = useMemo(() => calculateMonthTotals(active), [active]);
+  const incomeComposition = useMemo(() => calculateIncomeComposition(active.incomes), [active.incomes]);
   const historicalIncomeStatus = useMemo(
     () => analyzeHistoricalIncome(app.activeMonth, active, { currentMonthKey: calendarMonthKey() }),
     [app.activeMonth, active],
@@ -3908,6 +3929,11 @@ export default function BudgitApp() {
                           <Money value={incomeTotal} currency={app.currency} />
                         </div>
                       </div>
+                      {previewIncomes.length > 0 ? <div className="mt-2 border-t border-neutral-100 pt-2 text-[11px] text-neutral-600 print:text-[9px]">
+                        <div className="flex justify-between gap-3"><span>{t("classifiedEarnings")}</span><strong><Money value={incomeComposition.planned.classifiedEarnings} currency={app.currency} /></strong></div>
+                        {incomeComposition.planned.employerContributions !== 0 ? <div className="flex justify-between gap-3"><span>{t("employerContributions")}</span><strong><Money value={incomeComposition.planned.employerContributions} currency={app.currency} /></strong></div> : null}
+                        {!incomeComposition.planned.classificationComplete ? <div className="mt-1 font-medium text-amber-800">{t("incomeClassificationIncomplete")}</div> : null}
+                      </div> : null}
                     </div>
                   </div>
 
@@ -4822,6 +4848,17 @@ export default function BudgitApp() {
                 {financialDetailsOpen ? <dl id="financial-details-panel" className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 px-2 text-sm">
                   {[["receivedIncome", monthTotals.receivedIncome], ["delayedIncome", monthTotals.delayedIncome], ["cancelledIncome", monthTotals.cancelledIncome], ["paidExpenses", expensePaidTotal]].map(([label, value]) => <div key={label} className="flex items-center justify-between gap-3 border-b border-neutral-100 py-1.5"><dt className="text-neutral-600">{t(label)}</dt><dd className="font-medium text-neutral-800"><Money value={value} currency={app.currency} /></dd></div>)}
                   <div className="flex items-center justify-between gap-3 border-b border-neutral-100 py-1.5"><dt className="text-neutral-600">{t("savingsRate")}</dt><dd className="font-medium text-neutral-800">{formatSavingsRate(savingsRate)}</dd></div>
+                  {(active.incomes || []).length > 0 ? <div className="income-composition-details sm:col-span-2">
+                    <dt>{t("incomeComposition")}</dt>
+                    <dd>
+                      <span><b>{t("classifiedEarnings")}</b><Money value={incomeComposition.planned.classifiedEarnings} currency={app.currency} /></span>
+                      {incomeComposition.planned.employerContributions !== 0 ? <span><b>{t("employerContributions")}</b><Money value={incomeComposition.planned.employerContributions} currency={app.currency} /></span> : null}
+                      {incomeComposition.planned.reimbursements !== 0 ? <span><b>{t("reimbursements")}</b><Money value={incomeComposition.planned.reimbursements} currency={app.currency} /></span> : null}
+                      {incomeComposition.planned.ambiguousEntryCount > 0 ? <span><b>{t("ambiguousOtherCash")}</b><Money value={incomeComposition.planned.ambiguousOtherCash} currency={app.currency} /></span> : null}
+                      {incomeComposition.planned.unclassifiedEntryCount > 0 ? <span><b>{t("unclassifiedCash")}</b><Money value={incomeComposition.planned.unclassifiedCash} currency={app.currency} /></span> : null}
+                    </dd>
+                    {!incomeComposition.planned.classificationComplete ? <p>{t("incomeClassificationIncomplete")}</p> : null}
+                  </div> : null}
                 </dl> : null}
               </div>
 

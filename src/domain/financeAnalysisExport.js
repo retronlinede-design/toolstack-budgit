@@ -8,6 +8,7 @@ import { resolveMonthDueDate } from "./dashboardSummary.js";
 import { analyzeHistoricalIncome, calendarMonthKey } from "./historicalIncome.js";
 import { analyzeExpenseBreakdown } from "./expenseBreakdown.js";
 import { getQuarantinedMonthKeys, isCanonicalMonthKey } from "./monthKey.js";
+import { calculateIncomeComposition } from "./incomeComposition.js";
 
 export const FINANCE_ANALYSIS_FORMAT = "budgit-finance-analysis";
 export const FINANCE_ANALYSIS_VERSION = 1;
@@ -144,6 +145,7 @@ function projectMonth(monthKey, month, { includeNotes, language, currentMonthKey
   });
 
   const totals = calculateMonthTotals(month);
+  const incomeComposition = calculateIncomeComposition(month?.incomes);
   const projection = calculateBalanceProjection({
     bankBalance: month?.bankBalance ?? "",
     overdraftLimit: month?.overdraftLimit ?? "",
@@ -176,6 +178,10 @@ function projectMonth(monthKey, month, { includeNotes, language, currentMonthKey
       balanceAfterUnpaidExpenses: expenseAmountsComplete ? projection.balanceAfterUnpaid : null,
       balanceAfterExpectedIncoming: expenseAmountsComplete ? projection.balanceAfterIncomingMoney : null,
       availableWithOverdraft: expenseAmountsComplete ? projection.availableWithOverdraft : null,
+      incomeComposition: {
+        planned: { ...incomeComposition.planned },
+        received: { ...incomeComposition.received },
+      },
     },
     historicalIncomeStatus: {
       complete: historicalIncomeStatus.historicalIncomeOutcomeComplete,
@@ -256,7 +262,7 @@ export function createFinanceAnalysisExport({
       dataQualityRule: "Totals marked incomplete are subtotals of valid entries and must not be treated as complete monthly totals.",
       actualNetRule: "Actual net is explicitly received income minus paid expenses. When historical expected income is unresolved, actual net is provisional; received income of zero does not prove that no income was received.",
       expenseBreakdownRule: "An expense parent amount is the cash payment. Breakdown components only allocate or classify that amount and must never be added on top of it. Incomplete breakdowns are not fully allocated; expense-group labels organize the ledger while breakdown categories provide finer analytical composition.",
-      incomeCategoryRule: "Income categories describe the economic source or purpose of incoming cash without changing lifecycle totals. employer_contribution may be employer-funded pass-through money rather than ordinary earnings; category null means the entry was never classified. Never count classified income again beyond the existing income totals.",
+      incomeCategoryRule: "Income lifecycle totals are cash-flow totals. Income composition partitions those same totals into mutually exclusive buckets and must never be added on top of cashTotal. classifiedEarnings includes salary, overtime, bonus, and allowance; employerContributions contains employer_contribution entries and is employer-funded or pass-through cash rather than salary; reimbursements are cash but not earnings; ambiguousOtherCash and unclassifiedCash make classification incomplete. category null means the entry was never classified. A full related expense remains a genuine outgoing cash payment.",
       excludedHistoryRule: "Stored history without a canonical month date was excluded because it could not be assigned safely. Do not infer or guess its intended month.",
     },
     months,

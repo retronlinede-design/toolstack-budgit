@@ -38,6 +38,9 @@ test("income categories have zero effect on month and Year View calculations", (
   assert.equal(totals.leftAfterPlannedExpenses, 2450);
   const classifiedOverview = calculateYearOverview({ months: { "2026-08": classifiedMonth } }, 2026, { currentMonthKey: "2026-08" });
   const unclassifiedOverview = calculateYearOverview({ months: { "2026-08": unclassifiedMonth } }, 2026, { currentMonthKey: "2026-08" });
-  assert.deepEqual(classifiedOverview, unclassifiedOverview);
+  assert.deepEqual(classifiedOverview.totals, unclassifiedOverview.totals);
   assert.equal(classifiedOverview.totals.actualNet, 2450);
+  assert.equal(classifiedOverview.incomeComposition.received.classifiedEarnings, 3250);
+  assert.equal(classifiedOverview.incomeComposition.received.employerContributions, 800);
+  assert.equal(unclassifiedOverview.incomeComposition.received.unclassifiedCash, 4050);
 });

@@ -325,6 +325,22 @@ textarea {
     @apply text-right text-sm font-semibold tabular-nums text-neutral-900;
   }
 
+  .year-income-composition {
+    @apply mt-4 grid grid-cols-1 gap-2 border-t border-neutral-200 pt-3 sm:grid-cols-2;
+  }
+
+  .year-income-composition > div {
+    @apply flex items-center justify-between gap-3 text-sm text-neutral-600;
+  }
+
+  .year-income-composition strong {
+    @apply whitespace-nowrap font-semibold tabular-nums text-neutral-900;
+  }
+
+  .year-income-composition p {
+    @apply text-xs font-medium text-amber-800 sm:col-span-2;
+  }
+
   .year-table-wrap {
     @apply hidden min-w-0 max-w-full overflow-hidden md:block print:block;
   }
@@ -755,6 +771,30 @@ textarea {
 
   .summary-context strong {
     @apply font-semibold text-neutral-700;
+  }
+
+  .income-composition-details {
+    @apply mt-1 border-t border-neutral-200 pt-3;
+  }
+
+  .income-composition-details > dt {
+    @apply text-[10px] font-bold uppercase tracking-[0.08em] text-neutral-500;
+  }
+
+  .income-composition-details > dd {
+    @apply mt-2 grid grid-cols-1 gap-x-5 gap-y-1 sm:grid-cols-2;
+  }
+
+  .income-composition-details > dd > span {
+    @apply flex items-center justify-between gap-3 text-xs text-neutral-700;
+  }
+
+  .income-composition-details > dd b {
+    @apply font-medium;
+  }
+
+  .income-composition-details > p {
+    @apply mt-2 text-xs font-medium text-amber-800;
   }
 
   .cash-position-panel {

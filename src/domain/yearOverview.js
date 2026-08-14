@@ -1,6 +1,7 @@
 import { calculateMonthTotals } from "./calculations.js";
 import { analyzeHistoricalIncome, calendarMonthKey } from "./historicalIncome.js";
 import { getQuarantinedMonthKeys } from "./monthKey.js";
+import { aggregateIncomeCompositions, calculateIncomeComposition } from "./incomeComposition.js";
 
 function normalizeYear(selectedYear) {
   const year = Number(selectedYear);
@@ -31,6 +32,7 @@ export function calculateYearOverview(appData, selectedYear, { currentMonthKey =
     const receivedIncome = totals?.receivedIncome ?? 0;
     const paidExpenses = totals?.paidExpenses ?? 0;
     const historicalIncomeStatus = analyzeHistoricalIncome(monthKey, sourceMonths[monthKey], { currentMonthKey });
+    const incomeComposition = calculateIncomeComposition(hasData ? sourceMonths[monthKey]?.incomes : []);
 
     return {
       monthKey,
@@ -46,6 +48,7 @@ export function calculateYearOverview(appData, selectedYear, { currentMonthKey =
       savingsRate: totals?.savingsRate ?? null,
       historicalIncomeStatus,
       actualNetProvisional: !historicalIncomeStatus.historicalIncomeOutcomeComplete,
+      incomeComposition,
     };
   });
 
@@ -62,6 +65,7 @@ export function calculateYearOverview(appData, selectedYear, { currentMonthKey =
   };
   const average = (field) => monthsWithData ? totals[field] / monthsWithData : null;
   const actualPerformanceMonths = populatedMonths.filter((month) => !month.actualNetProvisional);
+  const incomeComposition = aggregateIncomeCompositions(populatedMonths.map((month) => month.incomeComposition));
 
   let strongestMonth = null;
   let weakestMonth = null;
@@ -90,6 +94,7 @@ export function calculateYearOverview(appData, selectedYear, { currentMonthKey =
     unresolvedHistoricalMonthCount: populatedMonths.filter((month) => month.actualNetProvisional).length,
     actualNetProvisional: populatedMonths.some((month) => month.actualNetProvisional),
     reconciledActualNetMonthCount: actualPerformanceMonths.length,
+    incomeComposition,
     quarantinedMonthCount: getQuarantinedMonthKeys(sourceMonths).length,
   };
 }

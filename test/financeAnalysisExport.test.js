@@ -100,13 +100,16 @@ test("currency, display language, localized label, and selection metadata are ex
 
 test("income, expense, actual-net, savings, expected incoming, and balance metrics use domain semantics", () => {
   const month = create().document.months[0];
-  assert.deepEqual(month.derived, {
+  const { incomeComposition, ...cashMetrics } = month.derived;
+  assert.deepEqual(cashMetrics, {
     expectedIncome: 2200.5, receivedIncome: 2000, delayedIncome: 200.5, cancelledIncome: 50,
     plannedExpenses: 900.25, paidExpenses: 800, unpaidExpenses: 100.25,
     projectedRemainder: 1300.25, actualNet: 1200, savingsRatePercent: (1300.25 / 2200.5) * 100,
     expectedIncomingSubtotal: 25.5, currentBalance: 500, projectedBalanceAfterIncoming: 525.5,
     balanceAfterUnpaidExpenses: 399.75, balanceAfterExpectedIncoming: 425.25, availableWithOverdraft: 525.25,
   });
+  assert.equal(incomeComposition.planned.cashTotal, 2200.5);
+  assert.equal(incomeComposition.received.cashTotal, 2000);
   assert.equal(month.facts.expenseGroups[0].expenses[1].dueDate, "2026-01-31");
 });
 
@@ -263,8 +266,30 @@ test("income classifications export as facts while absence remains explicit null
   assert.equal(Object.hasOwn(withoutNotes.months[0].derived, "incomeByCategory"), false);
   assert.match(withoutNotes.analysisGuidance.incomeCategoryRule, /employer_contribution/);
   assert.match(withoutNotes.analysisGuidance.incomeCategoryRule, /category null/);
-  assert.match(withoutNotes.analysisGuidance.incomeCategoryRule, /Never count/i);
-  assert.equal(JSON.stringify(withoutNotes).includes("unclassified"), false);
+  assert.match(withoutNotes.analysisGuidance.incomeCategoryRule, /must never be added/i);
+  assert.equal(withoutNotes.months[0].derived.incomeComposition.planned.classificationComplete, false);
+});
+
+test("income composition separates earnings from employer-funded cash without double counting", () => {
+  const month = emptyMonth();
+  month.incomes = [
+    { id: "salary", name: "Salary", amount: "3250", status: "received", category: "salary" },
+    { id: "employer", name: "Employer contribution", amount: "800", status: "received", category: "employer_contribution" },
+  ];
+  month.expenseGroups = [{ id: "social", label: "Insurance", items: [{ id: "dak", name: "DAK", amount: "1600", paid: true }] }];
+  const document = createFinanceAnalysisExport({ app: app({ "2026-01": month }) }).document;
+  const derived = document.months[0].derived;
+  const composition = derived.incomeComposition.received;
+
+  assert.equal(derived.receivedIncome, 4050);
+  assert.equal(derived.actualNet, 2450);
+  assert.equal(composition.cashTotal, 4050);
+  assert.equal(composition.classifiedEarnings, 3250);
+  assert.equal(composition.employerContributions, 800);
+  assert.equal(composition.classifiedEarnings + composition.employerContributions + composition.reimbursements + composition.ambiguousOtherCash + composition.unclassifiedCash, composition.cashTotal);
+  assert.match(document.analysisGuidance.incomeCategoryRule, /cash-flow totals/i);
+  assert.match(document.analysisGuidance.incomeCategoryRule, /pass-through cash/i);
+  assert.match(document.analysisGuidance.incomeCategoryRule, /genuine outgoing cash payment/i);
 });
 
 test("complete expense breakdowns export analytical facts without IDs or double counting", () => {
