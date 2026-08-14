@@ -442,15 +442,15 @@ textarea {
   }
 
   .primary-header-nav {
-    @apply relative flex min-w-0 items-center gap-1;
+    @apply relative flex min-w-[7rem] flex-col items-stretch;
   }
 
   .header-menu-wrap {
-    @apply static;
+    @apply static lg:relative;
   }
 
   .header-menu-launcher {
-    @apply relative flex min-h-10 items-center gap-1 px-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-neutral-600 transition-colors hover:text-neutral-950;
+    @apply relative flex min-h-9 w-full items-center justify-start px-2 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-neutral-600 transition-colors hover:text-neutral-950;
   }
 
   .header-menu-launcher-active {
@@ -462,8 +462,12 @@ textarea {
     @apply absolute inset-x-2 bottom-0 h-0.5 bg-[#D5FF00];
   }
 
+  .header-menu-flyout {
+    @apply absolute left-0 top-[calc(100%+0.35rem)] z-50 max-w-[calc(100vw-2rem)] lg:left-full lg:top-0 lg:pl-2;
+  }
+
   .header-menu-panel {
-    @apply absolute left-0 top-[calc(100%+0.45rem)] z-50 w-72 max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-neutral-300 bg-white p-2 shadow-lg;
+    @apply w-72 max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-neutral-300 bg-white p-2 shadow-lg;
   }
 
   .header-menu-panel > button {

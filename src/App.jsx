@@ -4008,10 +4008,10 @@ export default function BudgitApp() {
           <div className="brand-nav-cluster">
             <img src={budgitLogo} alt="BudgIt" className="brand-logo" />
 
-            <nav className="primary-header-nav print:hidden" aria-label={t("primaryNavigation")}>
-              {["aiTools", "export", "settings"].map((menu) => <div key={menu} className="header-menu-wrap">
-                <button type="button" className={`header-menu-launcher ${openHeaderMenu === menu ? "header-menu-launcher-active" : ""} ${BUTTON_FOCUS}`} onClick={() => setOpenHeaderMenu((open) => open === menu ? null : menu)} aria-expanded={openHeaderMenu === menu} aria-haspopup="dialog" aria-controls={`header-${menu}-menu`}><span>{t(menu)}</span><ChevronDownIcon className={`h-3.5 w-3.5 transition-transform ${openHeaderMenu === menu ? "rotate-180" : ""}`} /></button>
-                {openHeaderMenu === menu ? <div id={`header-${menu}-menu`} className="header-menu-panel" role="dialog" aria-label={t(menu)}>
+            <nav className="primary-header-nav print:hidden" aria-label={t("primaryNavigation")} onPointerLeave={(event) => { if (event.pointerType === "mouse") setOpenHeaderMenu(null); }}>
+              {["aiTools", "export", "settings"].map((menu) => <div key={menu} className="header-menu-wrap" onPointerEnter={(event) => { if (event.pointerType === "mouse") setOpenHeaderMenu(menu); }}>
+                <button type="button" className={`header-menu-launcher ${openHeaderMenu === menu ? "header-menu-launcher-active" : ""} ${BUTTON_FOCUS}`} onClick={() => setOpenHeaderMenu((open) => open === menu ? null : menu)} aria-expanded={openHeaderMenu === menu} aria-haspopup="dialog" aria-controls={`header-${menu}-menu`}><span>{t(menu)}</span></button>
+                {openHeaderMenu === menu ? <div className="header-menu-flyout"><div id={`header-${menu}-menu`} className="header-menu-panel" role="dialog" aria-label={t(menu)}>
                   {menu === "export" ? <>
                     <button type="button" onClick={() => { setOpenHeaderMenu(null); openPreview(); }}><ExportIcons.Print /><span><strong>{t("print")}</strong><small>{t("printMenuDescription")}</small></span></button>
                     <button type="button" onClick={() => openExportDestination("backup")}><ExportIcons.Download /><span><strong>{t("backupRestore")}</strong><small>{t("backupRestoreDescription")}</small></span></button>
@@ -4022,7 +4022,7 @@ export default function BudgitApp() {
                     <div><span className="header-settings-label">{t("language")}</span><div className="command-choice-row">{["en", "de"].map((lang) => <button key={lang} type="button" aria-pressed={app.lang === lang} onClick={() => setLang(lang)} className={`command-choice ${app.lang === lang ? "command-choice-active" : ""} ${BUTTON_FOCUS}`}>{lang.toUpperCase()}</button>)}</div></div>
                     <div><span className="header-settings-label">{t("currency")}</span><div className="command-choice-row">{Object.keys(CURRENCIES).map((currency) => <button key={currency} type="button" aria-pressed={app.currency === currency} onClick={() => setApp((current) => ({ ...current, currency }))} className={`command-choice ${app.currency === currency ? "command-choice-active" : ""} ${BUTTON_FOCUS}`}>{currency}</button>)}</div></div>
                   </div> : null}
-                </div> : null}
+                </div></div> : null}
               </div>)}
             </nav>
           </div>
