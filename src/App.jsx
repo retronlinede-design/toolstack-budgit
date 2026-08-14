@@ -1863,7 +1863,7 @@ const TRANSLATIONS = {
     hub: "HUB",
     commands: "Commands",
     export: "Export",
-    tools: "Tools",
+    aiTools: "AI Tools",
     settings: "Settings",
     primaryNavigation: "Primary navigation",
     menu: "Menu",
@@ -1877,6 +1877,7 @@ const TRANSLATIONS = {
     emailDraftDescription: "Prepare a shareable email",
     monthlyLedger: "Monthly ledger",
     monthActions: "Month actions",
+    monthUtilities: "Month utilities",
     yearShort: "Year",
     copyShort: "Copy",
     openCommands: "Open commands",
@@ -2344,7 +2345,7 @@ const TRANSLATIONS = {
     hub: "HUB",
     commands: "Befehle",
     export: "Export",
-    tools: "Werkzeuge",
+    aiTools: "KI-Tools",
     settings: "Einstellungen",
     primaryNavigation: "Hauptnavigation",
     menu: "Menü",
@@ -2358,6 +2359,7 @@ const TRANSLATIONS = {
     emailDraftDescription: "E-Mail zum Teilen vorbereiten",
     monthlyLedger: "Monatsübersicht",
     monthActions: "Monatsaktionen",
+    monthUtilities: "Monatswerkzeuge",
     yearShort: "Jahr",
     copyShort: "Kopieren",
     openCommands: "Befehle öffnen",
@@ -4007,20 +4009,15 @@ export default function BudgitApp() {
             <img src={budgitLogo} alt="BudgIt" className="brand-logo" />
 
             <nav className="primary-header-nav print:hidden" aria-label={t("primaryNavigation")}>
-              {["tools", "export", "settings"].map((menu) => <div key={menu} className="header-menu-wrap">
+              {["aiTools", "export", "settings"].map((menu) => <div key={menu} className="header-menu-wrap">
                 <button type="button" className={`header-menu-launcher ${openHeaderMenu === menu ? "header-menu-launcher-active" : ""} ${BUTTON_FOCUS}`} onClick={() => setOpenHeaderMenu((open) => open === menu ? null : menu)} aria-expanded={openHeaderMenu === menu} aria-haspopup="dialog" aria-controls={`header-${menu}-menu`}><span>{t(menu)}</span><ChevronDownIcon className={`h-3.5 w-3.5 transition-transform ${openHeaderMenu === menu ? "rotate-180" : ""}`} /></button>
                 {openHeaderMenu === menu ? <div id={`header-${menu}-menu`} className="header-menu-panel" role="dialog" aria-label={t(menu)}>
                   {menu === "export" ? <>
-                    <button type="button" onClick={() => openExportDestination("finance")}><ExportIcons.Spark /><span><strong>{t("financeAiMenu")}</strong><small>{t("financeAiMenuDescription")}</small></span></button>
                     <button type="button" onClick={() => { setOpenHeaderMenu(null); openPreview(); }}><ExportIcons.Print /><span><strong>{t("print")}</strong><small>{t("printMenuDescription")}</small></span></button>
                     <button type="button" onClick={() => openExportDestination("backup")}><ExportIcons.Download /><span><strong>{t("backupRestore")}</strong><small>{t("backupRestoreDescription")}</small></span></button>
                     <button type="button" onClick={createEmailDraft}><ExportIcons.Mail /><span><strong>{t("emailDraft")}</strong><small>{t("emailDraftDescription")}</small></span></button>
                   </> : null}
-                  {menu === "tools" ? <>
-                    <button type="button" onClick={() => { setOpenHeaderMenu(null); openCalculator(); }}><CalculatorIcon className="h-5 w-5" /><span><strong>{t("calculator")}</strong></span></button>
-                    <button type="button" onClick={() => { setOpenHeaderMenu(null); setHelpOpen(true); }}><span aria-hidden="true">?</span><span><strong>{t("help")}</strong></span></button>
-                    {HUB_URL ? <button type="button" onClick={() => { setOpenHeaderMenu(null); window.location.href = HUB_URL; }}><span aria-hidden="true">↗</span><span><strong>{t("hub")}</strong></span></button> : null}
-                  </> : null}
+                  {menu === "aiTools" ? <button type="button" onClick={() => openExportDestination("finance")}><ExportIcons.Spark /><span><strong>{t("financeAiMenu")}</strong><small>{t("financeAiMenuDescription")}</small></span></button> : null}
                   {menu === "settings" ? <div className="header-settings-panel">
                     <div><span className="header-settings-label">{t("language")}</span><div className="command-choice-row">{["en", "de"].map((lang) => <button key={lang} type="button" aria-pressed={app.lang === lang} onClick={() => setLang(lang)} className={`command-choice ${app.lang === lang ? "command-choice-active" : ""} ${BUTTON_FOCUS}`}>{lang.toUpperCase()}</button>)}</div></div>
                     <div><span className="header-settings-label">{t("currency")}</span><div className="command-choice-row">{Object.keys(CURRENCIES).map((currency) => <button key={currency} type="button" aria-pressed={app.currency === currency} onClick={() => setApp((current) => ({ ...current, currency }))} className={`command-choice ${app.currency === currency ? "command-choice-active" : ""} ${BUTTON_FOCUS}`}>{currency}</button>)}</div></div>
@@ -4042,6 +4039,7 @@ export default function BudgitApp() {
 
         <div className="month-top-surface mt-5 print:shadow-none" ref={monthControlsRef}>
             <div className="month-toolbar">
+              <div className="month-heading-row">
               <div className="month-navigator">
                 <button type="button" className={`month-nav-arrow ${BUTTON_FOCUS}`} onClick={() => ensureMonth(addMonths(app.activeMonth, -1))} aria-label={t("prevMonthTitle")}>‹</button>
                 <div className="month-picker-wrap">
@@ -4055,6 +4053,12 @@ export default function BudgitApp() {
                 </div>
                 <button type="button" className={`month-nav-arrow ${BUTTON_FOCUS}`} onClick={() => ensureMonth(addMonths(app.activeMonth, 1))} aria-label={t("nextMonthTitle")}>›</button>
                 <button type="button" className={`month-year-view ${BUTTON_FOCUS}`} onClick={() => { setOverviewYear(activeYM.y || new Date().getFullYear()); setCurrentView("year"); }}>{t("yearOverview")}</button>
+              </div>
+              <div className="month-heading-utilities" aria-label={t("monthUtilities")}>
+                <button type="button" className={BUTTON_FOCUS} onClick={() => { setOpenHeaderMenu(null); openCalculator(); }}><CalculatorIcon className="h-4 w-4" /><span>{t("calculator")}</span></button>
+                <button type="button" className={BUTTON_FOCUS} onClick={() => { setOpenHeaderMenu(null); setHelpOpen(true); }}><span className="month-utility-mark" aria-hidden="true">?</span><span>{t("help")}</span></button>
+                {HUB_URL ? <button type="button" className={BUTTON_FOCUS} onClick={() => { setOpenHeaderMenu(null); window.location.href = HUB_URL; }}><span className="month-utility-mark" aria-hidden="true">↗</span><span>{t("hub")}</span></button> : null}
+              </div>
               </div>
 
               <div className="ledger-context-row">
