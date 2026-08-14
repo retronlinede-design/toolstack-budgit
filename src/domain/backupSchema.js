@@ -1,6 +1,7 @@
 import { INCOME_STATUSES, parseMoney } from "./calculations.js";
 
-export const BACKUP_SCHEMA_VERSION = 1;
+export const BACKUP_SCHEMA_VERSION = 2;
+export const SUPPORTED_BACKUP_SCHEMA_VERSIONS = Object.freeze([1, BACKUP_SCHEMA_VERSION]);
 export const BACKUP_APP_ID = "BudgIt";
 export const BACKUP_LIMITS = Object.freeze({
   maxFileBytes: 5 * 1024 * 1024,
@@ -8,6 +9,7 @@ export const BACKUP_LIMITS = Object.freeze({
   maxMonths: 240,
   maxGroupsPerMonth: 100,
   maxEntriesPerCollection: 1000,
+  maxBreakdownComponentsPerExpense: 100,
   maxNameLength: 200,
   maxNoteLength: 10000,
   maxShortTextLength: 500,
@@ -81,6 +83,11 @@ function validateAmount(ctx, value, path, { nonNegative = false } = {}) {
   return true;
 }
 
+function validateEditableBreakdownAmount(ctx, value, path) {
+  if (typeof value === "string" && value.trim() === "") return true;
+  return validateAmount(ctx, value, path, { nonNegative: true });
+}
+
 function validateCollection(ctx, value, path, max = BACKUP_LIMITS.maxEntriesPerCollection) {
   if (!Array.isArray(value)) {
     ctx.add(path, "invalid_collection", "Must be a list.");
@@ -109,7 +116,7 @@ function validateIncome(ctx, income, path, ids, legacy) {
   return { id: income.id, name: income.name ?? "", amount: income.amount, date, status: INCOME_STATUSES.includes(status) ? status : "expected", notes: income.notes ?? "" };
 }
 
-function validateExpense(ctx, expense, path, ids, legacy) {
+function validateExpense(ctx, expense, path, ids, componentIds, legacy) {
   if (!isPlainObject(expense)) {
     ctx.add(path, "invalid_record", "Expense entry must be an object.");
     return null;
@@ -128,7 +135,26 @@ function validateExpense(ctx, expense, path, ids, legacy) {
   if (typeof notePinned !== "boolean") ctx.add(`${path}.notePinned`, "invalid_note_pin", "Note pin must be true or false.");
   const noteUpdatedAt = expense.noteUpdatedAt ?? null;
   if (noteUpdatedAt !== null && !isoDateIsValid(noteUpdatedAt)) ctx.add(`${path}.noteUpdatedAt`, "invalid_timestamp", "Note timestamp is invalid.");
-  return {
+  let breakdown;
+  if (Object.prototype.hasOwnProperty.call(expense, "breakdown")) {
+    if (validateCollection(ctx, expense.breakdown, `${path}.breakdown`, BACKUP_LIMITS.maxBreakdownComponentsPerExpense)) {
+      breakdown = expense.breakdown.map((component, index) => {
+        const componentPath = `${path}.breakdown[${index}]`;
+        if (!isPlainObject(component)) {
+          ctx.add(componentPath, "invalid_record", "Breakdown component must be an object.");
+          return null;
+        }
+        validateId(ctx, component.id, `${componentPath}.id`, componentIds, "breakdown component");
+        validateBoundedString(ctx, component.label ?? "", `${componentPath}.label`, BACKUP_LIMITS.maxNameLength);
+        validateBoundedString(ctx, component.category ?? "", `${componentPath}.category`, BACKUP_LIMITS.maxShortTextLength);
+        validateEditableBreakdownAmount(ctx, component.amount, `${componentPath}.amount`);
+        return { id: component.id, label: component.label ?? "", category: component.category ?? "", amount: component.amount };
+      }).filter(Boolean);
+    } else {
+      breakdown = expense.breakdown;
+    }
+  }
+  const normalized = {
     id: expense.id,
     name: expense.name ?? "",
     amount: expense.amount,
@@ -138,6 +164,8 @@ function validateExpense(ctx, expense, path, ids, legacy) {
     notePinned: typeof notePinned === "boolean" ? notePinned : false,
     noteUpdatedAt,
   };
+  if (breakdown !== undefined) normalized.breakdown = breakdown;
+  return normalized;
 }
 
 function validatePendingIncome(ctx, entry, path, ids) {
@@ -185,6 +213,7 @@ function validateMonth(ctx, month, monthKey, legacy) {
   const incomeIds = new Set();
   const groupIds = new Set();
   const expenseIds = new Set();
+  const componentIds = new Set();
   const pendingIds = new Set();
   const transactionIds = new Set();
 
@@ -209,7 +238,7 @@ function validateMonth(ctx, month, monthKey, legacy) {
       validateBoundedString(ctx, group.label ?? "", `${groupPath}.label`, BACKUP_LIMITS.maxNameLength);
       const itemsSource = group.items ?? [];
       const items = validateCollection(ctx, itemsSource, `${groupPath}.items`)
-        ? itemsSource.map((item, itemIndex) => validateExpense(ctx, item, `${groupPath}.items[${itemIndex}]`, expenseIds, legacy)).filter(Boolean)
+        ? itemsSource.map((item, itemIndex) => validateExpense(ctx, item, `${groupPath}.items[${itemIndex}]`, expenseIds, componentIds, legacy)).filter(Boolean)
         : [];
       expenseGroups.push({ id: group.id, label: group.label ?? "", items });
     });
@@ -334,7 +363,7 @@ export function validateBackupObject(root) {
   }
 
   if (Object.prototype.hasOwnProperty.call(root, "schemaVersion")) {
-    if (root.schemaVersion !== BACKUP_SCHEMA_VERSION) {
+    if (!SUPPORTED_BACKUP_SCHEMA_VERSIONS.includes(root.schemaVersion)) {
       return { valid: false, format: "versioned", errors: [{ path: "schemaVersion", code: "unsupported_schema_version", message: `Backup version ${String(root.schemaVersion)} is not supported.` }] };
     }
     if (root.app !== BACKUP_APP_ID) {
@@ -344,7 +373,7 @@ export function validateBackupObject(root) {
       return { valid: false, format: "versioned", errors: [{ path: "exportedAt", code: "invalid_export_timestamp", message: "Backup export timestamp is invalid." }] };
     }
     const result = validateApplicationData(root.data);
-    return { ...result, format: "versioned", schemaVersion: BACKUP_SCHEMA_VERSION, exportedAt: root.exportedAt };
+    return { ...result, format: "versioned", schemaVersion: root.schemaVersion, exportedAt: root.exportedAt };
   }
 
   if (!recognizeLegacyRoot(root)) {

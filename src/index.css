@@ -589,6 +589,72 @@ textarea {
     @apply mt-1 break-words text-2xl font-bold tracking-[-0.03em] tabular-nums text-neutral-900;
   }
 
+  .expense-breakdown {
+    @apply mx-3 mb-3 rounded-xl border border-neutral-200 bg-neutral-50 p-3 text-left;
+  }
+
+  .expense-breakdown-heading {
+    @apply flex flex-col gap-2 border-b border-neutral-200 pb-3 sm:flex-row sm:items-start sm:justify-between;
+  }
+
+  .expense-breakdown-title {
+    @apply text-[11px] font-bold uppercase tracking-[0.08em] text-neutral-700;
+  }
+
+  .expense-breakdown-summary {
+    @apply mt-1 text-xs font-semibold tabular-nums;
+  }
+
+  .expense-breakdown-warning {
+    @apply mt-1 text-xs font-medium text-red-700;
+  }
+
+  .expense-breakdown-remove,
+  .expense-breakdown-component-remove {
+    @apply min-h-10 rounded-lg border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-700 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-300;
+  }
+
+  .expense-breakdown-components {
+    @apply divide-y divide-neutral-200;
+  }
+
+  .expense-breakdown-component {
+    @apply grid grid-cols-1 gap-2 py-3 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(7rem,.7fr)_2.5rem] sm:items-end;
+  }
+
+  .expense-breakdown-component label {
+    @apply min-w-0;
+  }
+
+  .expense-breakdown-component label > span {
+    @apply mb-1 block text-[10px] font-bold uppercase tracking-[0.08em] text-neutral-500;
+  }
+
+  .expense-breakdown-component input,
+  .expense-breakdown-component select {
+    @apply min-h-10 w-full rounded-lg border border-neutral-300 bg-white px-3 text-sm text-neutral-900 outline-none focus:border-neutral-500 focus:ring-2 focus:ring-[#D5FF00]/50;
+  }
+
+  .expense-breakdown-component small {
+    @apply mt-1 block text-xs font-medium text-red-700;
+  }
+
+  .expense-breakdown-component-remove {
+    @apply w-full px-0 text-base;
+  }
+
+  .expense-breakdown-footer {
+    @apply flex flex-col gap-2 border-t border-neutral-200 pt-3 text-xs text-neutral-500 sm:flex-row sm:items-center sm:justify-between;
+  }
+
+  .expense-breakdown-footer button {
+    @apply min-h-10 rounded-lg border border-neutral-300 bg-white px-4 text-xs font-semibold text-neutral-800 hover:border-neutral-400 hover:bg-neutral-100 focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/60;
+  }
+
+  .mobile-entry-action-active {
+    @apply border-[#D5FF00] bg-[#D5FF00]/20 text-neutral-900;
+  }
+
 }
 
 @media (max-width: 767px) {

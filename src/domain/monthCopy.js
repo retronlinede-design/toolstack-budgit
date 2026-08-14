@@ -82,6 +82,16 @@ function copyExpenseEntry(expense, options, idFactory, groupId) {
   };
   if (Object.prototype.hasOwnProperty.call(expense || {}, "groupId")) copy.groupId = groupId;
   if (Object.prototype.hasOwnProperty.call(expense || {}, "categoryId")) copy.categoryId = groupId;
+  if (Array.isArray(expense?.breakdown)) {
+    copy.breakdown = expense.breakdown.map((component) => ({
+      id: nextId(idFactory, "expenseBreakdown"),
+      label: typeof component?.label === "string" ? component.label : "",
+      category: typeof component?.category === "string" ? component.category : "",
+      amount: copyAmount(component),
+    }));
+  } else if (Object.prototype.hasOwnProperty.call(expense || {}, "breakdown")) {
+    copy.breakdown = expense.breakdown;
+  }
   return copy;
 }
 
@@ -188,7 +198,13 @@ function isBlankEditableAmount(value) {
 }
 
 function amountValidationRecord(record) {
-  return isBlankEditableAmount(record?.amount) ? { ...record, amount: "0" } : record;
+  const normalized = isBlankEditableAmount(record?.amount) ? { ...record, amount: "0" } : { ...record };
+  if (Array.isArray(record?.breakdown)) {
+    normalized.breakdown = record.breakdown.map((component) => (
+      isBlankEditableAmount(component?.amount) ? { ...component, amount: "0" } : component
+    ));
+  }
+  return normalized;
 }
 
 /**

@@ -48,6 +48,46 @@ test("destination cannot equal source", () => {
 test("default structural month is effectively empty", () => assert.equal(isMonthMeaningfullyEmpty(emptyMonth()), true));
 test("income makes a month meaningful", () => assert.equal(isMonthMeaningfullyEmpty({ ...emptyMonth(), incomes: [{ id: "i" }] }), false));
 test("expense entries make a month meaningful", () => assert.equal(isMonthMeaningfullyEmpty({ ...emptyMonth(), expenseGroups: [{ id: "g", label: "General", items: [{ id: "e" }] }] }), false));
+
+test("expense breakdowns copy raw facts with fresh IDs without changing cash semantics", () => {
+  const source = populatedMonth();
+  source.expenseGroups[0].items[0].breakdown = [
+    { id: "part-1", label: "Health", category: "health", amount: "400,50" },
+    { id: "part-2", label: "Pension", category: "pension", amount: "399.50" },
+  ];
+  const before = structuredClone(source);
+  const result = applyValidatedMonthCopyToApp({
+    app: { activeMonth: "2026-07", lang: "en", currency: "EUR", months: { "2026-07": source } },
+    sourceMonthKey: "2026-07", destinationMonthKey: "2026-08", idFactory: deterministicIds(),
+  });
+  assert.equal(result.ok, true);
+  const copied = result.copiedMonth.expenseGroups[0].items[0];
+  assert.equal(copied.paid, false);
+  assert.deepEqual(copied.breakdown.map(({ label, category, amount }) => ({ label, category, amount })), [
+    { label: "Health", category: "health", amount: "400,50" },
+    { label: "Pension", category: "pension", amount: "399.50" },
+  ]);
+  assert.notEqual(copied.breakdown[0].id, "part-1");
+  assert.notEqual(copied.breakdown[1].id, "part-2");
+  assert.deepEqual(source, before);
+});
+
+test("blank component amounts copy while malformed and negative components fail validation", () => {
+  for (const amount of ["", "   "]) {
+    const source = populatedMonth();
+    source.expenseGroups[0].items[0].breakdown = [{ id: "part", label: "Draft", category: "other", amount }];
+    const result = applyValidatedMonthCopyToApp({ app: { activeMonth: "2026-07", lang: "en", currency: "EUR", months: { "2026-07": source } }, sourceMonthKey: "2026-07", destinationMonthKey: "2026-08", idFactory: deterministicIds() });
+    assert.equal(result.ok, true);
+    assert.equal(result.copiedMonth.expenseGroups[0].items[0].breakdown[0].amount, amount);
+  }
+  for (const amount of ["bad", "-1"]) {
+    const source = populatedMonth();
+    source.expenseGroups[0].items[0].breakdown = [{ id: "part", label: "Invalid", category: "other", amount }];
+    const result = applyValidatedMonthCopyToApp({ app: { activeMonth: "2026-07", lang: "en", currency: "EUR", months: { "2026-07": source } }, sourceMonthKey: "2026-07", destinationMonthKey: "2026-08", idFactory: deterministicIds() });
+    assert.equal(result.ok, false);
+    assert.match(result.validationErrors[0].path, /breakdown\[0\]\.amount/);
+  }
+});
 test("a custom empty expense group makes a month meaningful", () => assert.equal(isMonthMeaningfullyEmpty({ ...emptyMonth(), expenseGroups: [{ id: "g", label: "Housing", items: [] }] }), false));
 test("notes make a month meaningful", () => assert.equal(isMonthMeaningfullyEmpty({ ...emptyMonth(), notes: "Remember this" }), false));
 test("entered bank balance makes a month meaningful, including zero", () => assert.equal(isMonthMeaningfullyEmpty({ ...emptyMonth(), bankBalance: "0" }), false));

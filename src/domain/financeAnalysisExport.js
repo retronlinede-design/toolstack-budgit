@@ -6,6 +6,7 @@ import {
 } from "./calculations.js";
 import { resolveMonthDueDate } from "./dashboardSummary.js";
 import { analyzeHistoricalIncome, calendarMonthKey } from "./historicalIncome.js";
+import { analyzeExpenseBreakdown } from "./expenseBreakdown.js";
 
 export const FINANCE_ANALYSIS_FORMAT = "budgit-finance-analysis";
 export const FINANCE_ANALYSIS_VERSION = 1;
@@ -106,6 +107,26 @@ function projectMonth(monthKey, month, { includeNotes, language, currentMonthKey
         dueDay: Number.isInteger(expense?.dueDay) ? expense.dueDay : null,
         dueDate: due?.dueDateISO ?? null,
       };
+      if (Array.isArray(expense?.breakdown) && expense.breakdown.length > 0) {
+        const analysis = analyzeExpenseBreakdown(expense);
+        const basePath = `facts.expenseGroups[${groupIndex}].expenses[${expenseIndex}].breakdown`;
+        analysis.issues.forEach((issue) => {
+          const suffix = issue.path === "breakdown" ? "" : issue.path.replace("breakdown.", ".");
+          issues.push({ path: `${basePath}${suffix}`, reason: issue.reason });
+        });
+        projected.breakdown = {
+          complete: analysis.complete,
+          state: analysis.state,
+          validComponentSubtotal: analysis.validComponentSubtotal,
+          unallocatedAmount: analysis.unallocatedAmount,
+          overallocatedAmount: analysis.overallocatedAmount,
+          components: expense.breakdown.map((component) => ({
+            label: typeof component?.label === "string" ? component.label : "",
+            category: typeof component?.category === "string" ? component.category : "",
+            amount: createAnalysisAmount(component?.amount, { nonNegative: true }),
+          })),
+        };
+      }
       if (includeNotes) projected.note = typeof expense?.note === "string" ? expense.note : "";
       return projected;
     }),
@@ -233,6 +254,7 @@ export function createFinanceAnalysisExport({
       ],
       dataQualityRule: "Totals marked incomplete are subtotals of valid entries and must not be treated as complete monthly totals.",
       actualNetRule: "Actual net is explicitly received income minus paid expenses. When historical expected income is unresolved, actual net is provisional; received income of zero does not prove that no income was received.",
+      expenseBreakdownRule: "An expense parent amount is the cash payment. Breakdown components only allocate or classify that amount and must never be added on top of it. Incomplete breakdowns are not fully allocated; expense-group labels organize the ledger while breakdown categories provide finer analytical composition.",
     },
     months,
   };

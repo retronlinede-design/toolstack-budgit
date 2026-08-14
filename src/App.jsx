@@ -34,6 +34,7 @@ import {
 import { createExpenseAttentionSummary, formatSavingsRate } from "./domain/dashboardSummary.js";
 import { normalizeExpenseDueDay } from "./domain/dueDay.js";
 import { getMobileExpensePresentation, getMobileIncomePresentation } from "./domain/mobilePresentation.js";
+import { analyzeExpenseBreakdown, EXPENSE_BREAKDOWN_CATEGORIES, normalizeExpenseBreakdown } from "./domain/expenseBreakdown.js";
 import { preparePendingIncomeEntry } from "./domain/pendingIncome.js";
 import { calculateYearOverview } from "./domain/yearOverview.js";
 import { analyzeHistoricalIncome, calendarMonthKey } from "./domain/historicalIncome.js";
@@ -394,6 +395,69 @@ function SelectAllNumberInput({
         }
       }}
     />
+  );
+}
+
+function ExpenseBreakdownEditor({ expense, currency, t, onChange, onRemove }) {
+  const components = Array.isArray(expense.breakdown) ? expense.breakdown : [];
+  const analysis = analyzeExpenseBreakdown(expense);
+  const [touched, setTouched] = useState(() => new Set());
+  const updateComponent = (id, patch) => onChange(components.map((component) => (
+    component.id === id ? { ...component, ...patch } : component
+  )));
+  const removeComponent = (id) => onChange(components.filter((component) => component.id !== id));
+  const addComponent = () => onChange([...components, { id: uid(), label: "", category: "other", amount: "" }]);
+  const markTouched = (id) => setTouched((current) => new Set(current).add(id));
+
+  let summary;
+  if (analysis.state === "unavailable") summary = t("breakdownInvalidParent");
+  else if (analysis.complete) summary = <>{t("breakdownComplete")} · <Money value={analysis.validComponentSubtotal} currency={currency} /></>;
+  else if (analysis.overallocatedAmount > 0) summary = <>{t("breakdownExceedsBy")} <Money value={analysis.overallocatedAmount} currency={currency} /></>;
+  else summary = <><Money value={analysis.validComponentSubtotal} currency={currency} /> {t("breakdownOf")} <Money value={expense.amount} currency={currency} />{analysis.unallocatedAmount > 0 ? <> · <Money value={analysis.unallocatedAmount} currency={currency} /> {t("breakdownUnallocated")}</> : null}</>;
+
+  return (
+    <section className="expense-breakdown" aria-label={t("breakdown")}>
+      <div className="expense-breakdown-heading">
+        <div>
+          <div className="expense-breakdown-title">{t("breakdown")}</div>
+          <div className={`expense-breakdown-summary ${analysis.complete ? "text-emerald-700" : "text-amber-800"}`}>{summary}</div>
+          {analysis.blankComponentCount + analysis.invalidComponentCount > 0 ? <div className="expense-breakdown-warning">{t("breakdownExcludesInvalid", { count: analysis.blankComponentCount + analysis.invalidComponentCount })}</div> : null}
+        </div>
+        <button type="button" className="expense-breakdown-remove" onClick={onRemove}>{t("removeBreakdown")}</button>
+      </div>
+      <div className="expense-breakdown-components">
+        {components.map((component) => {
+          const parsed = parseMoney(component.amount);
+          const invalid = touched.has(component.id) && (!parsed.valid || parsed.value < 0);
+          const errorId = `breakdown-error-${component.id}`;
+          return (
+            <div className="expense-breakdown-component" key={component.id}>
+              <label>
+                <span>{t("component")}</span>
+                <input value={component.label} onChange={(event) => updateComponent(component.id, { label: event.target.value })} placeholder={t("componentLabelPlaceholder")} />
+              </label>
+              <label>
+                <span>{t("category")}</span>
+                <select value={component.category} onChange={(event) => updateComponent(component.id, { category: event.target.value })}>
+                  {component.category && !EXPENSE_BREAKDOWN_CATEGORIES.includes(component.category) ? <option value={component.category}>{component.category}</option> : null}
+                  {EXPENSE_BREAKDOWN_CATEGORIES.map((category) => <option value={category} key={category}>{t(`breakdownCategory_${category}`)}</option>)}
+                </select>
+              </label>
+              <label>
+                <span>{t("amount")}</span>
+                <SelectAllNumberInput value={component.amount} onChange={(event) => updateComponent(component.id, { amount: event.target.value })} onBlur={() => markTouched(component.id)} className={invalid ? "border-red-400 ring-1 ring-red-200" : ""} ariaInvalid={invalid} ariaDescribedBy={invalid ? errorId : undefined} />
+                {invalid ? <small id={errorId}>{parsed.valid && parsed.value < 0 ? t("negativeExpenseAmount") : t("invalidAmount")}</small> : null}
+              </label>
+              <button type="button" className="expense-breakdown-component-remove" onClick={() => removeComponent(component.id)} aria-label={`${t("delete")}: ${component.label || t("component")}`}>×</button>
+            </div>
+          );
+        })}
+      </div>
+      <div className="expense-breakdown-footer">
+        <span>{t("forAnalysisOnly")}</span>
+        <button type="button" onClick={addComponent}>{t("addComponent")}</button>
+      </div>
+    </section>
   );
 }
 
@@ -1655,6 +1719,7 @@ const normalizeExpenseItem = (x) => ({
   note: x && typeof x.note === "string" ? x.note : "",
   notePinned: !!(x && x.notePinned),
   noteUpdatedAt: x && x.noteUpdatedAt ? x.noteUpdatedAt : null,
+  ...normalizeExpenseBreakdown(x, uid),
 });
 
 const normalizeTransaction = (x) => ({
@@ -2035,6 +2100,29 @@ const TRANSLATIONS = {
     alreadyInBalance: "Already included",
     incomeNoteTodo: "Income notes are not linked yet.",
     expenseName: "Expense name",
+    breakdown: "Breakdown",
+    addBreakdown: "Add breakdown",
+    addComponent: "Add component",
+    component: "Component",
+    componentLabelPlaceholder: "Component label",
+    breakdownComplete: "Breakdown complete",
+    breakdownIncomplete: "Incomplete",
+    breakdownOf: "of",
+    breakdownUnallocated: "unallocated",
+    breakdownExceedsBy: "Exceeds payment by",
+    breakdownExcludesInvalid: "Excludes {count} invalid component(s)",
+    breakdownInvalidParent: "Enter a valid payment amount to check the breakdown",
+    removeBreakdown: "Remove breakdown",
+    removeBreakdownConfirm: "Remove this breakdown and all its entered components?",
+    breakdownDataInvalid: "This breakdown has an unsupported stored structure and was left unchanged.",
+    forAnalysisOnly: "For analysis only · not added to expense totals",
+    breakdownCategory_health: "Health",
+    breakdownCategory_pension: "Pension",
+    breakdownCategory_unemployment: "Unemployment",
+    breakdownCategory_long_term_care: "Long-term care",
+    breakdownCategory_tax: "Tax",
+    breakdownCategory_insurance: "Insurance",
+    breakdownCategory_other: "Other",
     amount: "Amount",
     dueDay: "Due day",
     setDue: "Set due",
@@ -2163,7 +2251,7 @@ const TRANSLATIONS = {
     financeAiAvailableMonths: "Available months",
     financeAiIncludeNotes: "Include notes",
     financeAiIncludeNotesDescription: "Adds income, expense and month notes. Off by default.",
-    financeAiPrivacy: "Creates a local JSON file only. Nothing is uploaded automatically. Names, labels and optional notes may contain personal information.",
+    financeAiPrivacy: "Creates a local JSON file only. Nothing is uploaded automatically. Names, labels, breakdown details and optional notes may contain personal information.",
     financeAiDownload: "Download Finance AI file",
     financeAiNoMeaningfulMonths: "No meaningful months are available for this selection.",
     financeAiNoSelection: "Choose at least one available month.",
@@ -2442,6 +2530,29 @@ const TRANSLATIONS = {
     alreadyInBalance: "Bereits einbezogen",
     incomeNoteTodo: "Einkommensnotizen sind noch nicht verknüpft.",
     expenseName: "Ausgabenname",
+    breakdown: "Aufschlüsselung",
+    addBreakdown: "Aufschlüsselung hinzufügen",
+    addComponent: "Bestandteil hinzufügen",
+    component: "Bestandteil",
+    componentLabelPlaceholder: "Bezeichnung des Bestandteils",
+    breakdownComplete: "Aufschlüsselung vollständig",
+    breakdownIncomplete: "Unvollständig",
+    breakdownOf: "von",
+    breakdownUnallocated: "noch nicht zugeordnet",
+    breakdownExceedsBy: "Übersteigt die Zahlung um",
+    breakdownExcludesInvalid: "Schließt {count} ungültige Bestandteile aus",
+    breakdownInvalidParent: "Geben Sie einen gültigen Zahlungsbetrag ein, um die Aufschlüsselung zu prüfen",
+    removeBreakdown: "Aufschlüsselung entfernen",
+    removeBreakdownConfirm: "Diese Aufschlüsselung und alle eingegebenen Bestandteile entfernen?",
+    breakdownDataInvalid: "Diese Aufschlüsselung hat eine nicht unterstützte gespeicherte Struktur und wurde unverändert gelassen.",
+    forAnalysisOnly: "Nur zur Analyse · wird nicht zu den Ausgaben addiert",
+    breakdownCategory_health: "Krankenversicherung",
+    breakdownCategory_pension: "Rentenversicherung",
+    breakdownCategory_unemployment: "Arbeitslosenversicherung",
+    breakdownCategory_long_term_care: "Pflegeversicherung",
+    breakdownCategory_tax: "Steuern",
+    breakdownCategory_insurance: "Versicherung",
+    breakdownCategory_other: "Sonstiges",
     amount: "Betrag",
     dueDay: "Fälligkeitstag",
     setDue: "Fällig setzen",
@@ -2570,7 +2681,7 @@ const TRANSLATIONS = {
     financeAiAvailableMonths: "Verfügbare Monate",
     financeAiIncludeNotes: "Notizen einschließen",
     financeAiIncludeNotesDescription: "Fügt Einnahmen-, Ausgaben- und Monatsnotizen hinzu. Standardmäßig aus.",
-    financeAiPrivacy: "Erstellt nur eine lokale JSON-Datei. Es wird nichts automatisch hochgeladen. Namen, Bezeichnungen und optionale Notizen können persönliche Informationen enthalten.",
+    financeAiPrivacy: "Erstellt nur eine lokale JSON-Datei. Es wird nichts automatisch hochgeladen. Namen, Bezeichnungen, Aufschlüsselungsdetails und optionale Notizen können persönliche Informationen enthalten.",
     financeAiDownload: "Finance-AI-Datei herunterladen",
     financeAiNoMeaningfulMonths: "Für diese Auswahl sind keine relevanten Monate verfügbar.",
     financeAiNoSelection: "Wählen Sie mindestens einen verfügbaren Monat aus.",
@@ -2814,6 +2925,7 @@ export default function BudgitApp() {
   const [noteModal, setNoteModal] = useState(null); // { groupId, itemId }
   const [highlightItem, setHighlightItem] = useState(null);
   const [touchedAmountFields, setTouchedAmountFields] = useState(() => new Set());
+  const [expandedBreakdowns, setExpandedBreakdowns] = useState(() => new Set());
 
   const notify = (msg) => {
     setToast(msg);
@@ -3040,6 +3152,46 @@ export default function BudgitApp() {
         return { ...g, items: (g.items || []).filter((it) => it.id !== itemId) };
       }),
     }));
+  };
+
+  const breakdownKey = (groupId, itemId) => `${groupId}:${itemId}`;
+  const toggleExpenseBreakdown = (groupId, expense) => {
+    if (Object.prototype.hasOwnProperty.call(expense, "breakdown") && !Array.isArray(expense.breakdown)) {
+      notify(t("breakdownDataInvalid"));
+      return;
+    }
+    if (!Array.isArray(expense.breakdown) || expense.breakdown.length === 0) {
+      updateExpenseItem(groupId, expense.id, { breakdown: [{ id: uid(), label: "", category: "other", amount: "" }] });
+    }
+    setExpandedBreakdowns((current) => {
+      const next = new Set(current);
+      const key = breakdownKey(groupId, expense.id);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
+  const updateExpenseBreakdown = (groupId, itemId, breakdown) => updateExpenseItem(groupId, itemId, { breakdown });
+  const removeExpenseBreakdown = (groupId, expense) => {
+    const components = Array.isArray(expense.breakdown) ? expense.breakdown : [];
+    const populated = components.some((component) => String(component?.label || "").trim() || String(component?.amount || "").trim() || (component?.category && component.category !== "other"));
+    if (populated && !window.confirm(t("removeBreakdownConfirm"))) return;
+    updateMonth((cur) => ({
+      ...cur,
+      expenseGroups: (cur.expenseGroups || []).map((group) => group.id !== groupId ? group : {
+        ...group,
+        items: (group.items || []).map((item) => {
+          if (item.id !== expense.id) return item;
+          const nextItem = { ...item };
+          delete nextItem.breakdown;
+          return nextItem;
+        }),
+      }),
+    }));
+    setExpandedBreakdowns((current) => {
+      const next = new Set(current);
+      next.delete(breakdownKey(groupId, expense.id));
+      return next;
+    });
   };
 
   const updateExpenseItemNote = (groupId, itemId, note, pinned) => {
@@ -3630,6 +3782,17 @@ export default function BudgitApp() {
                                           <span className="text-neutral-600" title={info.title} style={{ whiteSpace: 'nowrap' }}>
                                             {" "}({t("due")} {info.display})
                                           </span>
+                                        ) : null}
+                                        {Array.isArray(e.breakdown) && e.breakdown.length ? (
+                                          <div className="mt-1 border-l border-neutral-300 pl-3 text-[11px] font-normal text-neutral-600 print:text-[9px]">
+                                            <div className="font-semibold uppercase tracking-wide">{t("breakdown")} · {t("forAnalysisOnly")}{!analyzeExpenseBreakdown(e).complete ? ` · ${t("breakdownIncomplete")}` : ""}</div>
+                                            {e.breakdown.map((component) => (
+                                              <div key={component.id} className="flex justify-between gap-4">
+                                                <span>{component.label || t("component")} · {EXPENSE_BREAKDOWN_CATEGORIES.includes(component.category) ? t(`breakdownCategory_${component.category}`) : (component.category || t("breakdownCategory_other"))}</span>
+                                                <Money value={component.amount} currency={app.currency} invalidLabel={t("invalidAmount")} />
+                                              </div>
+                                            ))}
+                                          </div>
                                         ) : null}
                                       </div>
                                       <div className="text-neutral-800">
@@ -4311,9 +4474,11 @@ export default function BudgitApp() {
                                       <div className="mobile-entry-actions print:hidden">
                                         <button type="button" className="mobile-entry-action" onClick={() => document.getElementById(`mobile-expense-${expense.id}`)?.focus()}>{t("edit")}</button>
                                         <button type="button" className="mobile-entry-action" onClick={() => updateExpenseItem(g.id, expense.id, { paid: !expense.paid })} aria-label={`${expense.paid ? t("unpaidState") : t("paidState")}: ${mobileExpense.name || t("expenseName")}`}>{expense.paid ? t("unpaidState") : t("paidState")}</button>
+                                        <button type="button" className={`mobile-entry-action ${Array.isArray(expense.breakdown) && expense.breakdown.length ? "mobile-entry-action-active" : ""}`} onClick={() => toggleExpenseBreakdown(g.id, expense)} aria-expanded={expandedBreakdowns.has(breakdownKey(g.id, expense.id))}>{Array.isArray(expense.breakdown) && expense.breakdown.length ? t("breakdown") : t("addBreakdown")}</button>
                                         <button type="button" className="mobile-entry-action" onClick={() => setNoteModal({ groupId: g.id, itemId: expense.id })}>{t("notes")}</button>
                                         <button type="button" className="mobile-entry-action-danger ml-auto" onClick={() => deleteExpenseItem(g.id, expense.id)} aria-label={`${t("delete")}: ${mobileExpense.name || t("expenseName")}`}>{t("delete")}</button>
                                       </div>
+                                      {expandedBreakdowns.has(breakdownKey(g.id, expense.id)) && Array.isArray(expense.breakdown) ? <ExpenseBreakdownEditor expense={expense} currency={app.currency} t={t} onChange={(breakdown) => updateExpenseBreakdown(g.id, expense.id, breakdown)} onRemove={() => removeExpenseBreakdown(g.id, expense)} /> : null}
                                     </article>
                                   );
                                 })}
@@ -4422,6 +4587,15 @@ export default function BudgitApp() {
                                     <div className="ledger-table-actions">
                                       <button
                                         type="button"
+                                        className={`ledger-icon-button ${Array.isArray(e.breakdown) && e.breakdown.length ? "bg-[#D5FF00]/40 text-neutral-900" : ""}`}
+                                        title={Array.isArray(e.breakdown) && e.breakdown.length ? t("breakdown") : t("addBreakdown")}
+                                        aria-expanded={expandedBreakdowns.has(breakdownKey(g.id, e.id))}
+                                        onClick={() => toggleExpenseBreakdown(g.id, e)}
+                                      >
+                                        ≡
+                                      </button>
+                                      <button
+                                        type="button"
                                         className={`ledger-icon-button ${e.paid ? "" : "text-neutral-300 cursor-default hover:bg-transparent hover:text-neutral-300"}`}
                                         title={e.paid ? t("includeExpenseInBalance") : t("alreadyInBalance")}
                                         disabled={!e.paid}
@@ -4455,6 +4629,8 @@ export default function BudgitApp() {
                                       </button>
                                     </div>
                                   </div>
+
+                                  {expandedBreakdowns.has(breakdownKey(g.id, e.id)) && Array.isArray(e.breakdown) ? <ExpenseBreakdownEditor expense={e} currency={app.currency} t={t} onChange={(breakdown) => updateExpenseBreakdown(g.id, e.id, breakdown)} onRemove={() => removeExpenseBreakdown(g.id, e)} /> : null}
 
                                   {!searchTerm && (
                                     <InsertDropZone

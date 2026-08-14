@@ -49,10 +49,10 @@ test("valid current-version backup is accepted", () => {
   assert.deepEqual(result.summary, { months: 1, incomes: 1, expenses: 1 });
 });
 
-test("new backups use the documented readable version 1 envelope", () => {
+test("new backups use the documented readable version 2 envelope", () => {
   const result = createBackupEnvelope(validApp(), "2026-07-19T12:00:00.000Z");
   assert.equal(result.valid, true);
-  assert.equal(result.envelope.schemaVersion, 1);
+  assert.equal(result.envelope.schemaVersion, 2);
   assert.equal(result.envelope.app, "BudgIt");
   assert.equal(result.envelope.exportedAt, "2026-07-19T12:00:00.000Z");
   assert.equal(result.envelope.data.months["2026-07"].incomes[0].amount, "2000");
@@ -77,7 +77,7 @@ test("known flat legacy expenses normalize into a General expense group", () => 
 
 test("unsupported schema version is rejected", () => {
   const backup = validEnvelope();
-  backup.schemaVersion = 2;
+  backup.schemaVersion = BACKUP_SCHEMA_VERSION + 1;
   expectError(validateBackupObject(backup), "unsupported_schema_version");
 });
 
@@ -174,6 +174,42 @@ test("valid zero amounts remain valid", () => {
   backup.data.months["2026-07"].incomes[0].amount = "0";
   backup.data.months["2026-07"].expenseGroups[0].items[0].amount = 0;
   assert.equal(validateBackupObject(backup).valid, true);
+});
+
+test("version 2 backups round-trip expense breakdowns and preserve component IDs/raw blanks", () => {
+  const appData = validApp();
+  appData.months["2026-07"].expenseGroups[0].items[0].breakdown = [
+    { id: "component-1", label: "Health", category: "health", amount: "12,50" },
+    { id: "component-2", label: "Draft", category: "future_category", amount: "" },
+  ];
+  const created = createBackupEnvelope(appData, "2026-08-14T12:00:00.000Z");
+  assert.equal(created.valid, true);
+  assert.equal(created.envelope.schemaVersion, 2);
+  const restored = parseAndValidateBackup(JSON.stringify(created.envelope));
+  assert.equal(restored.valid, true);
+  assert.deepEqual(restored.data.months["2026-07"].expenseGroups[0].items[0].breakdown, appData.months["2026-07"].expenseGroups[0].items[0].breakdown);
+});
+
+test("existing version 1 backups without breakdown remain importable", () => {
+  const backup = validEnvelope();
+  backup.schemaVersion = 1;
+  const result = validateBackupObject(backup);
+  assert.equal(result.valid, true);
+  assert.equal(result.schemaVersion, 1);
+  assert.equal(Object.hasOwn(result.data.months["2026-07"].expenseGroups[0].items[0], "breakdown"), false);
+});
+
+test("invalid breakdown structures, duplicate IDs, malformed and negative values are rejected", () => {
+  for (const breakdown of [
+    { bad: true },
+    [{ id: "part", label: "Part", category: "other", amount: "bad" }],
+    [{ id: "part", label: "Part", category: "other", amount: "-1" }],
+    [{ id: "part", label: "One", category: "other", amount: "1" }, { id: "part", label: "Two", category: "other", amount: "2" }],
+  ]) {
+    const backup = validEnvelope();
+    backup.data.months["2026-07"].expenseGroups[0].items[0].breakdown = breakdown;
+    assert.equal(validateBackupObject(backup).valid, false);
+  }
 });
 
 test("malformed JSON returns a structured result without throwing", () => {

@@ -246,3 +246,37 @@ test("current expected and historical explicit outcomes do not receive historica
     assert.equal(exported.dataQuality.issues.some((issue) => issue.reason === "historical_expected_income"), false);
   }
 });
+
+test("complete expense breakdowns export analytical facts without IDs or double counting", () => {
+  const month = populatedMonth();
+  month.expenseGroups[0].items[0].breakdown = [
+    { id: "secret-component-1", label: "Health insurance", category: "health", amount: "300,50" },
+    { id: "secret-component-2", label: "Pension", category: "pension", amount: "499.50" },
+  ];
+  const exported = createFinanceAnalysisExport({ app: app({ "2026-01": month }), includeNotes: false }).document;
+  const expense = exported.months[0].facts.expenseGroups[0].expenses[0];
+  assert.equal(expense.breakdown.complete, true);
+  assert.equal(expense.breakdown.validComponentSubtotal, 800);
+  assert.deepEqual(expense.breakdown.components[0], { label: "Health insurance", category: "health", amount: { raw: "300,50", value: 300.5, state: "valid" } });
+  assert.equal(exported.months[0].derived.plannedExpenses, 900.25);
+  assert.equal(JSON.stringify(exported).includes("secret-component"), false);
+  assert.match(exported.analysisGuidance.expenseBreakdownRule, /must never be added/i);
+});
+
+test("incomplete breakdowns expose component quality paths while notes toggle keeps labels", () => {
+  const month = populatedMonth();
+  month.expenseGroups[0].items[0].breakdown = [
+    { id: "blank", label: "Unallocated part", category: "other", amount: "" },
+    { id: "bad", label: "Invalid part", category: "future_category", amount: "bad" },
+  ];
+  const withoutNotes = createFinanceAnalysisExport({ app: app({ "2026-01": month }), includeNotes: false }).document.months[0];
+  const withNotes = createFinanceAnalysisExport({ app: app({ "2026-01": month }), includeNotes: true }).document.months[0];
+  assert.equal(withoutNotes.facts.expenseGroups[0].expenses[0].breakdown.complete, false);
+  assert.deepEqual(withoutNotes.dataQuality.issues.slice(-3), [
+    { path: "facts.expenseGroups[0].expenses[0].breakdown.components[0].amount", reason: "empty" },
+    { path: "facts.expenseGroups[0].expenses[0].breakdown.components[1].amount", reason: "invalid_format" },
+    { path: "facts.expenseGroups[0].expenses[0].breakdown", reason: "breakdown_total_mismatch" },
+  ]);
+  assert.equal(withoutNotes.facts.expenseGroups[0].expenses[0].breakdown.components[0].label, "Unallocated part");
+  assert.equal(withNotes.facts.expenseGroups[0].expenses[0].breakdown.components[0].label, "Unallocated part");
+});
