@@ -7,15 +7,15 @@ import {
 import { resolveMonthDueDate } from "./dashboardSummary.js";
 import { analyzeHistoricalIncome, calendarMonthKey } from "./historicalIncome.js";
 import { analyzeExpenseBreakdown } from "./expenseBreakdown.js";
+import { getQuarantinedMonthKeys, isCanonicalMonthKey } from "./monthKey.js";
 
 export const FINANCE_ANALYSIS_FORMAT = "budgit-finance-analysis";
 export const FINANCE_ANALYSIS_VERSION = 1;
 
-const MONTH_KEY = /^[1-9]\d{3}-(0[1-9]|1[0-2])$/;
 const SUPPORTED_MODES = new Set(["current", "selected", "all"]);
 
 export function isFinanceAnalysisMonthKey(value) {
-  return typeof value === "string" && MONTH_KEY.test(value);
+  return isCanonicalMonthKey(value);
 }
 
 const hasText = (value) => typeof value === "string" && value.trim().length > 0;
@@ -30,8 +30,7 @@ export function isFinanceMeaningfulMonth(month, { includeNotes = false } = {}) {
 }
 
 export function getInvalidFinanceMonthKeys(months) {
-  if (!months || typeof months !== "object" || Array.isArray(months)) return [];
-  return Object.keys(months).filter((key) => !isFinanceAnalysisMonthKey(key));
+  return getQuarantinedMonthKeys(months);
 }
 
 export function getFinanceMeaningfulMonthKeys(months, options = {}) {
@@ -244,6 +243,7 @@ export function createFinanceAnalysisExport({
       monthCount: selection.keys.length,
       includedMonths: selection.keys,
       notesIncluded: !!includeNotes,
+      invalidMonthRecordsExcluded: getInvalidFinanceMonthKeys(app.months).length,
     },
     analysisGuidance: {
       objectives: [
@@ -257,6 +257,7 @@ export function createFinanceAnalysisExport({
       actualNetRule: "Actual net is explicitly received income minus paid expenses. When historical expected income is unresolved, actual net is provisional; received income of zero does not prove that no income was received.",
       expenseBreakdownRule: "An expense parent amount is the cash payment. Breakdown components only allocate or classify that amount and must never be added on top of it. Incomplete breakdowns are not fully allocated; expense-group labels organize the ledger while breakdown categories provide finer analytical composition.",
       incomeCategoryRule: "Income categories describe the economic source or purpose of incoming cash without changing lifecycle totals. employer_contribution may be employer-funded pass-through money rather than ordinary earnings; category null means the entry was never classified. Never count classified income again beyond the existing income totals.",
+      excludedHistoryRule: "Stored history without a canonical month date was excluded because it could not be assigned safely. Do not infer or guess its intended month.",
     },
     months,
   };

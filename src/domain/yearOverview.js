@@ -1,5 +1,6 @@
 import { calculateMonthTotals } from "./calculations.js";
 import { analyzeHistoricalIncome, calendarMonthKey } from "./historicalIncome.js";
+import { getQuarantinedMonthKeys } from "./monthKey.js";
 
 function normalizeYear(selectedYear) {
   const year = Number(selectedYear);
@@ -89,5 +90,6 @@ export function calculateYearOverview(appData, selectedYear, { currentMonthKey =
     unresolvedHistoricalMonthCount: populatedMonths.filter((month) => month.actualNetProvisional).length,
     actualNetProvisional: populatedMonths.some((month) => month.actualNetProvisional),
     reconciledActualNetMonthCount: actualPerformanceMonths.length,
+    quarantinedMonthCount: getQuarantinedMonthKeys(sourceMonths).length,
   };
 }

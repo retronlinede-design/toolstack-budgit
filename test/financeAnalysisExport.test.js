@@ -184,6 +184,9 @@ test("malformed historical month keys are excluded and reported without blocking
   const result = createFinanceAnalysisExport({ app: source, mode: "all" });
   assert.equal(result.ok, true);
   assert.deepEqual(result.document.selection.includedMonths, ["2026-01"]);
+  assert.equal(result.document.selection.invalidMonthRecordsExcluded, 2);
+  assert.match(result.document.analysisGuidance.excludedHistoryRule, /excluded/i);
+  assert.match(result.document.analysisGuidance.excludedHistoryRule, /infer|guess/i);
   assert.deepEqual(result.warnings, [{ code: "invalid_month_keys_excluded", count: 2 }]);
 });
 

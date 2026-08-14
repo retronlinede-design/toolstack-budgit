@@ -1,6 +1,5 @@
 import { parseMoney } from "./calculations.js";
-
-const MONTH_KEY = /^\d{4}-(0[1-9]|1[0-2])$/;
+import { isCanonicalMonthKey } from "./monthKey.js";
 
 export function calendarMonthKey(referenceDate = new Date()) {
   const date = referenceDate instanceof Date ? referenceDate : new Date(referenceDate);
@@ -13,8 +12,8 @@ export function calendarMonthKey(referenceDate = new Date()) {
  * Expected rows only become historically unresolved once their month is past.
  */
 export function analyzeHistoricalIncome(monthKey, monthData, { currentMonthKey } = {}) {
-  const canonicalCurrentMonth = MONTH_KEY.test(currentMonthKey || "") ? currentMonthKey : null;
-  const historical = MONTH_KEY.test(monthKey || "") && canonicalCurrentMonth !== null && monthKey < canonicalCurrentMonth;
+  const canonicalCurrentMonth = isCanonicalMonthKey(currentMonthKey) ? currentMonthKey : null;
+  const historical = isCanonicalMonthKey(monthKey) && canonicalCurrentMonth !== null && monthKey < canonicalCurrentMonth;
   const expectedRows = historical && Array.isArray(monthData?.incomes)
     ? monthData.incomes.filter((income) => income?.status === "expected")
     : [];

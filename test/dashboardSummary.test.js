@@ -8,6 +8,10 @@ const currentDate = new Date(2026, 6, 15);
 const item = (overrides = {}) => ({ id: "expense", name: "Rent", amount: "10", dueDay: null, paid: false, ...overrides });
 const groups = (...items) => [{ id: "group", label: "General", items }];
 
+test("due dates reject quarantined month keys before date arithmetic", () => {
+  for (const key of ["", "0202-01", "0000-01", "2026-1", "2026-13"]) assert.equal(resolveMonthDueDate(key, 12), null, key);
+});
+
 test("no expenses produces a calm empty summary", () => {
   assert.deepEqual(createExpenseAttentionSummary({ activeMonth: "2026-07", expenseGroups: [], currentDate }), { unpaidCount: 0, overdueCount: 0, nextDue: null });
 });

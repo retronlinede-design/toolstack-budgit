@@ -1,9 +1,10 @@
-const MONTH_KEY = /^(\d{4})-(0[1-9]|1[0-2])$/;
+import { parseCanonicalMonthKey } from "./monthKey.js";
 
 function validDueDate(activeMonth, dueDay) {
-  if (!MONTH_KEY.test(String(activeMonth || ""))) return null;
+  const parsedMonth = parseCanonicalMonthKey(activeMonth);
+  if (!parsedMonth.ok) return null;
   if (!Number.isInteger(dueDay) || dueDay < 1 || dueDay > 31) return null;
-  const [year, month] = activeMonth.split("-").map(Number);
+  const { year, month } = parsedMonth;
   const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
   const actualDay = Math.min(dueDay, lastDay);
   return { year, month, actualDay };

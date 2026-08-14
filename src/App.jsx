@@ -49,6 +49,18 @@ import { getBrowserStorage, readStorageValue, writeStorageValue } from "./domain
 import { attachPersistenceLifecycle, createPersistenceCoordinator } from "./domain/persistenceCoordinator.js";
 import { writeUiPreference } from "./domain/uiPreferences.js";
 import {
+  formatMonthKey,
+  getCanonicalMonthYears,
+  getQuarantinedMonthKeys,
+  isCanonicalMonthKey,
+  nextMonthKey,
+  normalizeCanonicalMonthRecords,
+  parseCanonicalMonthKey,
+  previousMonthKey,
+  resolveOperationalActiveMonth,
+} from "./domain/monthKey.js";
+import { createRawRecoveryFile } from "./domain/rawRecovery.js";
+import {
   createFinanceAnalysisExport,
   getFinanceMeaningfulMonthKeys,
   getInvalidFinanceMonthKeys,
@@ -96,32 +108,25 @@ const pad2 = (n) => String(n).padStart(2, "0");
 
 const monthKey = (d) => {
   const dd = d || new Date();
-  const y = dd.getFullYear();
-  const m = pad2(dd.getMonth() + 1);
-  return `${y}-${m}`; // YYYY-MM
+  const result = formatMonthKey(dd.getFullYear(), dd.getMonth() + 1);
+  if (!result.ok) throw new RangeError("Current date is outside BudgIt's supported month range");
+  return result.key;
 };
 
 const parseYM = (ym) => {
-  const parts = String(ym || "").split("-");
-  const y = Number(parts[0]);
-  const m = Number(parts[1]);
-  return { y, m };
+  const result = parseCanonicalMonthKey(ym);
+  return result.ok ? { y: result.year, m: result.month } : { y: null, m: null };
 };
 
 const addMonths = (ym, delta) => {
-  const p = parseYM(ym);
-  if (!p.y || !p.m) return monthKey();
-  const d = new Date(p.y, p.m - 1, 1);
-  d.setMonth(d.getMonth() + delta);
-  return monthKey(d);
+  const result = delta === -1 ? previousMonthKey(ym) : delta === 1 ? nextMonthKey(ym) : { ok: false };
+  return result.ok ? result.key : null;
 };
 
 const monthLabel = (ym, lang = "en") => {
-  const parts = String(ym || "").split("-");
-  const y = parts[0];
-  const m = parts[1];
-  if (!y || !m) return String(ym || "");
-  const d = new Date(Number(y), Number(m) - 1, 1);
+  const parsed = parseCanonicalMonthKey(ym);
+  if (!parsed.ok) return "";
+  const d = new Date(parsed.year, parsed.month - 1, 1);
   return d.toLocaleDateString(lang === "de" ? "de-DE" : "en-US", { year: "numeric", month: "long" });
 };
  
@@ -1189,7 +1194,7 @@ function ExportActionRow({ icon, label, sub, onClick, file, onClose, onImport })
   );
 }
 
-function ExportModal({ open, onClose, onPrint, onBackup, onImport, onFinanceExport, activeMonth, months, lang, t }) {
+function ExportModal({ open, onClose, onPrint, onBackup, onImport, onFinanceExport, onRawRecovery, rawRecoveryAvailable, quarantinedMonthCount, activeMonth, months, lang, t }) {
   const [view, setView] = useState("actions");
   const [financeMode, setFinanceMode] = useState("current");
   const [includeNotes, setIncludeNotes] = useState(false);
@@ -1293,6 +1298,20 @@ function ExportModal({ open, onClose, onPrint, onBackup, onImport, onFinanceExpo
             sub={t("export_download_json_sub")}
             onClick={() => { closeModal(); onBackup(); }}
           />
+          {quarantinedMonthCount > 0 ? (
+            <div className="finance-export-warning mx-2 my-1" role="status">
+              <div className="font-semibold">{t("rawRecoveryTitle")}</div>
+              <div className="mt-1">{t("rawRecoveryDescription")}</div>
+              <button
+                type="button"
+                disabled={!rawRecoveryAvailable}
+                onClick={() => { if (onRawRecovery()) closeModal(); }}
+                className={`mt-3 min-h-10 rounded-lg border border-neutral-300 bg-white px-3 text-xs font-bold text-neutral-800 hover:bg-neutral-100 ${BUTTON_FOCUS} ${BUTTON_DISABLED}`}
+              >
+                {t("rawRecoveryDownload")}
+              </button>
+            </div>
+          ) : null}
           <ExportActionRow
             icon={<ExportIcons.Upload />}
             label={t("export_import_json_label")}
@@ -1836,12 +1855,9 @@ function loadInitialAppState() {
 }
 
 function initializeAppData(source) {
-  const data = { ...source, months: { ...(source.months || {}) } };
-  const activeMonth = data.activeMonth || monthKey();
+  const data = { ...source, months: normalizeCanonicalMonthRecords(source.months, normalizeMonthData) };
+  const activeMonth = resolveOperationalActiveMonth(data.activeMonth, monthKey());
   data.activeMonth = activeMonth;
-  Object.keys(data.months).forEach((key) => {
-    data.months[key] = normalizeMonthData(data.months[key]);
-  });
   if (!data.months[activeMonth]) data.months[activeMonth] = normalizeMonthData(null);
   if (!data.lang) data.lang = "en";
   if (!data.currency) data.currency = "EUR";
@@ -2070,6 +2086,15 @@ const TRANSLATIONS = {
     saveStatusError: "Could not save",
     saveStatusImported: "Imported successfully",
     saveStatusLoadError: "Could not load saved data",
+    historicalDataNeedsRecovery: "Historical data needs recovery",
+    quarantinedMonthSingular: "{count} stored month cannot be used because its date is invalid. The data has been preserved.",
+    quarantinedMonthPlural: "{count} stored months cannot be used because their dates are invalid. The data has been preserved.",
+    rawRecoveryTitle: "Raw recovery data",
+    rawRecoveryDescription: "Download the exact stored browser data before recovery. It may contain invalid or legacy records and is not a normal BudgIt backup.",
+    rawRecoveryDownload: "Download raw recovery file",
+    rawRecoveryUnavailable: "Raw recovery data is not available.",
+    rawRecoveryExported: "Raw recovery file downloaded.",
+    backupBlockedByQuarantine: "Normal backup is blocked by historical data with an invalid date. Download the raw recovery file first.",
     saveFailureAdvice: "Download a backup now. Your latest changes are only in this open page.",
     loadFailureAdvice: "Existing browser data was left unchanged. Restore a known backup to continue safely.",
     balanceCheck: "Balance projection",
@@ -2512,6 +2537,15 @@ const TRANSLATIONS = {
     saveStatusError: "Speichern nicht möglich",
     saveStatusImported: "Erfolgreich importiert",
     saveStatusLoadError: "Gespeicherte Daten konnten nicht geladen werden",
+    historicalDataNeedsRecovery: "Historische Daten müssen wiederhergestellt werden",
+    quarantinedMonthSingular: "{count} gespeicherter Monat kann wegen eines ungültigen Datums nicht verwendet werden. Die Daten wurden beibehalten.",
+    quarantinedMonthPlural: "{count} gespeicherte Monate können wegen ungültiger Datumsangaben nicht verwendet werden. Die Daten wurden beibehalten.",
+    rawRecoveryTitle: "Rohdaten zur Wiederherstellung",
+    rawRecoveryDescription: "Laden Sie vor der Wiederherstellung die exakten Browserdaten herunter. Sie können ungültige oder ältere Datensätze enthalten und sind keine reguläre BudgIt-Sicherung.",
+    rawRecoveryDownload: "Rohdaten herunterladen",
+    rawRecoveryUnavailable: "Rohdaten zur Wiederherstellung sind nicht verfügbar.",
+    rawRecoveryExported: "Rohdaten wurden heruntergeladen.",
+    backupBlockedByQuarantine: "Die reguläre Sicherung wird durch historische Daten mit ungültigem Datum blockiert. Laden Sie zuerst die Rohdaten herunter.",
     saveFailureAdvice: "Laden Sie jetzt eine Sicherung herunter. Ihre neuesten Änderungen sind nur auf dieser geöffneten Seite vorhanden.",
     loadFailureAdvice: "Vorhandene Browserdaten wurden nicht verändert. Stellen Sie eine bekannte Sicherung wieder her, um sicher fortzufahren.",
     balanceCheck: "Kontostandsprognose",
@@ -2796,6 +2830,16 @@ function YearOverviewView({ app, year, onYearChange, onBack, onOpenMonth, onPrin
         </button>
       </nav>
 
+      {overview.quarantinedMonthCount > 0 ? (
+        <div className="quarantine-status print:hidden" role="status">
+          <span className="quarantine-status-mark" aria-hidden="true">!</span>
+          <span>
+            <strong>{t("historicalDataNeedsRecovery")}</strong>
+            <span>{t(overview.quarantinedMonthCount === 1 ? "quarantinedMonthSingular" : "quarantinedMonthPlural", { count: overview.quarantinedMonthCount })}</span>
+          </span>
+        </div>
+      ) : null}
+
       <section aria-label={t("yearOverview")} className="year-summary-grid">
         {primaryMetrics.map(([label, value]) => (
           <article key={label} className={`year-summary-card ${label === "actualNet" && value < 0 ? "year-summary-card-negative" : ""}`}>
@@ -2992,6 +3036,9 @@ export default function BudgitApp() {
     const m = app.activeMonth;
     return normalizeMonthData(app.months && app.months[m] ? app.months[m] : null);
   }, [app]);
+  const quarantinedMonthKeys = useMemo(() => getQuarantinedMonthKeys(app.months), [app.months]);
+  const rawRecoveryRead = readStorageValue(getBrowserStorage(), LS_KEY);
+  const rawRecoveryAvailable = rawRecoveryRead.ok && typeof rawRecoveryRead.value === "string";
 
   const t = (key, args = {}) => {
     const txt = TRANSLATIONS[app.lang || "en"][key] || key;
@@ -3021,11 +3068,13 @@ export default function BudgitApp() {
   };
 
   const ensureMonth = (m) => {
+    if (!isCanonicalMonthKey(m)) return false;
     setApp((a) => {
       const months = { ...(a.months || {}) };
       if (!months[m]) months[m] = normalizeMonthData(null);
       return { ...a, activeMonth: m, months };
     });
+    return true;
   };
 
   const setLang = (lang) => {
@@ -3040,10 +3089,7 @@ export default function BudgitApp() {
 
   const years = useMemo(() => {
     const nowY = new Date().getFullYear();
-    const keys = Object.keys(app.months || {});
-    const ys = keys
-      .map((k) => parseYM(k).y)
-      .filter((y) => !!y);
+    const ys = getCanonicalMonthYears(app.months);
     const minY = Math.min(nowY - 3, ...(ys.length ? ys : [nowY]));
     const maxY = Math.max(nowY + 3, ...(ys.length ? ys : [nowY]));
     const out = [];
@@ -3399,6 +3445,10 @@ export default function BudgitApp() {
   const exportJSON = () => {
     const backup = createBackupEnvelope(app);
     if (!backup.valid) {
+      if (getQuarantinedMonthKeys(app.months).length) {
+        notify(t("backupBlockedByQuarantine"));
+        return;
+      }
       const detail = backup.errors[0] ? backup.errors[0].message : t("invalidBackup");
       notify(`${t("backupExportFailed")} ${detail}`);
       return;
@@ -3412,6 +3462,26 @@ export default function BudgitApp() {
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
+  };
+
+  const exportRawRecovery = () => {
+    const stored = readStorageValue(getBrowserStorage(), LS_KEY);
+    const recovery = stored.ok ? createRawRecoveryFile(stored.value) : { ok: false };
+    if (!recovery.ok) {
+      notify(t("rawRecoveryUnavailable"));
+      return false;
+    }
+    const blob = new Blob([recovery.content], { type: recovery.mimeType });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = recovery.filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+    notify(t("rawRecoveryExported"));
+    return true;
   };
 
   const exportFinanceAnalysis = ({ mode, selectedMonthKeys, includeNotes }) => {
@@ -3696,6 +3766,9 @@ export default function BudgitApp() {
         onBackup={exportJSON}
         onImport={importJSON}
         onFinanceExport={exportFinanceAnalysis}
+        onRawRecovery={exportRawRecovery}
+        rawRecoveryAvailable={rawRecoveryAvailable}
+        quarantinedMonthCount={quarantinedMonthKeys.length}
         activeMonth={app.activeMonth}
         months={app.months || {}}
         lang={app.lang}
@@ -3941,6 +4014,16 @@ export default function BudgitApp() {
               {saveStatus === "error" || saveStatus === "load_error" ? (
                 <div className="command-save-error">
                   {saveStatus === "error" ? t("saveFailureAdvice") : t("loadFailureAdvice")}
+                </div>
+              ) : null}
+
+              {quarantinedMonthKeys.length > 0 ? (
+                <div className="quarantine-status" role="status">
+                  <span className="quarantine-status-mark" aria-hidden="true">!</span>
+                  <span>
+                    <strong>{t("historicalDataNeedsRecovery")}</strong>
+                    <span>{t(quarantinedMonthKeys.length === 1 ? "quarantinedMonthSingular" : "quarantinedMonthPlural", { count: quarantinedMonthKeys.length })}</span>
+                  </span>
                 </div>
               ) : null}
 

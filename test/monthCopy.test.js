@@ -39,6 +39,17 @@ function deterministicIds() {
 test("January advances to February", () => assert.equal(getNextMonthKey("2026-01"), "2026-02"));
 test("December advances to January of the next year", () => assert.equal(getNextMonthKey("2026-12"), "2027-01"));
 test("invalid source month is rejected", () => assert.equal(getNextMonthKey("July 2026"), null));
+test("noncanonical years cannot generate malformed destinations", () => {
+  assert.equal(getNextMonthKey("0202-01"), null);
+  assert.equal(getNextMonthKey("0000-01"), null);
+});
+
+test("copy rejects noncanonical destination keys", () => {
+  const app = { activeMonth: "2026-07", months: { "2026-07": emptyMonth() }, lang: "en", currency: "EUR" };
+  for (const destinationMonthKey of ["0202-01", "2026-1", "2026-13"]) {
+    assert.equal(applyMonthCopyToApp({ app, sourceMonthKey: "2026-07", destinationMonthKey, idFactory: deterministicIds() }).code, "invalid_month");
+  }
+});
 
 test("destination cannot equal source", () => {
   const result = applyMonthCopyToApp({ app: { activeMonth: "2026-07", months: { "2026-07": emptyMonth() }, lang: "en", currency: "EUR" }, sourceMonthKey: "2026-07", destinationMonthKey: "2026-07", idFactory: deterministicIds() });

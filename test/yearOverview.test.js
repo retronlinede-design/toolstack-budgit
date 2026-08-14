@@ -17,6 +17,15 @@ test("returns all 12 calendar months in chronological order", () => {
   assert.equal(result.months[11].monthKey, "2026-12");
 });
 
+test("quarantined records are excluded from totals and reported", () => {
+  const normal = month({ incomes: [income("100", "received")] });
+  const quarantined = month({ incomes: [income("9999", "received")] });
+  const result = calculateYearOverview(app({ "2026-01": normal, "0202-01": quarantined, "": quarantined }), 2026, { currentMonthKey: "2026-08" });
+  assert.equal(result.totals.receivedIncome, 100);
+  assert.equal(result.monthsWithData, 1);
+  assert.equal(result.quarantinedMonthCount, 2);
+});
+
 test("summarizes one populated month with trusted monthly semantics", () => {
   const result = calculateYearOverview(app({
     "2026-03": month({

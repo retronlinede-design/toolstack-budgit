@@ -1,4 +1,4 @@
-const MONTH_KEY = /^(\d{4})-(0[1-9]|1[0-2])$/;
+import { parseCanonicalMonthKey } from "./monthKey.js";
 
 function daysInMonth(year, month) {
   return new Date(Date.UTC(year, month, 0)).getUTCDate();
@@ -18,9 +18,10 @@ function compareNames(left, right) {
 }
 
 export function resolveMonthDueDate(activeMonth, dueDay) {
-  if (typeof activeMonth !== "string" || !MONTH_KEY.test(activeMonth)) return null;
+  const parsedMonth = parseCanonicalMonthKey(activeMonth);
+  if (!parsedMonth.ok) return null;
   if (!Number.isInteger(dueDay) || dueDay < 1 || dueDay > 31) return null;
-  const [year, month] = activeMonth.split("-").map(Number);
+  const { year, month } = parsedMonth;
   const actualDueDay = Math.min(dueDay, daysInMonth(year, month));
   const dueStamp = Date.UTC(year, month - 1, actualDueDay);
   return {

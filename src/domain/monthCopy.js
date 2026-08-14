@@ -1,7 +1,6 @@
 import { validateApplicationMonth } from "./backupSchema.js";
 import { canonicalizeBlankDueDay } from "./dueDay.js";
-
-const MONTH_KEY = /^(\d{4})-(0[1-9]|1[0-2])$/;
+import { isCanonicalMonthKey, nextMonthKey } from "./monthKey.js";
 
 export const DEFAULT_MONTH_COPY_OPTIONS = Object.freeze({
   copyIncome: true,
@@ -11,14 +10,12 @@ export const DEFAULT_MONTH_COPY_OPTIONS = Object.freeze({
 });
 
 export function isValidMonthKey(value) {
-  return typeof value === "string" && MONTH_KEY.test(value);
+  return isCanonicalMonthKey(value);
 }
 
 export function getNextMonthKey(sourceMonthKey) {
-  if (!isValidMonthKey(sourceMonthKey)) return null;
-  const [year, month] = sourceMonthKey.split("-").map(Number);
-  const next = new Date(Date.UTC(year, month, 1));
-  return `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, "0")}`;
+  const result = nextMonthKey(sourceMonthKey);
+  return result.ok ? result.key : null;
 }
 
 function hasText(value) {

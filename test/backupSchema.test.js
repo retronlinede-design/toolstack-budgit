@@ -176,6 +176,16 @@ test("valid zero amounts remain valid", () => {
   assert.equal(validateBackupObject(backup).valid, true);
 });
 
+test("normal backups reject leading-zero historical years", () => {
+  for (const key of ["0202-01", "0000-01"]) {
+    const backup = validEnvelope();
+    backup.data.months[key] = backup.data.months["2026-07"];
+    delete backup.data.months["2026-07"];
+    backup.data.activeMonth = key;
+    expectError(validateBackupObject(backup), "invalid_month_key");
+  }
+});
+
 test("current-version backups round-trip expense breakdowns and preserve component IDs/raw blanks", () => {
   const appData = validApp();
   appData.months["2026-07"].expenseGroups[0].items[0].breakdown = [

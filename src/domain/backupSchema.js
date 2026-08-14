@@ -1,4 +1,5 @@
 import { INCOME_STATUSES, parseMoney } from "./calculations.js";
+import { isCanonicalMonthKey } from "./monthKey.js";
 
 export const BACKUP_SCHEMA_VERSION = 3;
 export const SUPPORTED_BACKUP_SCHEMA_VERSIONS = Object.freeze([1, 2, BACKUP_SCHEMA_VERSION]);
@@ -17,7 +18,6 @@ export const BACKUP_LIMITS = Object.freeze({
 
 const SUPPORTED_LANGUAGES = new Set(["en", "de"]);
 const SUPPORTED_CURRENCIES = new Set(["EUR", "USD", "GBP", "ZAR"]);
-const MONTH_KEY = /^\d{4}-(0[1-9]|1[0-2])$/;
 const DATE_ONLY = /^\d{4}-(0[1-9]|1[0-2])-([0-2]\d|3[01])$/;
 
 const isPlainObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value) && (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null);
@@ -305,7 +305,7 @@ function validateApplicationData(data, { legacy = false } = {}) {
 
   if (!SUPPORTED_LANGUAGES.has(data.lang)) ctx.add("lang", "unsupported_language", "Language must be English or German.");
   if (!SUPPORTED_CURRENCIES.has(data.currency)) ctx.add("currency", "unsupported_currency", "Currency is not supported by BudgIt.");
-  if (!MONTH_KEY.test(data.activeMonth)) ctx.add("activeMonth", "invalid_month_key", "Active month must use YYYY-MM format.");
+  if (!isCanonicalMonthKey(data.activeMonth)) ctx.add("activeMonth", "invalid_month_key", "Active month must use canonical YYYY-MM format.");
 
   if (!isPlainObject(data.months)) {
     ctx.add("months", "invalid_months", "Months must be an object keyed by YYYY-MM.");
@@ -318,7 +318,7 @@ function validateApplicationData(data, { legacy = false } = {}) {
   let incomeCount = 0;
   let expenseCount = 0;
   for (const [key, month] of monthEntries.slice(0, BACKUP_LIMITS.maxMonths)) {
-    if (!MONTH_KEY.test(key)) {
+    if (!isCanonicalMonthKey(key)) {
       ctx.add(`months.${key}`, "invalid_month_key", "Month key must use valid YYYY-MM format.");
       continue;
     }
@@ -349,7 +349,7 @@ function validateApplicationData(data, { legacy = false } = {}) {
  */
 export function validateApplicationMonth(month, monthKey) {
   const ctx = createContext();
-  if (!MONTH_KEY.test(monthKey)) {
+  if (!isCanonicalMonthKey(monthKey)) {
     ctx.add(`months.${String(monthKey)}`, "invalid_month_key", "Month key must use valid YYYY-MM format.");
     return { valid: false, errors: ctx.errors };
   }

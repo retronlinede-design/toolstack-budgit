@@ -6,6 +6,27 @@ import {
   attachPersistenceLifecycle,
   createPersistenceCoordinator,
 } from "../src/domain/persistenceCoordinator.js";
+import { resolveOperationalActiveMonth } from "../src/domain/monthKey.js";
+
+test("malformed active-month fallback starts clean without rewriting raw storage", () => {
+  const raw = JSON.stringify({ activeMonth: "0202-01", months: { "0202-01": { raw: "preserve" } } });
+  const storage = new Map([["budgit", raw]]);
+  const writes = [];
+  const coordinator = createPersistenceCoordinator({
+    initialState: {
+      activeMonth: resolveOperationalActiveMonth("0202-01", "2026-08"),
+      months: { "0202-01": { raw: "preserve" }, "2026-08": {} },
+    },
+    storage,
+    storageKey: "budgit",
+    write: (_storage, key, value) => { writes.push(value); storage.set(key, value); return { ok: true }; },
+  });
+  coordinator.schedule();
+  coordinator.flush();
+  assert.equal(coordinator.isDirty(), false);
+  assert.deepEqual(writes, []);
+  assert.equal(storage.get("budgit"), raw);
+});
 
 function createTimers() {
   let nextId = 1;

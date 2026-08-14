@@ -18,6 +18,15 @@ test("current and future expected income remains normal planned income", () => {
   }
 });
 
+test("noncanonical months are not classified as historical", () => {
+  for (const monthKey of ["", "0202-01", "0000-01", "2026-1"]) {
+    const result = analyze(monthKey, [{ amount: "100", status: "expected" }]);
+    assert.equal(result.historical, false);
+    assert.equal(result.unresolvedExpectedCount, 0);
+    assert.equal(result.historicalIncomeOutcomeComplete, true);
+  }
+});
+
 test("past expected income is unresolved and supports dot and comma decimals", () => {
   const result = analyze("2026-07", [
     { amount: "100.25", status: "expected" },
