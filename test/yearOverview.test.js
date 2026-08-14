@@ -126,3 +126,37 @@ test("does not mutate source application data", () => {
   calculateYearOverview(source, 2026);
   assert.deepEqual(source, before);
 });
+
+test("historical unresolved income makes actual net provisional and excludes the month from performance insights", () => {
+  const result = calculateYearOverview(app({
+    "2026-01": month({ incomes: [income("1000", "expected")], expenses: [expense("400", true)] }),
+    "2026-02": month({ incomes: [income("800", "received")], expenses: [expense("300", true)] }),
+  }), 2026, { currentMonthKey: "2026-08" });
+  assert.equal(result.months[0].actualNet, -400);
+  assert.equal(result.months[0].actualNetProvisional, true);
+  assert.equal(result.actualNetProvisional, true);
+  assert.equal(result.unresolvedHistoricalMonthCount, 1);
+  assert.equal(result.strongestMonth.monthKey, "2026-02");
+  assert.equal(result.weakestMonth.monthKey, "2026-02");
+  assert.equal(result.averages.actualNet, 500);
+  assert.equal(result.reconciledActualNetMonthCount, 1);
+});
+
+test("all-provisional historical data produces unavailable performance insights safely", () => {
+  const result = calculateYearOverview(app({
+    "2026-01": month({ incomes: [income("1000", "expected")], expenses: [expense("400", true)] }),
+  }), 2026, { currentMonthKey: "2026-08" });
+  assert.equal(result.totals.actualNet, -400);
+  assert.equal(result.strongestMonth, null);
+  assert.equal(result.weakestMonth, null);
+  assert.equal(result.averages.actualNet, null);
+  assert.equal(result.reconciledActualNetMonthCount, 0);
+});
+
+test("current expected income is not excluded from existing overview semantics", () => {
+  const result = calculateYearOverview(app({
+    "2026-08": month({ incomes: [income("1000", "expected")], expenses: [expense("100", true)] }),
+  }), 2026, { currentMonthKey: "2026-08" });
+  assert.equal(result.months[7].actualNetProvisional, false);
+  assert.equal(result.averages.actualNet, -100);
+});

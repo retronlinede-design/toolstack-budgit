@@ -36,6 +36,7 @@ import { normalizeExpenseDueDay } from "./domain/dueDay.js";
 import { getMobileExpensePresentation, getMobileIncomePresentation } from "./domain/mobilePresentation.js";
 import { preparePendingIncomeEntry } from "./domain/pendingIncome.js";
 import { calculateYearOverview } from "./domain/yearOverview.js";
+import { analyzeHistoricalIncome, calendarMonthKey } from "./domain/historicalIncome.js";
 import {
   BACKUP_LIMITS,
   createBackupEnvelope,
@@ -997,6 +998,10 @@ function HelpModal({ open, onClose, t }) {
             <p className="mt-2">{t("help_data_p3")}</p>
           </HelpItem>
 
+          <HelpItem title={t("help_income_status_title")}>
+            <p>{t("help_income_status_desc")}</p>
+          </HelpItem>
+
           <HelpItem title={t("help_backup_title")}>
             <p dangerouslySetInnerHTML={{ __html: t("help_backup_p1") }} />
             <p dangerouslySetInnerHTML={{ __html: t("help_backup_p2") }} />
@@ -1772,6 +1777,19 @@ const TRANSLATIONS = {
     strongestMonth: "Strongest month",
     weakestMonth: "Weakest month",
     averageMonthlyActualNet: "Average monthly actual net",
+    incomeStatusIncomplete: "Income status incomplete",
+    unresolvedIncome: "Unresolved income",
+    expectedEntrySingular: "expected entry",
+    expectedEntryPlural: "expected entries",
+    unresolvedAmount: "unresolved",
+    unresolvedSubtotalIncompleteSingular: "Unresolved subtotal excludes 1 invalid amount.",
+    unresolvedSubtotalIncompletePlural: "Unresolved subtotal excludes {count} invalid amounts.",
+    historicalIncomePrintWarning: "Some expected income has not been reconciled.",
+    provisionalActualNet: "Provisional actual net",
+    annualActualNetProvisional: "Includes unresolved historical income",
+    nonProvisionalMonthBasisSingular: "Based on 1 non-provisional month",
+    nonProvisionalMonthBasisPlural: "Based on {count} non-provisional months",
+    unavailable: "Unavailable",
     noData: "No data",
     noYearData: "No yearly data available yet.",
     yearReceivedIncome: "Received Income",
@@ -1939,6 +1957,8 @@ const TRANSLATIONS = {
     dueDatesHelpDesc: "Set due dates to track when bills are due. Use “Sort due” to organize items by date.",
     copyingHelp: "Rolling Over",
     copyingHelpDesc: "Use “Copy month” to review what will carry forward. Paid and income statuses, dates, balances, pending money, and transaction remnants are reset.",
+    help_income_status_title: "Income statuses",
+    help_income_status_desc: "Expected means planned or not yet reconciled; Received confirms receipt; Delayed records a delay; Cancelled means it is no longer expected. Expected income left in a past month is marked unresolved until you review its status.",
     printing: "Printing / PDF",
     printingDesc: "Use",
     printingDesc2: "to check the layout, then",
@@ -2164,6 +2184,19 @@ const TRANSLATIONS = {
     strongestMonth: "Stärkster Monat",
     weakestMonth: "Schwächster Monat",
     averageMonthlyActualNet: "Durchschnittlicher monatlicher Saldo",
+    incomeStatusIncomplete: "Einnahmenstatus unvollständig",
+    unresolvedIncome: "Ungeklärte Einnahmen",
+    expectedEntrySingular: "erwarteter Eintrag",
+    expectedEntryPlural: "erwartete Einträge",
+    unresolvedAmount: "ungeklärt",
+    unresolvedSubtotalIncompleteSingular: "Die ungeklärte Zwischensumme schließt 1 ungültigen Betrag aus.",
+    unresolvedSubtotalIncompletePlural: "Die ungeklärte Zwischensumme schließt {count} ungültige Beträge aus.",
+    historicalIncomePrintWarning: "Einige erwartete Einnahmen wurden noch nicht abgestimmt.",
+    provisionalActualNet: "Vorläufiger tatsächlicher Saldo",
+    annualActualNetProvisional: "Enthält ungeklärte historische Einnahmen",
+    nonProvisionalMonthBasisSingular: "Basiert auf 1 nicht vorläufigen Monat",
+    nonProvisionalMonthBasisPlural: "Basiert auf {count} nicht vorläufigen Monaten",
+    unavailable: "Nicht verfügbar",
     noData: "Keine Daten",
     noYearData: "Noch keine Jahresdaten verfügbar.",
     yearReceivedIncome: "Erhaltene Einnahmen",
@@ -2331,6 +2364,8 @@ const TRANSLATIONS = {
     dueDatesHelpDesc: "Legen Sie Fälligkeitsdaten fest, um Rechnungen zu verfolgen. Verwenden Sie „Fälligkeit sort.“, um Elemente nach Datum zu ordnen.",
     copyingHelp: "Übertrag",
     copyingHelpDesc: "Mit „Monat kopieren“ prüfen Sie vorab, was übernommen wird. Bezahl- und Einnahmestatus, Daten, Kontostände, erwartete Geldeingänge und Transaktionsreste werden zurückgesetzt.",
+    help_income_status_title: "Einnahmenstatus",
+    help_income_status_desc: "Erwartet bedeutet geplant oder noch nicht abgestimmt; Erhalten bestätigt den Eingang; Verspätet kennzeichnet eine Verzögerung; Storniert bedeutet, dass die Einnahme nicht mehr erwartet wird. Erwartete Einnahmen in vergangenen Monaten werden als ungeklärt markiert, bis ihr Status geprüft wurde.",
     printing: "Drucken / PDF",
     printingDesc: "Verwenden Sie",
     printingDesc2: "um das Layout zu überprüfen, dann",
@@ -2556,7 +2591,11 @@ function YearValue({ value, hasData, currency }) {
 }
 
 function YearOverviewView({ app, year, onYearChange, onBack, onOpenMonth, onPrint, t }) {
-  const overview = useMemo(() => calculateYearOverview(app, year), [app, year]);
+  const referenceMonthKey = calendarMonthKey();
+  const overview = useMemo(
+    () => calculateYearOverview(app, year, { currentMonthKey: referenceMonthKey }),
+    [app, year, referenceMonthKey],
+  );
   const hasYearData = overview.monthsWithData > 0;
   const openMonth = (month) => {
     if (month.hasData) onOpenMonth(month.monthKey);
@@ -2610,6 +2649,7 @@ function YearOverviewView({ app, year, onYearChange, onBack, onOpenMonth, onPrin
             <h2>{t(label)}</h2>
             <div className="year-summary-value"><YearValue value={value} hasData={hasYearData} currency={app.currency} /></div>
             {label === "actualNet" && value < 0 ? <span className="year-negative-label">{t("negativeValue")}</span> : null}
+            {label === "actualNet" && overview.actualNetProvisional ? <span className="year-provisional-label">{t("annualActualNetProvisional")}</span> : null}
           </article>
         ))}
       </section>
@@ -2632,7 +2672,7 @@ function YearOverviewView({ app, year, onYearChange, onBack, onOpenMonth, onPrin
           <table className="year-table">
             <thead>
               <tr>
-                {["tableMonth", "tableExpected", "tableReceived", "tablePlanned", "tablePaid", "tableUnpaid", "tableActualNet"].map((label) => (
+                {["tableMonth", "tableExpected", "tableReceived", "tablePlanned", "tablePaid", "tableUnpaid", "tableActualNet", "unresolvedIncome"].map((label) => (
                   <th key={label} scope="col">{t(label)}</th>
                 ))}
               </tr>
@@ -2651,8 +2691,10 @@ function YearOverviewView({ app, year, onYearChange, onBack, onOpenMonth, onPrin
                   {["expectedIncome", "receivedIncome", "plannedExpenses", "paidExpenses", "unpaidExpenses", "actualNet"].map((field) => (
                     <td key={field} className={field === "actualNet" && month.hasData && month.actualNet < 0 ? "year-negative-value" : ""}>
                       <YearValue value={month[field]} hasData={month.hasData} currency={app.currency} />
+                      {field === "actualNet" && month.actualNetProvisional ? <small className="year-provisional-text">{t("provisionalActualNet")}</small> : null}
                     </td>
                   ))}
+                  <td>{month.actualNetProvisional ? <span className="year-unresolved-badge">{month.historicalIncomeStatus.unresolvedExpectedCount}</span> : <span aria-label={t("no")}>—</span>}</td>
                 </tr>
               ))}
             </tbody>
@@ -2664,7 +2706,7 @@ function YearOverviewView({ app, year, onYearChange, onBack, onOpenMonth, onPrin
             <article key={month.monthKey} className="year-month-card">
               <div className="year-month-card-header">
                 <h3>{monthName(month.monthKey, app.lang)}</h3>
-                {!month.hasData ? <span>{t("noData")}</span> : null}
+                {!month.hasData ? <span>{t("noData")}</span> : month.actualNetProvisional ? <span className="year-unresolved-badge">{t("unresolvedIncome")}</span> : null}
               </div>
               {month.hasData ? (
                 <>
@@ -2672,7 +2714,7 @@ function YearOverviewView({ app, year, onYearChange, onBack, onOpenMonth, onPrin
                     {["receivedIncome", "paidExpenses", "actualNet", "unpaidExpenses", "expectedIncome", "plannedExpenses"].map((field) => (
                       <div key={field}>
                         <dt>{t(field)}</dt>
-                        <dd className={field === "actualNet" && month.actualNet < 0 ? "year-negative-value" : ""}><Money value={month[field]} currency={app.currency} /></dd>
+                        <dd className={field === "actualNet" && month.actualNet < 0 ? "year-negative-value" : ""}><Money value={month[field]} currency={app.currency} />{field === "actualNet" && month.actualNetProvisional ? <small className="year-provisional-text">{t("provisionalActualNet")}</small> : null}</dd>
                       </div>
                     ))}
                   </dl>
@@ -2688,9 +2730,9 @@ function YearOverviewView({ app, year, onYearChange, onBack, onOpenMonth, onPrin
         <h2 id="year-insights-title" className="year-section-title">{t("yearInsights")}</h2>
         {!hasYearData ? <p className="year-empty-state">{t("noYearData")}</p> : (
           <dl className="year-insights-grid">
-            <div><dt>{t("strongestMonth")}</dt><dd>{monthName(overview.strongestMonth.monthKey, app.lang)} <Money value={overview.strongestMonth.actualNet} currency={app.currency} /></dd></div>
-            <div><dt>{t("weakestMonth")}</dt><dd>{monthName(overview.weakestMonth.monthKey, app.lang)} <Money value={overview.weakestMonth.actualNet} currency={app.currency} /></dd></div>
-            <div><dt>{t("averageMonthlyActualNet")}</dt><dd><Money value={overview.averages.actualNet} currency={app.currency} /></dd></div>
+            <div><dt>{t("strongestMonth")}</dt><dd>{overview.strongestMonth ? <>{monthName(overview.strongestMonth.monthKey, app.lang)} <Money value={overview.strongestMonth.actualNet} currency={app.currency} /></> : t("unavailable")}</dd></div>
+            <div><dt>{t("weakestMonth")}</dt><dd>{overview.weakestMonth ? <>{monthName(overview.weakestMonth.monthKey, app.lang)} <Money value={overview.weakestMonth.actualNet} currency={app.currency} /></> : t("unavailable")}</dd></div>
+            <div><dt>{t("averageMonthlyActualNet")}</dt><dd>{overview.averages.actualNet == null ? t("unavailable") : <><Money value={overview.averages.actualNet} currency={app.currency} /><small className="year-provisional-text">{t(overview.reconciledActualNetMonthCount === 1 ? "nonProvisionalMonthBasisSingular" : "nonProvisionalMonthBasisPlural", { count: overview.reconciledActualNetMonthCount })}</small></>}</dd></div>
           </dl>
         )}
       </section>
@@ -3297,6 +3339,10 @@ export default function BudgitApp() {
   // ---------------------------
 
   const monthTotals = useMemo(() => calculateMonthTotals(active), [active]);
+  const historicalIncomeStatus = useMemo(
+    () => analyzeHistoricalIncome(app.activeMonth, active, { currentMonthKey: calendarMonthKey() }),
+    [app.activeMonth, active],
+  );
   const invalidIncomeAmounts = useMemo(
     () => monthTotals.invalidAmounts.filter((issue) => issue.scope === "income"),
     [monthTotals.invalidAmounts],
@@ -3523,6 +3569,12 @@ export default function BudgitApp() {
                   <div className="rounded-2xl border border-neutral-200">
                     <div className="px-4 py-3 border-b border-neutral-100 font-bold text-xl text-neutral-900 print:text-3xl print:py-3 print:px-4">{t("income")}</div>
                     <div className="p-4 space-y-2 print:p-2 print:space-y-1">
+                      {!historicalIncomeStatus.historicalIncomeOutcomeComplete ? (
+                        <div className="historical-income-warning" role="status">
+                          <strong>{t("incomeStatusIncomplete")}</strong>
+                          <span>{t("historicalIncomePrintWarning")}</span>
+                        </div>
+                      ) : null}
                       {previewIncomes.length === 0 ? (
                         <div className="text-sm text-neutral-700 print:text-xs">{t("noIncome")}</div>
                       ) : (
@@ -4485,6 +4537,16 @@ export default function BudgitApp() {
                   <div className="font-semibold">{t("totalsIncomplete")}</div>
                   {invalidIncomeCount > 0 ? <div>{t("income")}: {invalidAmountNotice(invalidIncomeCount)}</div> : null}
                   {invalidExpenseCount > 0 ? <div>{t("expenses")}: {invalidAmountNotice(invalidExpenseCount)}</div> : null}
+                </div>
+              ) : null}
+              {!historicalIncomeStatus.historicalIncomeOutcomeComplete ? (
+                <div role="status" className="historical-income-warning">
+                  <strong>{t("incomeStatusIncomplete")}</strong>
+                  <span>
+                    {historicalIncomeStatus.unresolvedExpectedCount} {t(historicalIncomeStatus.unresolvedExpectedCount === 1 ? "expectedEntrySingular" : "expectedEntryPlural")}
+                    {historicalIncomeStatus.invalidUnresolvedAmountCount === 0 ? <> · <Money value={historicalIncomeStatus.unresolvedExpectedAmount} currency={app.currency} /> {t("unresolvedAmount")}</> : null}
+                  </span>
+                  {historicalIncomeStatus.invalidUnresolvedAmountCount > 0 ? <span>{t(historicalIncomeStatus.invalidUnresolvedAmountCount === 1 ? "unresolvedSubtotalIncompleteSingular" : "unresolvedSubtotalIncompletePlural", { count: historicalIncomeStatus.invalidUnresolvedAmountCount })}</span> : null}
                 </div>
               ) : null}
               <div className="grid grid-cols-1 border-y border-neutral-200 sm:grid-cols-2">

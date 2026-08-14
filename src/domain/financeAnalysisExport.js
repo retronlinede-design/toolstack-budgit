@@ -5,6 +5,7 @@ import {
   parseOptionalMoney,
 } from "./calculations.js";
 import { resolveMonthDueDate } from "./dashboardSummary.js";
+import { analyzeHistoricalIncome, calendarMonthKey } from "./historicalIncome.js";
 
 export const FINANCE_ANALYSIS_FORMAT = "budgit-finance-analysis";
 export const FINANCE_ANALYSIS_VERSION = 1;
@@ -73,11 +74,15 @@ function monthLabel(monthKey, language) {
   });
 }
 
-function projectMonth(monthKey, month, { includeNotes, language }) {
+function projectMonth(monthKey, month, { includeNotes, language, currentMonthKey }) {
   const issues = [];
+  const historicalIncomeStatus = analyzeHistoricalIncome(monthKey, month, { currentMonthKey });
   const incomes = (Array.isArray(month?.incomes) ? month.incomes : []).map((income, index) => {
     const amount = createAnalysisAmount(income?.amount);
     addAmountIssue(issues, `facts.income[${index}].amount`, amount);
+    if (historicalIncomeStatus.historical && income?.status === "expected") {
+      issues.push({ path: `facts.income[${index}].status`, reason: "historical_expected_income" });
+    }
     const projected = {
       name: typeof income?.name === "string" ? income.name : "",
       amount,
@@ -151,6 +156,12 @@ function projectMonth(monthKey, month, { includeNotes, language }) {
       balanceAfterExpectedIncoming: expenseAmountsComplete ? projection.balanceAfterIncomingMoney : null,
       availableWithOverdraft: expenseAmountsComplete ? projection.availableWithOverdraft : null,
     },
+    historicalIncomeStatus: {
+      complete: historicalIncomeStatus.historicalIncomeOutcomeComplete,
+      unresolvedExpectedCount: historicalIncomeStatus.unresolvedExpectedCount,
+      unresolvedExpectedAmount: historicalIncomeStatus.unresolvedExpectedAmount,
+      invalidUnresolvedAmountCount: historicalIncomeStatus.invalidUnresolvedAmountCount,
+    },
     dataQuality: { complete: issues.length === 0, issues },
   };
 }
@@ -192,7 +203,12 @@ export function createFinanceAnalysisExport({
   const selection = selectMonthKeys(app, mode, currentMonthKey, selectedMonthKeys, !!includeNotes);
   if (!selection.ok) return selection;
   const language = app.lang === "de" ? "de" : "en";
-  const months = selection.keys.map((key) => projectMonth(key, app.months[key], { includeNotes: !!includeNotes, language }));
+  const referenceMonthKey = calendarMonthKey(generatedAt);
+  const months = selection.keys.map((key) => projectMonth(key, app.months[key], {
+    includeNotes: !!includeNotes,
+    language,
+    currentMonthKey: referenceMonthKey,
+  }));
   const document = {
     format: FINANCE_ANALYSIS_FORMAT,
     version: FINANCE_ANALYSIS_VERSION,
@@ -216,6 +232,7 @@ export function createFinanceAnalysisExport({
         "Account for incomplete or invalid data.",
       ],
       dataQualityRule: "Totals marked incomplete are subtotals of valid entries and must not be treated as complete monthly totals.",
+      actualNetRule: "Actual net is explicitly received income minus paid expenses. When historical expected income is unresolved, actual net is provisional; received income of zero does not prove that no income was received.",
     },
     months,
   };

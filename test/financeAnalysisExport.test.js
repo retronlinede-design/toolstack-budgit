@@ -125,8 +125,9 @@ test("invalid entries remain raw, totals are subtotals, and quality paths contai
   month.expenseGroups[0].items.push({ id: "negative", name: "Credit", amount: "-10", paid: false });
   const exported = createFinanceAnalysisExport({ app: app({ "2026-01": month }) }).document.months[0];
   assert.equal(exported.dataQuality.complete, false);
-  assert.deepEqual(exported.dataQuality.issues.slice(-3), [
+  assert.deepEqual(exported.dataQuality.issues.slice(-4), [
     { path: "facts.income[3].amount", reason: "empty" },
+    { path: "facts.income[3].status", reason: "historical_expected_income" },
     { path: "facts.expenseGroups[0].expenses[2].amount", reason: "invalid_format" },
     { path: "facts.expenseGroups[0].expenses[3].amount", reason: "negative_not_allowed" },
   ]);
@@ -196,4 +197,52 @@ test("filenames are deterministic and filesystem-safe for single, range, and spa
   assert.equal(createFinanceAnalysisFilename(["2026-08"]), "BudgIt-Finance-Analysis-2026-08.json");
   assert.equal(createFinanceAnalysisFilename(["2026-08", "2026-01", "2026-08"]), "BudgIt-Finance-Analysis-2026-01_to_2026-08.json");
   assert.equal(createFinanceAnalysisFilename([]), "BudgIt-Finance-Analysis.json");
+});
+
+test("past expected income is exported as unresolved historical status without changing format version", () => {
+  const month = populatedMonth();
+  month.incomes.unshift({ id: "unresolved-id", name: "Expected salary", amount: "3000,50", date: "", status: "expected", notes: "" });
+  const result = createFinanceAnalysisExport({
+    app: app({ "2026-01": month }),
+    generatedAt: "2026-08-14T10:00:00.000Z",
+  });
+  const exported = result.document.months[0];
+  assert.equal(result.document.format, "budgit-finance-analysis");
+  assert.equal(result.document.version, 1);
+  assert.deepEqual(exported.historicalIncomeStatus, {
+    complete: false,
+    unresolvedExpectedCount: 1,
+    unresolvedExpectedAmount: 3000.5,
+    invalidUnresolvedAmountCount: 0,
+  });
+  assert.ok(exported.dataQuality.issues.some((issue) => issue.path === "facts.income[0].status" && issue.reason === "historical_expected_income"));
+  assert.match(result.document.analysisGuidance.actualNetRule, /provisional/i);
+  assert.equal(JSON.stringify(exported).includes("unresolved-id"), false);
+});
+
+test("invalid historical expected amounts retain both amount and status uncertainty", () => {
+  const month = emptyMonth();
+  month.incomes = [{ id: "bad", name: "Unknown", amount: "unknown", date: "", status: "expected", notes: "" }];
+  const exported = createFinanceAnalysisExport({
+    app: app({ "2026-01": month }),
+    generatedAt: "2026-08-14T10:00:00.000Z",
+  }).document.months[0];
+  assert.equal(exported.historicalIncomeStatus.unresolvedExpectedAmount, 0);
+  assert.equal(exported.historicalIncomeStatus.invalidUnresolvedAmountCount, 1);
+  assert.deepEqual(exported.dataQuality.issues.map((issue) => issue.reason), ["invalid_format", "historical_expected_income"]);
+});
+
+test("current expected and historical explicit outcomes do not receive historical expected issues", () => {
+  const current = { ...emptyMonth(), incomes: [{ id: "i", name: "Plan", amount: "100", status: "expected", date: "", notes: "" }] };
+  const resolved = populatedMonth();
+  const result = createFinanceAnalysisExport({
+    app: app({ "2026-07": resolved, "2026-08": current }, { activeMonth: "2026-08" }),
+    mode: "selected",
+    selectedMonthKeys: ["2026-07", "2026-08"],
+    generatedAt: "2026-08-14T10:00:00.000Z",
+  });
+  for (const exported of result.document.months) {
+    assert.equal(exported.historicalIncomeStatus.complete, true);
+    assert.equal(exported.dataQuality.issues.some((issue) => issue.reason === "historical_expected_income"), false);
+  }
 });

@@ -1,4 +1,5 @@
 import { calculateMonthTotals } from "./calculations.js";
+import { analyzeHistoricalIncome, calendarMonthKey } from "./historicalIncome.js";
 
 function normalizeYear(selectedYear) {
   const year = Number(selectedYear);
@@ -15,7 +16,7 @@ function sum(months, field) {
  * A month is considered present when its YYYY-MM key exists in appData.months;
  * recorded zero-value months therefore remain distinct from missing months.
  */
-export function calculateYearOverview(appData, selectedYear) {
+export function calculateYearOverview(appData, selectedYear, { currentMonthKey = calendarMonthKey() } = {}) {
   const year = normalizeYear(selectedYear);
   const sourceMonths = appData && typeof appData === "object" && appData.months && typeof appData.months === "object"
     ? appData.months
@@ -28,6 +29,7 @@ export function calculateYearOverview(appData, selectedYear) {
     const totals = hasData ? calculateMonthTotals(sourceMonths[monthKey]) : null;
     const receivedIncome = totals?.receivedIncome ?? 0;
     const paidExpenses = totals?.paidExpenses ?? 0;
+    const historicalIncomeStatus = analyzeHistoricalIncome(monthKey, sourceMonths[monthKey], { currentMonthKey });
 
     return {
       monthKey,
@@ -41,6 +43,8 @@ export function calculateYearOverview(appData, selectedYear) {
       leftAfterPlanned: totals?.leftAfterPlannedExpenses ?? 0,
       actualNet: receivedIncome - paidExpenses,
       savingsRate: totals?.savingsRate ?? null,
+      historicalIncomeStatus,
+      actualNetProvisional: !historicalIncomeStatus.historicalIncomeOutcomeComplete,
     };
   });
 
@@ -56,10 +60,11 @@ export function calculateYearOverview(appData, selectedYear) {
     actualNet: sum(months, "actualNet"),
   };
   const average = (field) => monthsWithData ? totals[field] / monthsWithData : null;
+  const actualPerformanceMonths = populatedMonths.filter((month) => !month.actualNetProvisional);
 
   let strongestMonth = null;
   let weakestMonth = null;
-  populatedMonths.forEach((month) => {
+  actualPerformanceMonths.forEach((month) => {
     if (!strongestMonth || month.actualNet > strongestMonth.actualNet) strongestMonth = month;
     if (!weakestMonth || month.actualNet < weakestMonth.actualNet) weakestMonth = month;
   });
@@ -73,11 +78,16 @@ export function calculateYearOverview(appData, selectedYear) {
       receivedIncome: average("receivedIncome"),
       plannedExpenses: average("plannedExpenses"),
       paidExpenses: average("paidExpenses"),
-      actualNet: average("actualNet"),
+      actualNet: actualPerformanceMonths.length
+        ? actualPerformanceMonths.reduce((total, month) => total + month.actualNet, 0) / actualPerformanceMonths.length
+        : null,
     },
     strongestMonth,
     weakestMonth,
     monthsWithData,
     monthsWithUnpaidExpenses: populatedMonths.filter((month) => month.unpaidExpenses > 0).length,
+    unresolvedHistoricalMonthCount: populatedMonths.filter((month) => month.actualNetProvisional).length,
+    actualNetProvisional: populatedMonths.some((month) => month.actualNetProvisional),
+    reconciledActualNetMonthCount: actualPerformanceMonths.length,
   };
 }

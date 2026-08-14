@@ -272,6 +272,15 @@ textarea {
     @apply mt-1 block text-xs font-semibold;
   }
 
+  .year-provisional-label,
+  .year-provisional-text {
+    @apply mt-1 block text-[10px] font-semibold leading-tight text-amber-700;
+  }
+
+  .year-unresolved-badge {
+    @apply inline-flex rounded-md border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800;
+  }
+
   .year-section {
     @apply min-w-0 rounded-xl border border-neutral-200 bg-white p-4;
   }
@@ -554,6 +563,10 @@ textarea {
 
   .summary-panel {
     @apply overflow-hidden rounded-xl border border-neutral-200 bg-white;
+  }
+
+  .historical-income-warning {
+    @apply flex flex-col gap-0.5 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900;
   }
 
   .summary-heading {
