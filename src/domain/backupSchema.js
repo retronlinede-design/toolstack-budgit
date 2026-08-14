@@ -1,7 +1,7 @@
 import { INCOME_STATUSES, parseMoney } from "./calculations.js";
 
-export const BACKUP_SCHEMA_VERSION = 2;
-export const SUPPORTED_BACKUP_SCHEMA_VERSIONS = Object.freeze([1, BACKUP_SCHEMA_VERSION]);
+export const BACKUP_SCHEMA_VERSION = 3;
+export const SUPPORTED_BACKUP_SCHEMA_VERSIONS = Object.freeze([1, 2, BACKUP_SCHEMA_VERSION]);
 export const BACKUP_APP_ID = "BudgIt";
 export const BACKUP_LIMITS = Object.freeze({
   maxFileBytes: 5 * 1024 * 1024,
@@ -113,7 +113,13 @@ function validateIncome(ctx, income, path, ids, legacy) {
   const date = income.date ?? "";
   if (!dateOnlyIsValid(date)) ctx.add(`${path}.date`, "invalid_date", "Date must be empty or a valid YYYY-MM-DD date.");
   validateBoundedString(ctx, income.notes ?? "", `${path}.notes`, BACKUP_LIMITS.maxNoteLength);
-  return { id: income.id, name: income.name ?? "", amount: income.amount, date, status: INCOME_STATUSES.includes(status) ? status : "expected", notes: income.notes ?? "" };
+  let category;
+  if (Object.prototype.hasOwnProperty.call(income, "category")) {
+    if (validateBoundedString(ctx, income.category, `${path}.category`, BACKUP_LIMITS.maxShortTextLength, { allowEmpty: false })) category = income.category;
+  }
+  const normalized = { id: income.id, name: income.name ?? "", amount: income.amount, date, status: INCOME_STATUSES.includes(status) ? status : "expected", notes: income.notes ?? "" };
+  if (category !== undefined) normalized.category = category;
+  return normalized;
 }
 
 function validateExpense(ctx, expense, path, ids, componentIds, legacy) {

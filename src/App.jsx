@@ -35,6 +35,7 @@ import { createExpenseAttentionSummary, formatSavingsRate } from "./domain/dashb
 import { normalizeExpenseDueDay } from "./domain/dueDay.js";
 import { getMobileExpensePresentation, getMobileIncomePresentation } from "./domain/mobilePresentation.js";
 import { analyzeExpenseBreakdown, EXPENSE_BREAKDOWN_CATEGORIES, normalizeExpenseBreakdown } from "./domain/expenseBreakdown.js";
+import { INCOME_CATEGORIES, normalizeIncomeCategory } from "./domain/incomeCategory.js";
 import { preparePendingIncomeEntry } from "./domain/pendingIncome.js";
 import { calculateYearOverview } from "./domain/yearOverview.js";
 import { analyzeHistoricalIncome, calendarMonthKey } from "./domain/historicalIncome.js";
@@ -395,6 +396,17 @@ function SelectAllNumberInput({
         }
       }}
     />
+  );
+}
+
+function IncomeCategorySelect({ value, onChange, t, className = "" }) {
+  const selected = typeof value === "string" && value.trim() ? value : "";
+  return (
+    <select className={className} value={selected} onChange={onChange} title={t("incomeType")}>
+      <option value="">{t("incomeCategory_unclassified")}</option>
+      {selected && !INCOME_CATEGORIES.includes(selected) ? <option value={selected}>{selected}</option> : null}
+      {INCOME_CATEGORIES.map((category) => <option key={category} value={category}>{t(`incomeCategory_${category}`)}</option>)}
+    </select>
   );
 }
 
@@ -1066,6 +1078,11 @@ function HelpModal({ open, onClose, t }) {
             <p>{t("help_income_status_desc")}</p>
           </HelpItem>
 
+          <HelpItem title={t("help_income_category_title")}>
+            <p>{t("help_income_category_desc")}</p>
+            <p>{t("help_income_category_employer")}</p>
+          </HelpItem>
+
           <HelpItem title={t("help_backup_title")}>
             <p dangerouslySetInnerHTML={{ __html: t("help_backup_p1") }} />
             <p dangerouslySetInnerHTML={{ __html: t("help_backup_p2") }} />
@@ -1702,6 +1719,7 @@ const normalizeIncomeItem = (x) => ({
   date: x && typeof x.date === "string" ? x.date : "",
   status: x && INCOME_STATUSES.includes(x.status) ? x.status : "expected",
   notes: x && typeof x.notes === "string" ? x.notes : "",
+  ...normalizeIncomeCategory(x),
 });
 
 const normalizePendingIncomeEntry = (x) => ({
@@ -2024,6 +2042,9 @@ const TRANSLATIONS = {
     copyingHelpDesc: "Use “Copy month” to review what will carry forward. Paid and income statuses, dates, balances, pending money, and transaction remnants are reset.",
     help_income_status_title: "Income statuses",
     help_income_status_desc: "Expected means planned or not yet reconciled; Received confirms receipt; Delayed records a delay; Cancelled means it is no longer expected. Expected income left in a past month is marked unresolved until you review its status.",
+    help_income_category_title: "Income classification",
+    help_income_category_desc: "Income type describes what incoming money represents. It does not change the amount received or any BudgIt totals.",
+    help_income_category_employer: "If an employer deposit includes money provided for social-insurance contributions, record salary and employer contribution as separate income rows that together equal the actual deposit. Do not add the contribution separately if it is already included in the Salary amount.",
     printing: "Printing / PDF",
     printingDesc: "Use",
     printingDesc2: "to check the layout, then",
@@ -2081,6 +2102,15 @@ const TRANSLATIONS = {
     sourceLabel: "Source",
     incomeDate: "Date",
     incomeStatus: "Status",
+    incomeType: "Type",
+    incomeCategory_unclassified: "Unclassified",
+    incomeCategory_salary: "Salary",
+    incomeCategory_overtime: "Overtime",
+    incomeCategory_bonus: "Bonus",
+    incomeCategory_allowance: "Allowance",
+    incomeCategory_employer_contribution: "Employer contribution",
+    incomeCategory_reimbursement: "Reimbursement",
+    incomeCategory_other: "Other",
     actions: "Actions",
     edit: "Edit",
     delete: "Delete",
@@ -2454,6 +2484,9 @@ const TRANSLATIONS = {
     copyingHelpDesc: "Mit „Monat kopieren“ prüfen Sie vorab, was übernommen wird. Bezahl- und Einnahmestatus, Daten, Kontostände, erwartete Geldeingänge und Transaktionsreste werden zurückgesetzt.",
     help_income_status_title: "Einnahmenstatus",
     help_income_status_desc: "Erwartet bedeutet geplant oder noch nicht abgestimmt; Erhalten bestätigt den Eingang; Verspätet kennzeichnet eine Verzögerung; Storniert bedeutet, dass die Einnahme nicht mehr erwartet wird. Erwartete Einnahmen in vergangenen Monaten werden als ungeklärt markiert, bis ihr Status geprüft wurde.",
+    help_income_category_title: "Einnahmen klassifizieren",
+    help_income_category_desc: "Die Einnahmenart beschreibt, wofür ein Geldeingang steht. Sie ändert weder den erhaltenen Betrag noch die Summen in BudgIt.",
+    help_income_category_employer: "Enthält eine Arbeitgeberzahlung Geld für Sozialversicherungsbeiträge, erfassen Sie Gehalt und Arbeitgeberbeitrag als getrennte Einnahmen, die zusammen dem tatsächlichen Geldeingang entsprechen. Erfassen Sie den Beitrag nicht zusätzlich, wenn er bereits im Gehaltsbetrag enthalten ist.",
     printing: "Drucken / PDF",
     printingDesc: "Verwenden Sie",
     printingDesc2: "um das Layout zu überprüfen, dann",
@@ -2511,6 +2544,15 @@ const TRANSLATIONS = {
     sourceLabel: "Quelle",
     incomeDate: "Datum",
     incomeStatus: "Status",
+    incomeType: "Art",
+    incomeCategory_unclassified: "Nicht klassifiziert",
+    incomeCategory_salary: "Gehalt",
+    incomeCategory_overtime: "Überstunden",
+    incomeCategory_bonus: "Bonus",
+    incomeCategory_allowance: "Zulage",
+    incomeCategory_employer_contribution: "Arbeitgeberbeitrag",
+    incomeCategory_reimbursement: "Erstattung",
+    incomeCategory_other: "Sonstiges",
     actions: "Aktionen",
     edit: "Bearbeiten",
     delete: "Löschen",
@@ -3732,7 +3774,10 @@ export default function BudgitApp() {
                       ) : (
                         previewIncomes.map((i) => (
                           <div key={i.id} className="flex items-center justify-between gap-3 print:text-xs">
-                            <div className="text-neutral-800 break-words font-medium">{i.name || t("unnamed")}</div>
+                            <div className="text-neutral-800 break-words font-medium">
+                              {i.name || t("unnamed")}
+                              {typeof i.category === "string" && i.category.trim() ? <span className="ml-2 text-[10px] font-normal uppercase tracking-wide text-neutral-500">{INCOME_CATEGORIES.includes(i.category) ? t(`incomeCategory_${i.category}`) : i.category}</span> : null}
+                            </div>
                             <div className="font-semibold text-neutral-800">
                               <Money value={i.amount} currency={app.currency} invalidLabel={t("invalidAmount")} />
                             </div>
@@ -4088,26 +4133,30 @@ export default function BudgitApp() {
                               </label>
                               <div className="mobile-entry-amount pt-5"><Money value={mobileIncome.amount} currency={app.currency} invalidLabel={t("invalidAmount")} /></div>
                             </div>
+                            <label className="mt-3 block">
+                              <span className="mobile-entry-label">{t("amount")}</span>
+                              <SelectAllNumberInput
+                                className={`mobile-entry-input text-right tabular-nums ${showAmountError ? "border-red-400 ring-1 ring-red-200" : ""}`}
+                                value={mobileIncome.amount == null ? "0" : mobileIncome.amount}
+                                onChange={(event) => updateIncome(income.id, { amount: event.target.value })}
+                                onBlur={() => markAmountTouched(incomeAmountTouchKey(income.id))}
+                                inputMode="decimal"
+                                title={t("amount")}
+                                ariaInvalid={showAmountError}
+                                ariaDescribedBy={showAmountError ? amountErrorId : undefined}
+                              />
+                              {showAmountError ? <span id={amountErrorId} className="mt-1 block text-xs font-medium text-red-700">{amountIssueMessage(amountIssue)}</span> : null}
+                            </label>
                             <div className="mobile-entry-meta mt-3 grid-cols-2">
-                              <label>
-                                <span className="mobile-entry-label">{t("amount")}</span>
-                                <SelectAllNumberInput
-                                  className={`mobile-entry-input text-right tabular-nums ${showAmountError ? "border-red-400 ring-1 ring-red-200" : ""}`}
-                                  value={mobileIncome.amount == null ? "0" : mobileIncome.amount}
-                                  onChange={(event) => updateIncome(income.id, { amount: event.target.value })}
-                                  onBlur={() => markAmountTouched(incomeAmountTouchKey(income.id))}
-                                  inputMode="decimal"
-                                  title={t("amount")}
-                                  ariaInvalid={showAmountError}
-                                  ariaDescribedBy={showAmountError ? amountErrorId : undefined}
-                                />
-                                {showAmountError ? <span id={amountErrorId} className="mt-1 block text-xs font-medium text-red-700">{amountIssueMessage(amountIssue)}</span> : null}
-                              </label>
                               <label>
                                 <span className="mobile-entry-label">{t("status")}</span>
                                 <select className="mobile-entry-input" value={INCOME_STATUSES.includes(mobileIncome.status) ? mobileIncome.status : "expected"} onChange={(event) => updateIncome(income.id, { status: event.target.value })}>
                                   {INCOME_STATUSES.map((status) => <option key={status} value={status}>{t(`status_${status}`)}</option>)}
                                 </select>
+                              </label>
+                              <label>
+                                <span className="mobile-entry-label">{t("incomeType")}</span>
+                                <IncomeCategorySelect className="mobile-entry-input" value={income.category} onChange={(event) => updateIncome(income.id, { category: event.target.value || undefined })} t={t} />
                               </label>
                             </div>
                             {mobileIncome.date ? <div className="mt-3 text-sm text-neutral-700"><span className="mobile-entry-label">{t("date")}</span>{mobileIncome.date}</div> : null}
@@ -4128,6 +4177,7 @@ export default function BudgitApp() {
                           <div />
                           <div>{t("sourceLabel")}</div>
                           <div className="ledger-table-amount">{t("amount")} ({app.currency})</div>
+                          <div className="text-center">{t("incomeType")}</div>
                           <div className="text-center">{t("incomeStatus")}</div>
                           <div className="text-center">{t("actions")}</div>
                         </div>
@@ -4202,6 +4252,13 @@ export default function BudgitApp() {
                             />
                             {showAmountError ? <div id={amountErrorId} className="mt-0.5 text-left text-[10px] font-medium leading-tight text-red-700">{amountIssueMessage(amountIssue)}</div> : null}
                           </div>
+
+                          <IncomeCategorySelect
+                            className="ledger-table-control ledger-table-status text-neutral-700"
+                            value={i.category}
+                            onChange={(e) => updateIncome(i.id, { category: e.target.value || undefined })}
+                            t={t}
+                          />
 
                           <select
                             className="ledger-table-control ledger-table-status text-neutral-700"

@@ -18,7 +18,7 @@ export function formatMobileDueDate(activeMonth, dueDay, language = "en") {
 }
 
 export function getMobileIncomePresentation(income) {
-  return {
+  const presentation = {
     id: income?.id,
     name: typeof income?.name === "string" ? income.name : "",
     amount: income?.amount,
@@ -26,6 +26,8 @@ export function getMobileIncomePresentation(income) {
     date: typeof income?.date === "string" && income.date ? income.date : null,
     notes: typeof income?.notes === "string" && income.notes.trim() ? income.notes : null,
   };
+  if (typeof income?.category === "string" && income.category.trim()) presentation.category = income.category;
+  return presentation;
 }
 
 export function getMobileExpensePresentation(expense, { activeMonth, language = "en" } = {}) {

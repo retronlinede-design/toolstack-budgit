@@ -57,7 +57,7 @@ function copyAmount(entry) {
 }
 
 function copyIncomeEntry(income, options, idFactory) {
-  return {
+  const copy = {
     id: nextId(idFactory, "income"),
     name: typeof income?.name === "string" ? income.name : "",
     amount: copyAmount(income),
@@ -65,6 +65,8 @@ function copyIncomeEntry(income, options, idFactory) {
     status: "expected",
     notes: options.copyEntryNotes && typeof income?.notes === "string" ? income.notes : "",
   };
+  if (typeof income?.category === "string" && income.category.trim()) copy.category = income.category;
+  return copy;
 }
 
 function copyExpenseEntry(expense, options, idFactory, groupId) {

@@ -49,10 +49,10 @@ test("valid current-version backup is accepted", () => {
   assert.deepEqual(result.summary, { months: 1, incomes: 1, expenses: 1 });
 });
 
-test("new backups use the documented readable version 2 envelope", () => {
+test("new backups use the documented readable version 3 envelope", () => {
   const result = createBackupEnvelope(validApp(), "2026-07-19T12:00:00.000Z");
   assert.equal(result.valid, true);
-  assert.equal(result.envelope.schemaVersion, 2);
+  assert.equal(result.envelope.schemaVersion, 3);
   assert.equal(result.envelope.app, "BudgIt");
   assert.equal(result.envelope.exportedAt, "2026-07-19T12:00:00.000Z");
   assert.equal(result.envelope.data.months["2026-07"].incomes[0].amount, "2000");
@@ -176,7 +176,7 @@ test("valid zero amounts remain valid", () => {
   assert.equal(validateBackupObject(backup).valid, true);
 });
 
-test("version 2 backups round-trip expense breakdowns and preserve component IDs/raw blanks", () => {
+test("current-version backups round-trip expense breakdowns and preserve component IDs/raw blanks", () => {
   const appData = validApp();
   appData.months["2026-07"].expenseGroups[0].items[0].breakdown = [
     { id: "component-1", label: "Health", category: "health", amount: "12,50" },
@@ -184,7 +184,7 @@ test("version 2 backups round-trip expense breakdowns and preserve component IDs
   ];
   const created = createBackupEnvelope(appData, "2026-08-14T12:00:00.000Z");
   assert.equal(created.valid, true);
-  assert.equal(created.envelope.schemaVersion, 2);
+  assert.equal(created.envelope.schemaVersion, 3);
   const restored = parseAndValidateBackup(JSON.stringify(created.envelope));
   assert.equal(restored.valid, true);
   assert.deepEqual(restored.data.months["2026-07"].expenseGroups[0].items[0].breakdown, appData.months["2026-07"].expenseGroups[0].items[0].breakdown);
@@ -197,6 +197,36 @@ test("existing version 1 backups without breakdown remain importable", () => {
   assert.equal(result.valid, true);
   assert.equal(result.schemaVersion, 1);
   assert.equal(Object.hasOwn(result.data.months["2026-07"].expenseGroups[0].items[0], "breakdown"), false);
+});
+
+test("version 3 backups preserve classified, unknown, and unclassified income", () => {
+  const appData = validApp();
+  appData.months["2026-07"].incomes[0].category = "employer_contribution";
+  appData.months["2026-07"].incomes.push({ id: "unknown-category", name: "Future", amount: "10", date: "", status: "received", notes: "", category: "future_income_category" });
+  appData.months["2026-07"].incomes.push({ id: "unclassified", name: "Old", amount: "20", date: "", status: "received", notes: "" });
+  const created = createBackupEnvelope(appData, "2026-08-14T12:00:00.000Z");
+  const restored = parseAndValidateBackup(JSON.stringify(created.envelope));
+  assert.equal(restored.valid, true);
+  assert.equal(restored.data.months["2026-07"].incomes[0].category, "employer_contribution");
+  assert.equal(restored.data.months["2026-07"].incomes[1].category, "future_income_category");
+  assert.equal(Object.hasOwn(restored.data.months["2026-07"].incomes[2], "category"), false);
+});
+
+test("existing version 2 backups without income categories remain importable", () => {
+  const backup = validEnvelope();
+  backup.schemaVersion = 2;
+  const result = validateBackupObject(backup);
+  assert.equal(result.valid, true);
+  assert.equal(result.schemaVersion, 2);
+  assert.equal(Object.hasOwn(result.data.months["2026-07"].incomes[0], "category"), false);
+});
+
+test("invalid or oversized income category representations are rejected", () => {
+  for (const category of [null, "", 4, "x".repeat(BACKUP_LIMITS.maxShortTextLength + 1)]) {
+    const backup = validEnvelope();
+    backup.data.months["2026-07"].incomes[0].category = category;
+    assert.equal(validateBackupObject(backup).valid, false);
+  }
 });
 
 test("invalid breakdown structures, duplicate IDs, malformed and negative values are rejected", () => {

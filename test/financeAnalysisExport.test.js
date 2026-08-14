@@ -247,6 +247,23 @@ test("current expected and historical explicit outcomes do not receive historica
   }
 });
 
+test("income classifications export as facts while absence remains explicit null", () => {
+  const month = populatedMonth();
+  month.incomes[0].category = "salary";
+  month.incomes[1].category = "employer_contribution";
+  month.incomes[2].category = "future_income_category";
+  month.incomes.push({ id: "unclassified", name: "Old income", amount: "10", date: "", status: "received", notes: "" });
+  const withoutNotes = createFinanceAnalysisExport({ app: app({ "2026-01": month }), includeNotes: false }).document;
+  const withNotes = createFinanceAnalysisExport({ app: app({ "2026-01": month }), includeNotes: true }).document;
+  assert.deepEqual(withoutNotes.months[0].facts.income.map((income) => income.category), ["salary", "employer_contribution", "future_income_category", null]);
+  assert.deepEqual(withNotes.months[0].facts.income.map((income) => income.category), ["salary", "employer_contribution", "future_income_category", null]);
+  assert.equal(Object.hasOwn(withoutNotes.months[0].derived, "incomeByCategory"), false);
+  assert.match(withoutNotes.analysisGuidance.incomeCategoryRule, /employer_contribution/);
+  assert.match(withoutNotes.analysisGuidance.incomeCategoryRule, /category null/);
+  assert.match(withoutNotes.analysisGuidance.incomeCategoryRule, /Never count/i);
+  assert.equal(JSON.stringify(withoutNotes).includes("unclassified"), false);
+});
+
 test("complete expense breakdowns export analytical facts without IDs or double counting", () => {
   const month = populatedMonth();
   month.expenseGroups[0].items[0].breakdown = [

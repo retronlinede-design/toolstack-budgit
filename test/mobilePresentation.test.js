@@ -24,6 +24,12 @@ test("missing income and expense notes are omitted", () => {
   assert.equal(getMobileExpensePresentation({ note: "  " }).notes, null);
 });
 
+test("mobile income presentation preserves optional classification without inventing it", () => {
+  assert.equal(Object.hasOwn(getMobileIncomePresentation({ name: "Salary" }), "category"), false);
+  assert.equal(getMobileIncomePresentation({ category: "employer_contribution" }).category, "employer_contribution");
+  assert.equal(getMobileIncomePresentation({ category: "future_income_category" }).category, "future_income_category");
+});
+
 test("missing and invalid due days are omitted", () => {
   assert.equal(formatMobileDueDate("2026-07", null), null);
   assert.equal(formatMobileDueDate("2026-07", 0), null);

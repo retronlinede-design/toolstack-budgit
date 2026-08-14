@@ -198,6 +198,19 @@ test("confirmed state update changes only destination and active month", () => {
   assert.notEqual(result.app.months["2026-08"], destination);
 });
 
+test("income categories preserve known, unknown, and absent values while IDs and lifecycle reset", () => {
+  const source = populatedMonth();
+  source.incomes[0].category = "salary";
+  source.incomes[1].category = "future_income_category";
+  const before = structuredClone(source);
+  const copied = createCopiedMonth({ sourceMonth: source, idFactory: deterministicIds() }).incomes;
+  assert.deepEqual(copied.map((income) => income.category), ["salary", "future_income_category", undefined]);
+  assert.deepEqual(copied.map((income) => income.status), ["expected", "expected", "expected"]);
+  assert.deepEqual(copied.map((income) => income.date), ["", "", ""]);
+  assert.notEqual(copied[0].id, source.incomes[0].id);
+  assert.deepEqual(source, before);
+});
+
 test("validated copy creates an absent next month and produces fresh persistable data", () => {
   const source = { ...populatedMonth(), transactions: [] };
   const sourceSnapshot = structuredClone(source);

@@ -86,6 +86,7 @@ function projectMonth(monthKey, month, { includeNotes, language, currentMonthKey
     }
     const projected = {
       name: typeof income?.name === "string" ? income.name : "",
+      category: typeof income?.category === "string" && income.category.trim() ? income.category : null,
       amount,
       status: typeof income?.status === "string" ? income.status : "expected",
       date: typeof income?.date === "string" ? income.date : "",
@@ -255,6 +256,7 @@ export function createFinanceAnalysisExport({
       dataQualityRule: "Totals marked incomplete are subtotals of valid entries and must not be treated as complete monthly totals.",
       actualNetRule: "Actual net is explicitly received income minus paid expenses. When historical expected income is unresolved, actual net is provisional; received income of zero does not prove that no income was received.",
       expenseBreakdownRule: "An expense parent amount is the cash payment. Breakdown components only allocate or classify that amount and must never be added on top of it. Incomplete breakdowns are not fully allocated; expense-group labels organize the ledger while breakdown categories provide finer analytical composition.",
+      incomeCategoryRule: "Income categories describe the economic source or purpose of incoming cash without changing lifecycle totals. employer_contribution may be employer-funded pass-through money rather than ordinary earnings; category null means the entry was never classified. Never count classified income again beyond the existing income totals.",
     },
     months,
   };
