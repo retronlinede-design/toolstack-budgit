@@ -4491,6 +4491,7 @@ export default function BudgitApp() {
                                     <div>{t("expenseName")}</div>
                                     <div className="ledger-table-amount">{t("amount")} ({app.currency})</div>
                                     <div className="text-center">{t("dueDate")}</div>
+                                    <div className="text-center">{t("breakdown")}</div>
                                     <div className="text-center">{t("actions")}</div>
                                   </div>
                                   <div>
@@ -4584,16 +4585,21 @@ export default function BudgitApp() {
                                       />
                                     </div>
 
-                                    <div className="ledger-table-actions">
+                                    <div className="flex min-w-0 justify-center">
                                       <button
                                         type="button"
-                                        className={`ledger-icon-button ${Array.isArray(e.breakdown) && e.breakdown.length ? "bg-[#D5FF00]/40 text-neutral-900" : ""}`}
+                                        className={`ledger-breakdown-button ${Array.isArray(e.breakdown) && e.breakdown.length ? "ledger-breakdown-button-active" : ""}`}
                                         title={Array.isArray(e.breakdown) && e.breakdown.length ? t("breakdown") : t("addBreakdown")}
+                                        aria-label={Array.isArray(e.breakdown) && e.breakdown.length ? t("breakdown") : t("addBreakdown")}
                                         aria-expanded={expandedBreakdowns.has(breakdownKey(g.id, e.id))}
                                         onClick={() => toggleExpenseBreakdown(g.id, e)}
                                       >
-                                        ≡
+                                        <span aria-hidden="true" className="ledger-breakdown-mark"><span /><span /><span /></span>
+                                        <span>{Array.isArray(e.breakdown) && e.breakdown.length ? t("breakdown") : t("addBreakdown")}</span>
                                       </button>
+                                    </div>
+
+                                    <div className="ledger-table-actions">
                                       <button
                                         type="button"
                                         className={`ledger-icon-button ${e.paid ? "" : "text-neutral-300 cursor-default hover:bg-transparent hover:text-neutral-300"}`}
