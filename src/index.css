@@ -511,6 +511,47 @@ textarea {
     @apply relative overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-xl;
   }
 
+  .finance-export-label {
+    @apply mb-2 text-[10px] font-bold uppercase tracking-[0.1em] text-neutral-500;
+  }
+
+  .finance-export-option {
+    @apply flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 bg-white p-3 transition hover:border-neutral-300 hover:bg-neutral-50;
+  }
+
+  .finance-export-option-active {
+    @apply border-neutral-400 bg-neutral-50;
+    box-shadow: inset 2px 0 0 var(--budgit-lime);
+  }
+
+  .finance-month-list {
+    @apply grid max-h-52 grid-cols-1 gap-1 overflow-y-auto rounded-lg border border-neutral-200 bg-neutral-50 p-2 sm:grid-cols-2;
+  }
+
+  .finance-month-year {
+    @apply col-span-full mt-1 border-b border-neutral-200 px-1 pb-1 font-mono text-[10px] font-bold tracking-[0.08em] text-neutral-400 first:mt-0;
+  }
+
+  .finance-month-choice {
+    @apply flex min-h-10 cursor-pointer items-center gap-2 rounded-md bg-white px-3 text-sm font-medium text-neutral-700 hover:bg-neutral-100;
+  }
+
+  .finance-notes-option {
+    @apply mt-4 flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 bg-neutral-50 p-3;
+  }
+
+  .finance-privacy-note {
+    @apply mt-3 border-l-2 border-l-[#D5FF00] bg-neutral-50 px-3 py-2 text-xs leading-5 text-neutral-600;
+  }
+
+  .finance-export-empty {
+    @apply rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-3 text-sm text-neutral-600;
+  }
+
+  .finance-export-warning {
+    @apply rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900;
+  }
+
   .summary-panel {
     @apply overflow-hidden rounded-xl border border-neutral-200 bg-white;
   }

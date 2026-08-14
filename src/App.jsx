@@ -46,6 +46,12 @@ import { getBrowserStorage, readStorageValue, writeStorageValue } from "./domain
 import { attachPersistenceLifecycle, createPersistenceCoordinator } from "./domain/persistenceCoordinator.js";
 import { writeUiPreference } from "./domain/uiPreferences.js";
 import {
+  createFinanceAnalysisExport,
+  getFinanceMeaningfulMonthKeys,
+  getInvalidFinanceMonthKeys,
+  isFinanceAnalysisMonthKey,
+} from "./domain/financeAnalysisExport.js";
+import {
   DEFAULT_MONTH_COPY_OPTIONS,
   applyValidatedMonthCopyToApp,
   classifyMonthDestination,
@@ -1047,6 +1053,7 @@ const ExportIcons = {
   Upload: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>,
   Close: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
   Mail: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>,
+  Spark: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.5 4.5L6 9l4.5 1.5L12 15l1.5-4.5L18 9l-4.5-1.5L12 3Z"/><path d="m5 15-.75 2.25L2 18l2.25.75L5 21l.75-2.25L8 18l-2.25-.75L5 15Z"/><path d="m19 13-.75 2.25L16 16l2.25.75L19 19l.75-2.25L22 16l-2.25-.75L19 13Z"/></svg>,
 };
 
 const monthName = (ym, lang = "en") => {
@@ -1096,9 +1103,57 @@ function ExportActionRow({ icon, label, sub, onClick, file, onClose, onImport })
   );
 }
 
-function ExportModal({ open, onClose, onPrint, onBackup, onImport, t }) {
-  useModalEscape(open, onClose);
+function ExportModal({ open, onClose, onPrint, onBackup, onImport, onFinanceExport, activeMonth, months, lang, t }) {
+  const [view, setView] = useState("actions");
+  const [financeMode, setFinanceMode] = useState("current");
+  const [includeNotes, setIncludeNotes] = useState(false);
+  const [selectedMonths, setSelectedMonths] = useState(() => new Set());
+  const meaningfulMonths = useMemo(() => getFinanceMeaningfulMonthKeys(months, { includeNotes }), [months, includeNotes]);
+  const invalidMonthCount = useMemo(() => getInvalidFinanceMonthKeys(months).length, [months]);
+  useModalEscape(open, () => { setView("actions"); onClose(); });
   if (!open) return null;
+
+  const closeModal = () => {
+    setView("actions");
+    onClose();
+  };
+
+  const openFinanceConfig = () => {
+    const initialChoices = getFinanceMeaningfulMonthKeys(months, { includeNotes: false });
+    const initial = initialChoices.includes(activeMonth) ? [activeMonth] : initialChoices.slice(-1);
+    setSelectedMonths(new Set(initial));
+    setFinanceMode("current");
+    setIncludeNotes(false);
+    setView("finance");
+  };
+
+  const toggleSelectedMonth = (monthKey) => {
+    setSelectedMonths((current) => {
+      const next = new Set(current);
+      if (next.has(monthKey)) next.delete(monthKey);
+      else next.add(monthKey);
+      return next;
+    });
+  };
+
+  const eligibleSelectedMonths = meaningfulMonths.filter((monthKey) => selectedMonths.has(monthKey));
+  const selectedCount = eligibleSelectedMonths.length;
+  const currentMonthValid = isFinanceAnalysisMonthKey(activeMonth) && Object.hasOwn(months || {}, activeMonth);
+  const canDownload = financeMode === "current"
+    ? currentMonthValid
+    : financeMode === "selected"
+      ? selectedCount > 0
+      : meaningfulMonths.length > 0;
+
+  const downloadFinanceExport = () => {
+    if (!canDownload) return;
+    const succeeded = onFinanceExport({
+      mode: financeMode,
+      selectedMonthKeys: eligibleSelectedMonths,
+      includeNotes,
+    });
+    if (succeeded) closeModal();
+  };
 
   const handleEmail = () => {
     const today = new Date().toISOString().split('T')[0];
@@ -1109,16 +1164,16 @@ function ExportModal({ open, onClose, onPrint, onBackup, onImport, t }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8 print:hidden"> 
-      <div className="absolute inset-0 bg-neutral-900/40 backdrop-blur-sm transition-opacity" onClick={onClose} />
-      <div role="dialog" aria-modal="true" aria-labelledby="export-modal-title" className="modal-surface w-full max-w-sm">
+      <div className="absolute inset-0 bg-neutral-900/40 backdrop-blur-sm transition-opacity" onClick={closeModal} />
+      <div role="dialog" aria-modal="true" aria-labelledby="export-modal-title" className={`modal-surface w-full ${view === "finance" ? "max-w-lg" : "max-w-sm"}`}>
         <div className="px-6 pt-6 pb-4 flex items-center justify-between">
           <div>
-            <h2 id="export-modal-title" className="font-bold text-2xl text-neutral-900 tracking-tight">{t("export_title")}</h2>
-            <div className="text-sm text-neutral-500 font-medium mt-1">{t("export_subtitle")}</div>
+            <h2 id="export-modal-title" className="font-bold text-2xl text-neutral-900 tracking-tight">{view === "finance" ? t("financeAiTitle") : t("export_title")}</h2>
+            <div className="text-sm text-neutral-500 font-medium mt-1">{view === "finance" ? t("financeAiDescription") : t("export_subtitle")}</div>
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={closeModal}
             aria-label={t("close")}
             className={`h-11 w-11 rounded-xl bg-neutral-100 hover:bg-[#D5FF00] hover:text-neutral-900 flex items-center justify-center text-neutral-600 transition ${BUTTON_FOCUS}`}
           >
@@ -1126,12 +1181,12 @@ function ExportModal({ open, onClose, onPrint, onBackup, onImport, t }) {
           </button>
         </div>
         
-        <div className="px-4 pb-6 flex flex-col gap-2">
+        {view === "actions" ? <div className="px-4 pb-6 flex flex-col gap-2">
           <ExportActionRow
             icon={<ExportIcons.Print />}
             label={t("export_print_pdf_label")}
             sub={t("export_print_pdf_sub")}
-            onClick={() => { onClose(); onPrint(); }}
+            onClick={() => { closeModal(); onPrint(); }}
           />
           <ExportActionRow
             icon={<ExportIcons.Mail />}
@@ -1141,20 +1196,80 @@ function ExportModal({ open, onClose, onPrint, onBackup, onImport, t }) {
           />
           <div className="h-px bg-neutral-100 my-2 mx-4" />
           <ExportActionRow
+            icon={<ExportIcons.Spark />}
+            label={t("financeAiTitle")}
+            sub={t("financeAiActionDescription")}
+            onClick={openFinanceConfig}
+          />
+          <ExportActionRow
             icon={<ExportIcons.Download />}
             label={t("export_download_json_label")}
             sub={t("export_download_json_sub")}
-            onClick={() => { onClose(); onBackup(); }}
+            onClick={() => { closeModal(); onBackup(); }}
           />
           <ExportActionRow
             icon={<ExportIcons.Upload />}
             label={t("export_import_json_label")}
             sub={t("export_import_json_sub")}
             file
-            onClose={onClose}
+            onClose={closeModal}
             onImport={onImport}
           />
-        </div>
+        </div> : (
+          <div className="max-h-[72vh] overflow-y-auto px-5 pb-5">
+            <fieldset className="space-y-2">
+              <legend className="finance-export-label">{t("financeAiMonthSelection")}</legend>
+              {[
+                ["current", t("financeAiCurrentMonth"), t("financeAiCurrentMonthDescription")],
+                ["selected", t("financeAiSelectMonths"), t("financeAiSelectMonthsDescription")],
+                ["all", t("financeAiAllMonths"), t("financeAiAllMonthsDescription")],
+              ].map(([mode, label, description]) => (
+                <label key={mode} className={`finance-export-option ${financeMode === mode ? "finance-export-option-active" : ""}`}>
+                  <input type="radio" name="finance-export-mode" value={mode} checked={financeMode === mode} onChange={() => setFinanceMode(mode)} className="accent-[#D5FF00]" />
+                  <span><span className="block text-sm font-semibold text-neutral-900">{label}</span><span className="block text-xs text-neutral-500">{description}</span></span>
+                </label>
+              ))}
+            </fieldset>
+
+            {financeMode === "selected" ? (
+              <div className="mt-4">
+                <div className="finance-export-label">{t("financeAiAvailableMonths")}</div>
+                {meaningfulMonths.length ? (
+                  <div className="finance-month-list">
+                    {meaningfulMonths.map((monthKey, index) => {
+                      const year = monthKey.slice(0, 4);
+                      const previousYear = index > 0 ? meaningfulMonths[index - 1].slice(0, 4) : null;
+                      return <React.Fragment key={monthKey}>
+                        {year !== previousYear ? <div className="finance-month-year">{year}</div> : null}
+                        <label className="finance-month-choice">
+                          <input type="checkbox" checked={selectedMonths.has(monthKey)} onChange={() => toggleSelectedMonth(monthKey)} className="accent-[#D5FF00]" />
+                          <span>{monthName(monthKey, lang)} {year}</span>
+                        </label>
+                      </React.Fragment>;
+                    })}
+                  </div>
+                ) : <div className="finance-export-empty">{t("financeAiNoMeaningfulMonths")}</div>}
+              </div>
+            ) : null}
+
+            {financeMode === "all" && !meaningfulMonths.length ? <div className="finance-export-empty mt-3">{t("financeAiNoMeaningfulMonths")}</div> : null}
+            {financeMode === "current" && !currentMonthValid ? <div role="alert" className="finance-export-warning mt-3">{t("financeAiInvalidCurrentMonth")}</div> : null}
+            {invalidMonthCount > 0 ? <div role="status" className="finance-export-warning mt-3">{t(invalidMonthCount === 1 ? "financeAiInvalidMonthWarning" : "financeAiInvalidMonthsWarning", { count: invalidMonthCount })}</div> : null}
+
+            <label className="finance-notes-option">
+              <input type="checkbox" checked={includeNotes} onChange={(event) => setIncludeNotes(event.target.checked)} className="accent-[#D5FF00]" />
+              <span><span className="block text-sm font-semibold text-neutral-900">{t("financeAiIncludeNotes")}</span><span className="block text-xs text-neutral-500">{t("financeAiIncludeNotesDescription")}</span></span>
+            </label>
+
+            <div className="finance-privacy-note">{t("financeAiPrivacy")}</div>
+            {!canDownload ? <div role="status" className="mt-2 text-xs font-medium text-red-700">{t("financeAiNoSelection")}</div> : null}
+
+            <div className="mt-5 flex flex-wrap justify-end gap-2 border-t border-neutral-200 pt-4">
+              <button type="button" onClick={() => setView("actions")} className={`min-h-11 rounded-lg border border-neutral-200 bg-white px-4 text-sm font-semibold text-neutral-700 hover:bg-neutral-100 ${BUTTON_FOCUS}`}>{t("back")}</button>
+              <button type="button" disabled={!canDownload} onClick={downloadFinanceExport} className={`min-h-11 rounded-lg border border-[#D5FF00] bg-[#D5FF00] px-4 text-sm font-bold text-neutral-950 hover:bg-[#c7f000] ${BUTTON_FOCUS} ${BUTTON_DISABLED}`}>{t("financeAiDownload")}</button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   ); 
@@ -1730,6 +1845,7 @@ const TRANSLATIONS = {
     copyAll: "Copy all",
     copyUnpaid: "Copy unpaid only",
     cancel: "Cancel",
+    back: "Back",
     clear: "Clear",
     startAgain: "Clear month",
     income: "Income",
@@ -2014,6 +2130,28 @@ const TRANSLATIONS = {
     export_download_json_sub: "Backup your data",
     export_import_json_label: "Import backup",
     export_import_json_sub: "Import replaces current app data. Export first if unsure.",
+    financeAiTitle: "Finance AI export",
+    financeAiActionDescription: "Create an analysis file for a Finance GPT or AI assistant.",
+    financeAiDescription: "Choose the months and context to include in a local analysis file.",
+    financeAiMonthSelection: "Months to include",
+    financeAiCurrentMonth: "Current month",
+    financeAiCurrentMonthDescription: "Export the open month, including an empty budget.",
+    financeAiSelectMonths: "Select months",
+    financeAiSelectMonthsDescription: "Choose from months containing financial data.",
+    financeAiAllMonths: "All meaningful months",
+    financeAiAllMonthsDescription: "Export every month containing useful financial data.",
+    financeAiAvailableMonths: "Available months",
+    financeAiIncludeNotes: "Include notes",
+    financeAiIncludeNotesDescription: "Adds income, expense and month notes. Off by default.",
+    financeAiPrivacy: "Creates a local JSON file only. Nothing is uploaded automatically. Names, labels and optional notes may contain personal information.",
+    financeAiDownload: "Download Finance AI file",
+    financeAiNoMeaningfulMonths: "No meaningful months are available for this selection.",
+    financeAiNoSelection: "Choose at least one available month.",
+    financeAiInvalidCurrentMonth: "The current month key is not valid for analysis export.",
+    financeAiInvalidMonthWarning: "{count} non-standard historical month key was excluded.",
+    financeAiInvalidMonthsWarning: "{count} non-standard historical month keys were excluded.",
+    financeAiExported: "Finance AI file downloaded.",
+    financeAiExportFailed: "The Finance AI file could not be created.",
   },
   de: {
     subtitle: "Monatliches persönliches Budgetierungstool",
@@ -2099,6 +2237,7 @@ const TRANSLATIONS = {
     copyAll: "Alles kopieren",
     copyUnpaid: "Nur offene kopieren",
     cancel: "Abbrechen",
+    back: "Zurück",
     clear: "Leeren",
     startAgain: "Monat leeren",
     income: "Einkommen",
@@ -2383,6 +2522,28 @@ const TRANSLATIONS = {
     export_download_json_sub: "Sichern Sie Ihre Daten",
     export_import_json_label: "Sicherung importieren",
     export_import_json_sub: "Der Import ersetzt die aktuellen App-Daten. Im Zweifelsfall zuerst exportieren.",
+    financeAiTitle: "Finance-AI-Export",
+    financeAiActionDescription: "Analysedatei für einen Finance GPT oder KI-Assistenten erstellen.",
+    financeAiDescription: "Wählen Sie Monate und Kontext für eine lokale Analysedatei aus.",
+    financeAiMonthSelection: "Enthaltene Monate",
+    financeAiCurrentMonth: "Aktueller Monat",
+    financeAiCurrentMonthDescription: "Den geöffneten Monat exportieren, auch wenn er leer ist.",
+    financeAiSelectMonths: "Monate auswählen",
+    financeAiSelectMonthsDescription: "Monate mit Finanzdaten gezielt auswählen.",
+    financeAiAllMonths: "Alle relevanten Monate",
+    financeAiAllMonthsDescription: "Alle Monate mit nützlichen Finanzdaten exportieren.",
+    financeAiAvailableMonths: "Verfügbare Monate",
+    financeAiIncludeNotes: "Notizen einschließen",
+    financeAiIncludeNotesDescription: "Fügt Einnahmen-, Ausgaben- und Monatsnotizen hinzu. Standardmäßig aus.",
+    financeAiPrivacy: "Erstellt nur eine lokale JSON-Datei. Es wird nichts automatisch hochgeladen. Namen, Bezeichnungen und optionale Notizen können persönliche Informationen enthalten.",
+    financeAiDownload: "Finance-AI-Datei herunterladen",
+    financeAiNoMeaningfulMonths: "Für diese Auswahl sind keine relevanten Monate verfügbar.",
+    financeAiNoSelection: "Wählen Sie mindestens einen verfügbaren Monat aus.",
+    financeAiInvalidCurrentMonth: "Der aktuelle Monatsschlüssel ist für den Analyseexport ungültig.",
+    financeAiInvalidMonthWarning: "{count} nicht standardmäßiger historischer Monatsschlüssel wurde ausgeschlossen.",
+    financeAiInvalidMonthsWarning: "{count} nicht standardmäßige historische Monatsschlüssel wurden ausgeschlossen.",
+    financeAiExported: "Finance-AI-Datei heruntergeladen.",
+    financeAiExportFailed: "Die Finance-AI-Datei konnte nicht erstellt werden.",
   }
 };
 
@@ -3017,6 +3178,36 @@ export default function BudgitApp() {
     URL.revokeObjectURL(url);
   };
 
+  const exportFinanceAnalysis = ({ mode, selectedMonthKeys, includeNotes }) => {
+    const result = createFinanceAnalysisExport({
+      app,
+      mode,
+      currentMonthKey: app.activeMonth,
+      selectedMonthKeys,
+      includeNotes,
+    });
+    if (!result.ok) {
+      notify(t("financeAiExportFailed"));
+      return false;
+    }
+    try {
+      const blob = new Blob([JSON.stringify(result.document, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = result.filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+      notify(t("financeAiExported"));
+      return true;
+    } catch {
+      notify(t("financeAiExportFailed"));
+      return false;
+    }
+  };
+
   const importJSON = async (file) => {
     if (!file) return;
     if (file.size > BACKUP_LIMITS.maxFileBytes) {
@@ -3264,6 +3455,10 @@ export default function BudgitApp() {
         onPrint={() => window.print()}
         onBackup={exportJSON}
         onImport={importJSON}
+        onFinanceExport={exportFinanceAnalysis}
+        activeMonth={app.activeMonth}
+        months={app.months || {}}
+        lang={app.lang}
         t={t}
       />
 
