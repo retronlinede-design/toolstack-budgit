@@ -4789,7 +4789,7 @@ export default function BudgitApp() {
                   {historicalIncomeStatus.invalidUnresolvedAmountCount > 0 ? <span>{t(historicalIncomeStatus.invalidUnresolvedAmountCount === 1 ? "unresolvedSubtotalIncompleteSingular" : "unresolvedSubtotalIncompletePlural", { count: historicalIncomeStatus.invalidUnresolvedAmountCount })}</span> : null}
                 </div>
               ) : null}
-              <div className="grid grid-cols-1 border-y border-neutral-200 sm:grid-cols-2">
+              <div className="grid grid-cols-1 border-y border-neutral-200 sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2">
                 {[["expectedIncome", incomeTotal, false], ["plannedExpenses", expensePlannedTotal, false], ["leftAfterPlannedExpenses", netRemaining, netRemaining < 0], ["unpaidExpenses", expenseRemainingTotal, false]].map(([label, value, negative]) => (
                   <div key={label} className={`summary-stat ${label === "leftAfterPlannedExpenses" ? "summary-stat-primary" : ""}`}>
                     <div className="summary-label break-words">{t(label)}</div>

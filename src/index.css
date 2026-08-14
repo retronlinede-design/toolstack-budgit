@@ -705,11 +705,11 @@ textarea {
   }
 
   .summary-stat {
-    @apply min-w-0 border-b border-neutral-200 py-3 last:border-b-0 sm:border-b-0 sm:border-r sm:px-4 sm:last:border-r-0;
+    @apply min-w-0 border-b border-neutral-200 py-3 last:border-b-0 sm:border-b-0 sm:border-r sm:px-4 sm:last:border-r-0 md:border-b md:border-r-0 md:px-3 md:last:border-b-0 lg:border-b-0 lg:border-r lg:px-2 lg:last:border-r-0;
   }
 
   .summary-stat-primary {
-    @apply border-l-2 border-l-[#D5FF00] pl-3 sm:border-l-0 sm:border-t-2 sm:border-t-[#D5FF00] sm:pl-4;
+    @apply border-l-2 border-l-[#D5FF00] pl-3 sm:border-l-0 sm:border-t-2 sm:border-t-[#D5FF00] sm:pl-4 md:border-l-2 md:border-l-[#D5FF00] md:border-t-0 md:pl-3 lg:border-l-0 lg:border-t-2 lg:border-t-[#D5FF00] lg:pl-2;
   }
 
   .summary-label {
@@ -717,7 +717,11 @@ textarea {
   }
 
   .summary-value {
-    @apply mt-1 break-words text-2xl font-bold tracking-[-0.03em] tabular-nums text-neutral-900;
+    @apply mt-1 whitespace-nowrap text-2xl font-bold tracking-[-0.03em] tabular-nums text-neutral-900 lg:text-xl;
+  }
+
+  .summary-value > span {
+    @apply whitespace-nowrap tabular-nums;
   }
 
   .summary-context {
