@@ -51,6 +51,103 @@ function createHarness({ initialState = { value: 0 }, locked = false, failWrites
   return { coordinator, timers, writes };
 }
 
+test("successfully loaded initial state starts clean and mount scheduling is a no-op", () => {
+  const saveStarts = [];
+  const timers = createTimers();
+  const writes = [];
+  const coordinator = createPersistenceCoordinator({
+    initialState: { value: "loaded" },
+    storage: {},
+    storageKey: "budgit",
+    setTimer: timers.setTimer,
+    clearTimer: timers.clearTimer,
+    write(_storage, _key, value) {
+      writes.push(JSON.parse(value));
+      return { ok: true };
+    },
+    onSaveStart: () => saveStarts.push("saving"),
+  });
+
+  assert.equal(coordinator.isDirty(), false);
+  coordinator.schedule();
+  timers.runAll();
+  assert.equal(timers.size(), 0);
+  assert.deepEqual(writes, []);
+  assert.deepEqual(saveStarts, []);
+});
+
+test("untouched startup ignores pagehide and hidden visibility lifecycle events", () => {
+  const { coordinator, timers, writes } = createHarness({ initialState: { value: "loaded" } });
+  const windowTarget = new EventTarget();
+  const documentTarget = new EventTarget();
+  Object.defineProperty(documentTarget, "visibilityState", { value: "visible", writable: true });
+  const detach = attachPersistenceLifecycle({ windowTarget, documentTarget, flush: coordinator.flush });
+
+  coordinator.schedule();
+  windowTarget.dispatchEvent(new Event("pagehide"));
+  documentTarget.visibilityState = "hidden";
+  documentTarget.dispatchEvent(new Event("visibilitychange"));
+  timers.runAll();
+
+  assert.deepEqual(writes, []);
+  assert.equal(coordinator.isDirty(), false);
+  detach();
+});
+
+test("normalized in-memory startup leaves a different legacy raw snapshot byte-for-byte unchanged", () => {
+  const rawLegacy = JSON.stringify({ activeMonth: "2026-01", months: { "2026-01": { expenses: [] } } });
+  const storage = new Map([["budgit", rawLegacy]]);
+  const timers = createTimers();
+  const normalized = {
+    activeMonth: "2026-01",
+    months: { "2026-01": { expenseGroups: [{ id: "generated", label: "General", items: [] }] } },
+    lang: "en",
+    currency: "EUR",
+  };
+  const coordinator = createPersistenceCoordinator({
+    initialState: normalized,
+    storage,
+    storageKey: "budgit",
+    setTimer: timers.setTimer,
+    clearTimer: timers.clearTimer,
+    write(target, key, value) {
+      target.set(key, value);
+      return { ok: true };
+    },
+  });
+
+  coordinator.schedule();
+  timers.runAll();
+  assert.equal(storage.get("budgit"), rawLegacy);
+  assert.deepEqual(coordinator.getLatest(), normalized);
+});
+
+test("absent storage remains absent until the first genuine mutation", () => {
+  const storage = new Map();
+  const timers = createTimers();
+  const coordinator = createPersistenceCoordinator({
+    initialState: { defaultMonth: true },
+    storage,
+    storageKey: "budgit",
+    setTimer: timers.setTimer,
+    clearTimer: timers.clearTimer,
+    write(target, key, value) {
+      target.set(key, value);
+      return { ok: true };
+    },
+  });
+
+  coordinator.schedule();
+  timers.runAll();
+  assert.equal(storage.has("budgit"), false);
+
+  coordinator.setLatest({ defaultMonth: true, edited: true });
+  assert.equal(coordinator.isDirty(), true);
+  timers.runAll();
+  assert.deepEqual(JSON.parse(storage.get("budgit")), { defaultMonth: true, edited: true });
+  assert.equal(coordinator.isDirty(), false);
+});
+
 test("ordinary and rapid mutations debounce to the latest intended state", () => {
   const { coordinator, timers, writes } = createHarness();
   coordinator.setLatest({ value: 1 });

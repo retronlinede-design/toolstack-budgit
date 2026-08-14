@@ -15,7 +15,10 @@ export function createPersistenceCoordinator({
 }) {
   let latestState = initialState;
   let revision = 0;
-  let persistedRevision = -1;
+  // Loading and normalizing state for in-memory compatibility is not a user
+  // mutation. Treat the initial revision as already persisted so mounting the
+  // app (or an immediate lifecycle event) cannot rewrite the stored snapshot.
+  let persistedRevision = revision;
   let persistenceLocked = locked;
   let timer = null;
 
