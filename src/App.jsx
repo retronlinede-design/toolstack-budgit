@@ -813,7 +813,7 @@ function DuePicker({ ym, value, onChange, lang = "en", t, compact = false }) {
     return cells;
   }, [firstDow, dim]);
 
-  const btnLabel = info ? info.display : t("due");
+  const btnLabel = info ? (compact ? String(info.requested) : info.display) : t("due");
   const btnTitle = info ? info.title : t("selectDueDate");
 
   return (
@@ -823,15 +823,15 @@ function DuePicker({ ym, value, onChange, lang = "en", t, compact = false }) {
         type="button"
         title={btnTitle}
         onClick={() => setOpen((v) => !v)}
-        className={`w-full ${compact ? "h-8 rounded-md px-2 shadow-none" : "h-10 rounded-xl px-3 shadow-sm"} border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-neutral-300 hover:text-neutral-800 text-neutral-800 text-sm flex items-center justify-between gap-1 focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 focus:border-neutral-300 ${
+        className={`w-full ${compact ? "h-8 rounded-md px-1.5 shadow-none" : "h-10 rounded-xl px-3 shadow-sm"} border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-neutral-300 hover:text-neutral-800 text-neutral-800 text-sm flex items-center justify-between gap-1 focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50 focus:border-neutral-300 ${
           info ? "font-medium" : "text-neutral-500"
         }`}
       >
         <span className="tabular-nums truncate">{btnLabel}</span>
-        <span className="flex items-center gap-2">
+        <span className={`flex items-center ${compact ? "gap-1" : "gap-2"}`}>
           {info ? (
             <span
-              className="h-6 w-6 rounded-lg border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 text-neutral-600 flex items-center justify-center"
+              className={`${compact ? "h-5 w-5 rounded-md" : "h-6 w-6 rounded-lg"} border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 text-neutral-600 flex items-center justify-center`}
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -853,7 +853,7 @@ function DuePicker({ ym, value, onChange, lang = "en", t, compact = false }) {
               ×
             </span>
           ) : null}
-          <CalendarIcon className="h-5 w-5 text-neutral-600" />
+          <CalendarIcon className={`${compact ? "h-4 w-4" : "h-5 w-5"} text-neutral-600`} />
         </span>
       </button>
 
