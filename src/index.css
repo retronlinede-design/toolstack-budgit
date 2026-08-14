@@ -418,11 +418,19 @@ textarea {
   }
 
   .brand-header {
-    @apply grid grid-cols-1 items-start gap-3 md:grid-cols-3;
+    @apply relative flex flex-col gap-3 md:flex-row md:items-start md:justify-between;
+  }
+
+  .brand-nav-cluster {
+    @apply flex min-w-0 flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-4;
+  }
+
+  .brand-logo {
+    @apply h-20 w-auto shrink-0 select-none sm:h-24 lg:h-28;
   }
 
   .top-utility-area {
-    @apply relative flex w-full flex-col items-stretch gap-2 pt-1 md:items-end md:pt-2;
+    @apply relative flex min-w-0 flex-col items-end gap-2 md:max-w-sm md:pt-2;
   }
 
   .header-save-state {
@@ -433,25 +441,29 @@ textarea {
     @apply border-red-700 text-red-300;
   }
 
-  .desktop-utility-menus {
-    @apply hidden items-center gap-1.5 md:flex;
+  .primary-header-nav {
+    @apply relative flex min-w-0 items-center gap-1;
   }
 
   .header-menu-wrap {
-    @apply relative;
+    @apply static;
   }
 
   .header-menu-launcher {
-    @apply flex min-h-10 items-center gap-2 rounded-lg border border-neutral-700 bg-neutral-900 px-3 text-xs font-bold text-white transition hover:border-neutral-500 hover:bg-neutral-800;
+    @apply relative flex min-h-10 items-center gap-1 px-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-neutral-600 transition-colors hover:text-neutral-950;
   }
 
   .header-menu-launcher-active {
-    @apply border-[#D5FF00] bg-neutral-800;
-    box-shadow: inset 0 -2px 0 var(--budgit-lime);
+    @apply text-[#759000];
+  }
+
+  .header-menu-launcher-active::after {
+    content: "";
+    @apply absolute inset-x-2 bottom-0 h-0.5 bg-[#D5FF00];
   }
 
   .header-menu-panel {
-    @apply absolute right-0 top-[calc(100%+0.5rem)] z-50 w-72 overflow-hidden rounded-xl border border-neutral-300 bg-white p-2 shadow-lg;
+    @apply absolute left-0 top-[calc(100%+0.45rem)] z-50 w-72 max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-neutral-300 bg-white p-2 shadow-lg;
   }
 
   .header-menu-panel > button {
@@ -563,36 +575,12 @@ textarea {
     @apply min-h-11 min-w-0 rounded-lg border border-neutral-300 bg-white px-1 text-xs font-semibold text-neutral-800;
   }
 
-  .mobile-main-menu {
-    @apply mt-3 grid grid-cols-1 gap-3 rounded-xl border border-neutral-300 bg-neutral-50 p-3 sm:hidden;
+  .mobile-month-actions-menu {
+    @apply mt-2 rounded-lg border border-neutral-300 bg-white p-1.5 sm:hidden;
   }
 
-  .mobile-main-menu section {
-    @apply grid grid-cols-2 gap-1.5;
-  }
-
-  .mobile-main-menu h3 {
-    @apply col-span-full text-[10px] font-bold uppercase tracking-[0.1em] text-neutral-500;
-  }
-
-  .mobile-main-menu section > button {
-    @apply min-h-11 rounded-lg border border-neutral-200 bg-white px-3 text-left text-xs font-semibold text-neutral-800;
-  }
-
-  .mobile-setting-row {
-    @apply col-span-full flex flex-wrap items-center gap-1.5;
-  }
-
-  .mobile-setting-row > span {
-    @apply mr-auto text-xs font-semibold text-neutral-700;
-  }
-
-  .mobile-setting-row button {
-    @apply min-h-9 rounded-md border border-neutral-300 bg-white px-2 text-[10px] font-bold text-neutral-700;
-  }
-
-  .mobile-setting-row button.active {
-    @apply border-[#D5FF00] bg-[#D5FF00] text-neutral-950;
+  .mobile-month-actions-menu button {
+    @apply min-h-10 w-full rounded-md px-3 text-left text-sm font-semibold text-red-700 hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-300;
   }
 
   .ledger-search-row {
@@ -623,37 +611,12 @@ textarea {
     @apply flex w-fit items-center gap-1 rounded-lg border border-neutral-200 bg-white p-1;
   }
 
-  .command-bubble-wrap {
-    @apply relative z-40 w-full max-w-sm md:w-auto;
-  }
-
-  .command-bubble-collapsed {
-    @apply flex min-h-12 w-full items-center justify-between gap-2 rounded-xl border border-neutral-700 bg-neutral-900 p-1.5 pl-3 text-white shadow-sm md:w-auto;
-    box-shadow: inset 2px 0 0 var(--budgit-lime);
-  }
-
-  .command-save-state {
-    @apply flex min-w-0 items-center gap-2 whitespace-nowrap text-[11px] font-semibold text-neutral-300;
-  }
-
-  .command-save-state-error {
-    @apply text-red-300;
-  }
-
   .command-save-dot {
     @apply h-1.5 w-1.5 shrink-0 rounded-full bg-[#D5FF00];
   }
 
   .command-save-dot-saving {
     @apply bg-neutral-400;
-  }
-
-  .command-launcher {
-    @apply flex min-h-9 shrink-0 items-center gap-2 rounded-lg border border-neutral-600 bg-neutral-800 px-3 text-xs font-bold text-white transition hover:border-neutral-500 hover:bg-neutral-700;
-  }
-
-  .command-launcher-mark {
-    @apply flex h-5 w-5 items-center justify-center rounded bg-[#D5FF00] text-xs font-black text-neutral-950;
   }
 
   .command-save-error {
@@ -670,44 +633,6 @@ textarea {
 
   .quarantine-status-mark {
     @apply mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-200 text-xs font-black text-amber-950;
-  }
-
-  .command-panel {
-    @apply absolute right-0 top-[calc(100%+0.5rem)] z-50 w-full overflow-hidden rounded-xl border border-neutral-300 bg-white p-3 shadow-xl md:w-[22rem];
-    max-width: calc(100vw - 2rem);
-  }
-
-  .command-panel-heading {
-    @apply mb-2 flex items-center justify-between border-b border-neutral-200 px-1 pb-2 text-[11px] font-bold uppercase tracking-[0.1em] text-neutral-500;
-  }
-
-  .command-panel-active {
-    @apply font-mono text-[10px] tracking-[0.08em] text-neutral-400;
-  }
-
-  .command-group {
-    @apply border-b border-neutral-100 py-2 last:border-b-0;
-  }
-
-  .command-group-label {
-    @apply mb-1.5 text-[9px] font-bold uppercase tracking-[0.12em] text-neutral-400;
-  }
-
-  .command-grid {
-    @apply grid grid-cols-2 gap-1.5;
-  }
-
-  .command-action {
-    @apply flex min-h-10 w-full items-center gap-2 rounded-lg border border-transparent bg-neutral-50 px-3 text-left text-xs font-semibold text-neutral-800 transition hover:border-neutral-200 hover:bg-neutral-100;
-  }
-
-  .command-action > :first-child {
-    @apply flex w-4 shrink-0 items-center justify-center font-mono text-xs font-bold text-neutral-500;
-  }
-
-  .command-preferences {
-    @apply grid grid-cols-1 gap-3 bg-neutral-50 px-3 py-3 sm:grid-cols-2;
-    margin: 0.5rem -0.75rem -0.75rem;
   }
 
   .command-choice-row {
@@ -949,17 +874,6 @@ textarea {
     @apply border-[#D5FF00] bg-[#D5FF00]/20 text-neutral-900;
   }
 
-}
-
-@media (max-width: 767px) {
-  .command-bubble-wrap {
-    margin-top: -0.25rem;
-  }
-
-  .command-panel {
-    left: 0;
-    right: auto;
-  }
 }
 
 @media print {

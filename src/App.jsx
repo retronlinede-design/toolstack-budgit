@@ -22,7 +22,6 @@
 */
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import budgitLogo from "./assets/budgit-graffiti.png";
-import budgitSub from "./assets/budgit-sub.png";
 import {
   INCOME_STATUSES,
   calculateBalanceProjection,
@@ -1866,6 +1865,7 @@ const TRANSLATIONS = {
     export: "Export",
     tools: "Tools",
     settings: "Settings",
+    primaryNavigation: "Primary navigation",
     menu: "Menu",
     financeAiMenu: "Finance AI",
     financeAiMenuDescription: "Create an analysis-ready file",
@@ -2346,6 +2346,7 @@ const TRANSLATIONS = {
     export: "Export",
     tools: "Werkzeuge",
     settings: "Einstellungen",
+    primaryNavigation: "Hauptnavigation",
     menu: "Menü",
     financeAiMenu: "Finance AI",
     financeAiMenuDescription: "Datei für die Finanzanalyse erstellen",
@@ -4001,31 +4002,13 @@ export default function BudgitApp() {
       ) : null}
 
       <div className="max-w-5xl mx-auto px-4 py-6">
-        <div className="brand-header">
-          <div>
-            {/* Master heading style */}
-            <div className="relative flex flex-wrap items-center gap-3 w-full">
-              <img src={budgitLogo} alt="BudgIt" className="h-20 w-auto shrink-0 select-none sm:h-28" />
-            </div>
-          </div>
+        <div className="brand-header" ref={headerMenusRef}>
+          <div className="brand-nav-cluster">
+            <img src={budgitLogo} alt="BudgIt" className="brand-logo" />
 
-          <div className="hidden md:flex justify-center">
-            <img
-              src={budgitSub}
-              alt="BudgIt Subheading"
-                className="h-20 w-auto max-w-[88%] select-none object-contain opacity-90 sm:h-28"
-            />
-          </div>
-
-          <div className="top-utility-area print:hidden" ref={headerMenusRef}>
-            <div role="status" aria-live={saveStatus === "error" || saveStatus === "load_error" ? "assertive" : "polite"} title={saveErrorCode || undefined} className={`header-save-state ${saveStatus === "error" || saveStatus === "load_error" ? "header-save-state-error" : ""}`}>
-              <span className={`command-save-dot ${saveStatus === "saving" ? "command-save-dot-saving" : ""}`} aria-hidden="true" />
-              <span>{saveStatus === "saving" && t("saveStatusSaving")}{saveStatus === "saved" && t("saveStatusSaved")}{saveStatus === "imported" && t("saveStatusImported")}{saveStatus === "error" && t("saveStatusError")}{saveStatus === "load_error" && t("saveStatusLoadError")}</span>
-            </div>
-
-            <div className="desktop-utility-menus">
-              {["export", "tools", "settings"].map((menu) => <div key={menu} className="header-menu-wrap">
-                <button type="button" className={`header-menu-launcher ${openHeaderMenu === menu ? "header-menu-launcher-active" : ""} ${BUTTON_FOCUS}`} onClick={() => setOpenHeaderMenu((open) => open === menu ? null : menu)} aria-expanded={openHeaderMenu === menu} aria-haspopup="dialog" aria-controls={`header-${menu}-menu`}><span>{t(menu)}</span><ChevronDownIcon className={`h-4 w-4 transition-transform ${openHeaderMenu === menu ? "rotate-180" : ""}`} /></button>
+            <nav className="primary-header-nav print:hidden" aria-label={t("primaryNavigation")}>
+              {["tools", "export", "settings"].map((menu) => <div key={menu} className="header-menu-wrap">
+                <button type="button" className={`header-menu-launcher ${openHeaderMenu === menu ? "header-menu-launcher-active" : ""} ${BUTTON_FOCUS}`} onClick={() => setOpenHeaderMenu((open) => open === menu ? null : menu)} aria-expanded={openHeaderMenu === menu} aria-haspopup="dialog" aria-controls={`header-${menu}-menu`}><span>{t(menu)}</span><ChevronDownIcon className={`h-3.5 w-3.5 transition-transform ${openHeaderMenu === menu ? "rotate-180" : ""}`} /></button>
                 {openHeaderMenu === menu ? <div id={`header-${menu}-menu`} className="header-menu-panel" role="dialog" aria-label={t(menu)}>
                   {menu === "export" ? <>
                     <button type="button" onClick={() => openExportDestination("finance")}><ExportIcons.Spark /><span><strong>{t("financeAiMenu")}</strong><small>{t("financeAiMenuDescription")}</small></span></button>
@@ -4044,6 +4027,13 @@ export default function BudgitApp() {
                   </div> : null}
                 </div> : null}
               </div>)}
+            </nav>
+          </div>
+
+          <div className="top-utility-area print:hidden">
+            <div role="status" aria-live={saveStatus === "error" || saveStatus === "load_error" ? "assertive" : "polite"} title={saveErrorCode || undefined} className={`header-save-state ${saveStatus === "error" || saveStatus === "load_error" ? "header-save-state-error" : ""}`}>
+              <span className={`command-save-dot ${saveStatus === "saving" ? "command-save-dot-saving" : ""}`} aria-hidden="true" />
+              <span>{saveStatus === "saving" && t("saveStatusSaving")}{saveStatus === "saved" && t("saveStatusSaved")}{saveStatus === "imported" && t("saveStatusImported")}{saveStatus === "error" && t("saveStatusError")}{saveStatus === "load_error" && t("saveStatusLoadError")}</span>
             </div>
             {saveStatus === "error" || saveStatus === "load_error" ? <div className="command-save-error">{saveStatus === "error" ? t("saveFailureAdvice") : t("loadFailureAdvice")}</div> : null}
             {quarantinedMonthKeys.length > 0 ? <div className="quarantine-status" role="status"><span className="quarantine-status-mark" aria-hidden="true">!</span><span><strong>{t("historicalDataNeedsRecovery")}</strong><span>{t(quarantinedMonthKeys.length === 1 ? "quarantinedMonthSingular" : "quarantinedMonthPlural", { count: quarantinedMonthKeys.length })}</span></span></div> : null}
@@ -4080,15 +4070,10 @@ export default function BudgitApp() {
                 <button type="button" onClick={() => { setOverviewYear(activeYM.y || new Date().getFullYear()); setCurrentView("year"); }}>{t("yearShort")}</button>
                 <button type="button" onClick={() => setCopyOpen(true)}>{t("copyShort")}</button>
                 <button type="button" onClick={() => setSearchOpen((open) => !open)}>{t("search")}</button>
-                <button type="button" onClick={() => setOpenHeaderMenu((open) => open === "mobile" ? null : "mobile")} aria-expanded={openHeaderMenu === "mobile"} aria-controls="mobile-main-menu">{t("menu")}</button>
+                <button type="button" onClick={() => setMonthActionsOpen((open) => !open)} aria-expanded={monthActionsOpen} aria-controls="mobile-month-actions-menu">{t("actions")}</button>
               </div>
 
-              {openHeaderMenu === "mobile" ? <div id="mobile-main-menu" className="mobile-main-menu" role="dialog" aria-label={t("menu")}>
-                <section><h3>{t("export")}</h3><button type="button" onClick={() => openExportDestination("finance")}>{t("financeAiMenu")}</button><button type="button" onClick={() => { setOpenHeaderMenu(null); openPreview(); }}>{t("print")}</button><button type="button" onClick={() => openExportDestination("backup")}>{t("backupRestore")}</button><button type="button" onClick={createEmailDraft}>{t("emailDraft")}</button></section>
-                <section><h3>{t("tools")}</h3><button type="button" onClick={() => { setOpenHeaderMenu(null); openCalculator(); }}>{t("calculator")}</button><button type="button" onClick={() => { setOpenHeaderMenu(null); setHelpOpen(true); }}>{t("help")}</button>{HUB_URL ? <button type="button" onClick={() => { setOpenHeaderMenu(null); window.location.href = HUB_URL; }}>{t("hub")}</button> : null}</section>
-                <section><h3>{t("settings")}</h3><div className="mobile-setting-row"><span>{t("language")}</span>{["en", "de"].map((lang) => <button key={lang} type="button" aria-pressed={app.lang === lang} onClick={() => setLang(lang)} className={app.lang === lang ? "active" : ""}>{lang.toUpperCase()}</button>)}</div><div className="mobile-setting-row"><span>{t("currency")}</span>{Object.keys(CURRENCIES).map((currency) => <button key={currency} type="button" aria-pressed={app.currency === currency} onClick={() => setApp((current) => ({ ...current, currency }))} className={app.currency === currency ? "active" : ""}>{currency}</button>)}</div></section>
-                <section><h3>{t("monthActions")}</h3><button type="button" className="text-red-700" onClick={() => { setOpenHeaderMenu(null); clearMonth(); }}>{t("startAgain")}</button></section>
-              </div> : null}
+              {monthActionsOpen ? <div id="mobile-month-actions-menu" className="mobile-month-actions-menu"><button type="button" onClick={() => { setMonthActionsOpen(false); clearMonth(); }}>{t("startAgain")}</button></div> : null}
 
               {searchOpen ? <div className="ledger-search-row"><input autoFocus placeholder={t("searchPlaceholder")} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} onKeyDown={(e) => { if (e.key === "Escape") { setSearchOpen(false); setSearchTerm(""); } }} /><button type="button" onClick={() => { setSearchOpen(false); setSearchTerm(""); }} aria-label={t("close")}>×</button></div> : null}
             </div>
