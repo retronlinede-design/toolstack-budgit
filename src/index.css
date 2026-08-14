@@ -421,12 +421,190 @@ textarea {
     @apply grid grid-cols-1 items-start gap-3 md:grid-cols-3;
   }
 
+  .top-utility-area {
+    @apply relative flex w-full flex-col items-stretch gap-2 pt-1 md:items-end md:pt-2;
+  }
+
+  .header-save-state {
+    @apply flex min-h-8 items-center gap-2 self-end rounded-lg border border-neutral-700 bg-neutral-900 px-3 text-[11px] font-semibold text-neutral-300;
+  }
+
+  .header-save-state-error {
+    @apply border-red-700 text-red-300;
+  }
+
+  .desktop-utility-menus {
+    @apply hidden items-center gap-1.5 md:flex;
+  }
+
+  .header-menu-wrap {
+    @apply relative;
+  }
+
+  .header-menu-launcher {
+    @apply flex min-h-10 items-center gap-2 rounded-lg border border-neutral-700 bg-neutral-900 px-3 text-xs font-bold text-white transition hover:border-neutral-500 hover:bg-neutral-800;
+  }
+
+  .header-menu-launcher-active {
+    @apply border-[#D5FF00] bg-neutral-800;
+    box-shadow: inset 0 -2px 0 var(--budgit-lime);
+  }
+
+  .header-menu-panel {
+    @apply absolute right-0 top-[calc(100%+0.5rem)] z-50 w-72 overflow-hidden rounded-xl border border-neutral-300 bg-white p-2 shadow-lg;
+  }
+
+  .header-menu-panel > button {
+    @apply flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-neutral-800 hover:bg-neutral-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D5FF00];
+  }
+
+  .header-menu-panel > button > :first-child {
+    @apply flex h-5 w-5 shrink-0 items-center justify-center text-neutral-500;
+  }
+
+  .header-menu-panel button span:last-child {
+    @apply flex min-w-0 flex-col;
+  }
+
+  .header-menu-panel button strong {
+    @apply font-semibold;
+  }
+
+  .header-menu-panel button small {
+    @apply text-xs leading-4 text-neutral-500;
+  }
+
+  .header-settings-panel {
+    @apply space-y-4 p-2;
+  }
+
+  .header-settings-label {
+    @apply mb-2 block text-[10px] font-bold uppercase tracking-[0.1em] text-neutral-500;
+  }
+
   .primary-surface {
     @apply min-w-0 max-w-full overflow-hidden rounded-xl border border-neutral-200 bg-white;
   }
 
   .month-toolbar {
     @apply border-b border-neutral-200 bg-white px-4 py-3;
+  }
+
+  .month-top-surface {
+    @apply relative rounded-xl border border-neutral-200 bg-white;
+  }
+
+  .month-navigator {
+    @apply relative mx-auto flex w-full max-w-2xl items-center justify-center gap-2;
+  }
+
+  .month-nav-arrow {
+    @apply flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-neutral-300 bg-white text-2xl font-medium text-neutral-800 hover:bg-neutral-100;
+  }
+
+  .month-picker-wrap {
+    @apply relative min-w-0 flex-1 sm:flex-none;
+  }
+
+  .month-current-button {
+    @apply flex min-h-11 w-full min-w-0 items-center justify-center gap-2 rounded-lg border border-neutral-800 bg-neutral-900 px-4 text-base font-bold tracking-tight text-white sm:min-w-56 sm:text-lg;
+    box-shadow: inset 0 -2px 0 var(--budgit-lime);
+  }
+
+  .month-picker-panel {
+    @apply absolute left-1/2 top-[calc(100%+0.5rem)] z-40 grid w-64 -translate-x-1/2 grid-cols-2 gap-2 rounded-xl border border-neutral-300 bg-white p-3 shadow-lg;
+  }
+
+  .month-picker-panel label span {
+    @apply mb-1 block text-[10px] font-bold uppercase tracking-[0.08em] text-neutral-500;
+  }
+
+  .month-picker-panel select {
+    @apply h-10 w-full rounded-lg border border-neutral-300 bg-white px-2 text-sm font-semibold text-neutral-800 focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/60;
+  }
+
+  .month-year-view {
+    @apply hidden min-h-11 rounded-lg border border-neutral-300 bg-white px-4 text-sm font-semibold text-neutral-800 hover:bg-neutral-100 sm:block;
+  }
+
+  .ledger-context-row {
+    @apply mt-3 flex items-center justify-between gap-3 border-t border-neutral-200 pt-3;
+  }
+
+  .ledger-context-label {
+    @apply text-[11px] font-bold uppercase tracking-[0.1em] text-neutral-500;
+  }
+
+  .desktop-ledger-actions {
+    @apply hidden items-center gap-2 sm:flex;
+  }
+
+  .ledger-context-action {
+    @apply flex min-h-9 items-center gap-2 rounded-lg border border-neutral-300 bg-white px-3 text-xs font-semibold text-neutral-800 hover:bg-neutral-100;
+  }
+
+  .month-actions-wrap {
+    @apply relative;
+  }
+
+  .month-actions-menu {
+    @apply absolute right-0 top-[calc(100%+0.4rem)] z-40 w-44 rounded-lg border border-neutral-300 bg-white p-1.5 shadow-lg;
+  }
+
+  .month-actions-menu button {
+    @apply min-h-10 w-full rounded-md px-3 text-left text-sm font-semibold text-red-700 hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-300;
+  }
+
+  .mobile-ledger-actions {
+    @apply mt-3 grid grid-cols-4 gap-1.5 border-t border-neutral-200 pt-3 sm:hidden;
+  }
+
+  .mobile-ledger-actions > button {
+    @apply min-h-11 min-w-0 rounded-lg border border-neutral-300 bg-white px-1 text-xs font-semibold text-neutral-800;
+  }
+
+  .mobile-main-menu {
+    @apply mt-3 grid grid-cols-1 gap-3 rounded-xl border border-neutral-300 bg-neutral-50 p-3 sm:hidden;
+  }
+
+  .mobile-main-menu section {
+    @apply grid grid-cols-2 gap-1.5;
+  }
+
+  .mobile-main-menu h3 {
+    @apply col-span-full text-[10px] font-bold uppercase tracking-[0.1em] text-neutral-500;
+  }
+
+  .mobile-main-menu section > button {
+    @apply min-h-11 rounded-lg border border-neutral-200 bg-white px-3 text-left text-xs font-semibold text-neutral-800;
+  }
+
+  .mobile-setting-row {
+    @apply col-span-full flex flex-wrap items-center gap-1.5;
+  }
+
+  .mobile-setting-row > span {
+    @apply mr-auto text-xs font-semibold text-neutral-700;
+  }
+
+  .mobile-setting-row button {
+    @apply min-h-9 rounded-md border border-neutral-300 bg-white px-2 text-[10px] font-bold text-neutral-700;
+  }
+
+  .mobile-setting-row button.active {
+    @apply border-[#D5FF00] bg-[#D5FF00] text-neutral-950;
+  }
+
+  .ledger-search-row {
+    @apply relative mt-3;
+  }
+
+  .ledger-search-row input {
+    @apply h-11 w-full rounded-lg border border-neutral-300 bg-white px-3 pr-11 text-sm text-neutral-800 focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/60;
+  }
+
+  .ledger-search-row button {
+    @apply absolute right-0 top-0 flex h-11 w-11 items-center justify-center text-neutral-500;
   }
 
   .month-title {
@@ -615,6 +793,94 @@ textarea {
 
   .summary-value {
     @apply mt-1 break-words text-2xl font-bold tracking-[-0.03em] tabular-nums text-neutral-900;
+  }
+
+  .summary-context {
+    @apply mt-1 flex flex-col text-[10px] leading-4 text-neutral-500;
+  }
+
+  .summary-context strong {
+    @apply font-semibold text-neutral-700;
+  }
+
+  .cash-position-panel {
+    @apply rounded-xl border border-neutral-200 bg-white p-4;
+  }
+
+  .cash-position-panel-short {
+    @apply border-red-200;
+  }
+
+  .cash-position-warning {
+    @apply mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-800;
+  }
+
+  .cash-position-flow {
+    @apply mt-4 divide-y divide-neutral-100 border-y border-neutral-200;
+  }
+
+  .cash-position-flow > div {
+    @apply grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 py-2;
+  }
+
+  .cash-position-flow span {
+    @apply flex min-w-0 items-center gap-2 text-xs text-neutral-600;
+  }
+
+  .cash-position-flow span b {
+    @apply w-3 font-mono text-neutral-400;
+  }
+
+  .cash-position-flow strong {
+    @apply text-sm font-semibold tabular-nums text-neutral-900;
+  }
+
+  .cash-position-flow small {
+    @apply col-span-full mt-0.5 text-[10px] text-red-700;
+  }
+
+  .cash-position-flow .cash-position-result {
+    @apply border-l-2 border-l-[#D5FF00] bg-neutral-50 px-2;
+  }
+
+  .cash-position-flow .cash-position-result strong {
+    @apply text-lg font-bold;
+  }
+
+  .cash-position-overdraft {
+    @apply mt-2 flex items-center justify-between gap-3 px-2 text-xs text-neutral-500;
+  }
+
+  .cash-position-overdraft strong {
+    @apply font-semibold tabular-nums text-neutral-700;
+  }
+
+  .cash-input-toggle {
+    @apply mt-4 flex min-h-10 w-full items-center justify-between rounded-lg border border-neutral-300 bg-white px-3 text-sm font-semibold text-neutral-800 hover:bg-neutral-100;
+  }
+
+  .cash-input-editor {
+    @apply mt-3 space-y-3 border-t border-neutral-200 pt-3;
+  }
+
+  .cash-projection-details {
+    @apply border-t border-neutral-200 pt-3;
+  }
+
+  .cash-projection-details > span {
+    @apply text-[10px] font-bold uppercase tracking-[0.08em] text-neutral-500;
+  }
+
+  .cash-projection-details dl > div {
+    @apply mt-1 flex items-center justify-between gap-3 text-xs;
+  }
+
+  .cash-projection-details dt {
+    @apply text-neutral-500;
+  }
+
+  .cash-projection-details dd {
+    @apply font-semibold tabular-nums text-neutral-800;
   }
 
   .expense-breakdown {

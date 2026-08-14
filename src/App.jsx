@@ -1194,28 +1194,22 @@ function ExportActionRow({ icon, label, sub, onClick, file, onClose, onImport })
   );
 }
 
-function ExportModal({ open, onClose, onPrint, onBackup, onImport, onFinanceExport, onRawRecovery, rawRecoveryAvailable, quarantinedMonthCount, activeMonth, months, lang, t }) {
-  const [view, setView] = useState("actions");
+function ExportModal({ open, initialView = "backup", onClose, onBackup, onImport, onFinanceExport, onRawRecovery, rawRecoveryAvailable, quarantinedMonthCount, activeMonth, months, lang, t }) {
+  const [view, setView] = useState(initialView);
   const [financeMode, setFinanceMode] = useState("current");
   const [includeNotes, setIncludeNotes] = useState(false);
-  const [selectedMonths, setSelectedMonths] = useState(() => new Set());
+  const [selectedMonths, setSelectedMonths] = useState(() => {
+    const choices = getFinanceMeaningfulMonthKeys(months, { includeNotes: false });
+    return new Set(choices.includes(activeMonth) ? [activeMonth] : choices.slice(-1));
+  });
   const meaningfulMonths = useMemo(() => getFinanceMeaningfulMonthKeys(months, { includeNotes }), [months, includeNotes]);
   const invalidMonthCount = useMemo(() => getInvalidFinanceMonthKeys(months).length, [months]);
-  useModalEscape(open, () => { setView("actions"); onClose(); });
+  useModalEscape(open, () => { setView("backup"); onClose(); });
   if (!open) return null;
 
   const closeModal = () => {
-    setView("actions");
+    setView("backup");
     onClose();
-  };
-
-  const openFinanceConfig = () => {
-    const initialChoices = getFinanceMeaningfulMonthKeys(months, { includeNotes: false });
-    const initial = initialChoices.includes(activeMonth) ? [activeMonth] : initialChoices.slice(-1);
-    setSelectedMonths(new Set(initial));
-    setFinanceMode("current");
-    setIncludeNotes(false);
-    setView("finance");
   };
 
   const toggleSelectedMonth = (monthKey) => {
@@ -1246,21 +1240,14 @@ function ExportModal({ open, onClose, onPrint, onBackup, onImport, onFinanceExpo
     if (succeeded) closeModal();
   };
 
-  const handleEmail = () => {
-    const today = new Date().toISOString().split('T')[0];
-    const subject = encodeURIComponent(t("email_subject", { today }));
-    const body = encodeURIComponent(t("email_body"));
-    window.location.href = `mailto:?subject=${subject}&body=${body}`;
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8 print:hidden"> 
       <div className="absolute inset-0 bg-neutral-900/40 backdrop-blur-sm transition-opacity" onClick={closeModal} />
       <div role="dialog" aria-modal="true" aria-labelledby="export-modal-title" className={`modal-surface w-full ${view === "finance" ? "max-w-lg" : "max-w-sm"}`}>
         <div className="px-6 pt-6 pb-4 flex items-center justify-between">
           <div>
-            <h2 id="export-modal-title" className="font-bold text-2xl text-neutral-900 tracking-tight">{view === "finance" ? t("financeAiTitle") : t("export_title")}</h2>
-            <div className="text-sm text-neutral-500 font-medium mt-1">{view === "finance" ? t("financeAiDescription") : t("export_subtitle")}</div>
+            <h2 id="export-modal-title" className="font-bold text-2xl text-neutral-900 tracking-tight">{view === "finance" ? t("financeAiTitle") : t("backupRestore")}</h2>
+            <div className="text-sm text-neutral-500 font-medium mt-1">{view === "finance" ? t("financeAiDescription") : t("backupRestoreDescription")}</div>
           </div>
           <button
             type="button"
@@ -1272,26 +1259,7 @@ function ExportModal({ open, onClose, onPrint, onBackup, onImport, onFinanceExpo
           </button>
         </div>
         
-        {view === "actions" ? <div className="px-4 pb-6 flex flex-col gap-2">
-          <ExportActionRow
-            icon={<ExportIcons.Print />}
-            label={t("export_print_pdf_label")}
-            sub={t("export_print_pdf_sub")}
-            onClick={() => { closeModal(); onPrint(); }}
-          />
-          <ExportActionRow
-            icon={<ExportIcons.Mail />}
-            label={t("export_email_label")}
-            sub={t("export_email_sub")}
-            onClick={handleEmail}
-          />
-          <div className="h-px bg-neutral-100 my-2 mx-4" />
-          <ExportActionRow
-            icon={<ExportIcons.Spark />}
-            label={t("financeAiTitle")}
-            sub={t("financeAiActionDescription")}
-            onClick={openFinanceConfig}
-          />
+        {view === "backup" ? <div className="px-4 pb-6 flex flex-col gap-2">
           <ExportActionRow
             icon={<ExportIcons.Download />}
             label={t("export_download_json_label")}
@@ -1370,7 +1338,7 @@ function ExportModal({ open, onClose, onPrint, onBackup, onImport, onFinanceExpo
             {!canDownload ? <div role="status" className="mt-2 text-xs font-medium text-red-700">{t("financeAiNoSelection")}</div> : null}
 
             <div className="mt-5 flex flex-wrap justify-end gap-2 border-t border-neutral-200 pt-4">
-              <button type="button" onClick={() => setView("actions")} className={`min-h-11 rounded-lg border border-neutral-200 bg-white px-4 text-sm font-semibold text-neutral-700 hover:bg-neutral-100 ${BUTTON_FOCUS}`}>{t("back")}</button>
+              <button type="button" onClick={closeModal} className={`min-h-11 rounded-lg border border-neutral-200 bg-white px-4 text-sm font-semibold text-neutral-700 hover:bg-neutral-100 ${BUTTON_FOCUS}`}>{t("cancel")}</button>
               <button type="button" disabled={!canDownload} onClick={downloadFinanceExport} className={`min-h-11 rounded-lg border border-[#D5FF00] bg-[#D5FF00] px-4 text-sm font-bold text-neutral-950 hover:bg-[#c7f000] ${BUTTON_FOCUS} ${BUTTON_DISABLED}`}>{t("financeAiDownload")}</button>
             </div>
           </div>
@@ -1539,6 +1507,7 @@ function BalanceCheck({
   const [overdraftTouched, setOverdraftTouched] = useState(false);
   const [draftAmountTouched, setDraftAmountTouched] = useState(false);
   const [draftAttempted, setDraftAttempted] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const pendingEntries = Array.isArray(pendingIncomeEntries) ? pendingIncomeEntries : [];
   const projection = calculateBalanceProjection({ bankBalance: balance, overdraftLimit, pendingIncomeEntries: pendingEntries, remainingExpenses });
   const {
@@ -1575,18 +1544,30 @@ function BalanceCheck({
   };
 
   return (
-    <div className={`rounded-xl bg-white border p-4 print:hidden ${isShort ? "border-red-200" : "border-neutral-200"}`}>
+    <div className={`cash-position-panel print:hidden ${isShort ? "cash-position-panel-short" : ""}`}>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-[11px] font-bold uppercase tracking-[0.1em] text-neutral-600">{t("balanceCheck")}</div>
-          <div className="text-xs text-neutral-500 mt-1">{t("balanceCheckDesc")}</div>
+          <div className="summary-heading !border-0 !p-0">{t("cashPosition")}</div>
+          <div className="text-xs text-neutral-500 mt-1">{t("cashPositionDesc")}</div>
         </div>
         <div className={`text-xs font-bold px-2 py-1 rounded-lg ${isShort ? "bg-red-50 text-red-700" : "bg-neutral-100 text-neutral-600"}`}>
           {currency}
         </div>
       </div>
 
-      <div className="mt-4 space-y-3">
+      {balanceInvalid || overdraftInvalid || invalidPendingCount > 0 ? <div role="status" className="cash-position-warning">{t("cashPositionUnavailable")}{invalidPendingCount > 0 ? ` ${invalidAmountNotice(invalidPendingCount)}` : ""}</div> : null}
+
+      <div className="cash-position-flow">
+        <div><span>{t("bankNow")}</span><strong><Money value={currentBalance} currency={currency} invalidLabel={t("projectionUnavailable")} /></strong></div>
+        <div><span><b aria-hidden="true">+</b>{t("expectedIncoming")}</span><strong><Money value={totalPendingMoneyIn} currency={currency} /></strong>{invalidPendingCount > 0 ? <small>{invalidAmountNotice(invalidPendingCount)}</small> : null}</div>
+        <div><span><b aria-hidden="true">−</b>{t("unpaidBills")}</span><strong><Money value={remainingExpenses} currency={currency} /></strong></div>
+        <div className="cash-position-result"><span><b aria-hidden="true">=</b>{t("projectedCash")}</span><strong><Money value={balanceAfterIncomingMoney} currency={currency} invalidLabel={t("projectionUnavailable")} /></strong></div>
+      </div>
+      <div className="cash-position-overdraft"><span>{t("availableIncludingOverdraft")}</span><strong className={isShort ? "text-red-700" : ""}><Money value={availableWithOverdraft} currency={currency} invalidLabel={t("projectionUnavailable")} /></strong></div>
+
+      <button type="button" className={`cash-input-toggle ${BUTTON_FOCUS}`} onClick={() => setEditOpen((open) => !open)} aria-expanded={editOpen} aria-controls="cash-input-editor"><span>{t("editCashInputs")}</span><ChevronDownIcon className={`h-4 w-4 transition-transform ${editOpen ? "rotate-180" : ""}`} /></button>
+
+      {editOpen ? <div id="cash-input-editor" className="cash-input-editor">
         <label htmlFor="bank-balance-input" className="block">
           <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-neutral-500">{t("currentBalance")}</span>
           <div className="relative mt-1">
@@ -1695,34 +1676,8 @@ function BalanceCheck({
           </div>
           {overdraftTouched && overdraftInvalid ? <span id="overdraft-limit-error" className="mt-1 block text-xs font-medium text-red-700">{t(projection.overdraft.reason === "negative_not_allowed" ? "negativeOverdraft" : "invalidAmount")}</span> : null}
         </label>
-      </div>
-
-      <div className="mt-4 pt-3 border-t border-neutral-100 space-y-2 text-sm">
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-neutral-600">{t("currentBalanceShort")}</span>
-          <span className="font-semibold text-neutral-800"><Money value={currentBalance} currency={currency} invalidLabel={t("projectionUnavailable")} /></span>
-        </div>
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-neutral-600">{t("projectedAfterMoneyIn")}</span>
-          <span className="font-semibold text-neutral-800"><Money value={projectedAfterMoneyIn} currency={currency} invalidLabel={t("projectionUnavailable")} /></span>
-        </div>
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-neutral-600">{t("remainingExpenses")}</span>
-          <span className="font-semibold text-neutral-800"><Money value={remainingExpenses} currency={currency} /></span>
-        </div>
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-neutral-600">{t("balanceAfterUnpaidExpenses")}</span>
-          <span className={`font-semibold ${typeof balanceAfterUnpaid === "number" && balanceAfterUnpaid < 0 ? "text-red-700" : "text-neutral-800"}`}><Money value={balanceAfterUnpaid} currency={currency} invalidLabel={t("projectionUnavailable")} /></span>
-        </div>
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-neutral-600">{t("balanceAfterExpectedIncomingMoney")}</span>
-          <span className={`font-semibold ${typeof balanceAfterIncomingMoney === "number" && balanceAfterIncomingMoney < 0 ? "text-red-700" : "text-neutral-800"}`}><Money value={balanceAfterIncomingMoney} currency={currency} invalidLabel={t("projectionUnavailable")} /></span>
-        </div>
-        <div className="flex items-center justify-between gap-3 text-xs">
-          <span className="text-neutral-500">{t("availableWithOverdraft")}</span>
-          <span className={`font-medium ${isShort ? "text-red-700" : "text-neutral-600"}`}><Money value={availableWithOverdraft} currency={currency} invalidLabel={t("projectionUnavailable")} /></span>
-        </div>
-      </div>
+        <div className="cash-projection-details"><span>{t("projectionDetails")}</span><dl><div><dt>{t("projectedAfterMoneyIn")}</dt><dd><Money value={projectedAfterMoneyIn} currency={currency} invalidLabel={t("projectionUnavailable")} /></dd></div><div><dt>{t("balanceAfterUnpaidExpenses")}</dt><dd><Money value={balanceAfterUnpaid} currency={currency} invalidLabel={t("projectionUnavailable")} /></dd></div></dl></div>
+      </div> : null}
     </div>
   );
 }
@@ -1908,6 +1863,22 @@ const TRANSLATIONS = {
     openMonth: "Open {month}",
     hub: "HUB",
     commands: "Commands",
+    export: "Export",
+    tools: "Tools",
+    settings: "Settings",
+    menu: "Menu",
+    financeAiMenu: "Finance AI",
+    financeAiMenuDescription: "Create an analysis-ready file",
+    print: "Print",
+    printMenuDescription: "Preview and print this month",
+    backupRestore: "Backup & restore",
+    backupRestoreDescription: "Protect or restore BudgIt data",
+    emailDraft: "Email draft",
+    emailDraftDescription: "Prepare a shareable email",
+    monthlyLedger: "Monthly ledger",
+    monthActions: "Month actions",
+    yearShort: "Year",
+    copyShort: "Copy",
     openCommands: "Open commands",
     closeCommands: "Close commands",
     commandNavigate: "Navigate",
@@ -2098,13 +2069,26 @@ const TRANSLATIONS = {
     saveFailureAdvice: "Download a backup now. Your latest changes are only in this open page.",
     loadFailureAdvice: "Existing browser data was left unchanged. Restore a known backup to continue safely.",
     balanceCheck: "Balance projection",
+    cashPosition: "Cash position",
+    cashPositionDesc: "Bank position · bank now + expected incoming − unpaid bills",
+    cashPositionUnavailable: "Cash position is incomplete while related amounts are invalid.",
+    bankNow: "Bank now",
+    expectedIncoming: "Expected incoming",
+    unpaidBills: "Unpaid bills",
+    projectedCash: "Projected cash",
+    availableIncludingOverdraft: "Available incl. overdraft",
+    editCashInputs: "Edit cash inputs",
+    projectionDetails: "Projection details",
+    budgetSummary: "Budget summary",
+    budgetPlan: "Budget plan",
+    projectedRemainderFormula: "Expected income − planned expenses",
     balanceCheckDesc: "Bank balance plus pending money, minus remaining expenses.",
     pendingMoneyIn: "Expected incoming",
     pendingIncomeLabel: "Pending money description",
     pendingIncomeLabelPlaceholder: "Overtime, eBay, refund",
     pendingIncomeFallback: "Pending",
     addPendingIncome: "Add pending money",
-    pendingMoneyTotal: "Pending money in total",
+    pendingMoneyTotal: "Expected incoming",
     pendingMoneyLabel: "Pending label / notes",
     pendingMoneyPlaceholder: "Salary, refund, transfer expected",
     overdraftLimit: "Overdraft limit",
@@ -2228,7 +2212,7 @@ const TRANSLATIONS = {
     budgetLine: "Budget Line",
     search: "Search",
     searchPlaceholder: "Search items...",
-    currentBalance: "Current Bank Balance",
+    currentBalance: "Bank balance now",
     projectedBalance: "Projected Balance",
     projectedBalanceDesc: "Bank Balance - Remaining",
     balanceAfterUnpaidExpenses: "Balance after unpaid expenses",
@@ -2359,6 +2343,22 @@ const TRANSLATIONS = {
     openMonth: "{month} öffnen",
     hub: "HUB",
     commands: "Befehle",
+    export: "Export",
+    tools: "Werkzeuge",
+    settings: "Einstellungen",
+    menu: "Menü",
+    financeAiMenu: "Finance AI",
+    financeAiMenuDescription: "Datei für die Finanzanalyse erstellen",
+    print: "Drucken",
+    printMenuDescription: "Monat ansehen und drucken",
+    backupRestore: "Sichern & wiederherstellen",
+    backupRestoreDescription: "BudgIt-Daten schützen oder wiederherstellen",
+    emailDraft: "E-Mail-Entwurf",
+    emailDraftDescription: "E-Mail zum Teilen vorbereiten",
+    monthlyLedger: "Monatsübersicht",
+    monthActions: "Monatsaktionen",
+    yearShort: "Jahr",
+    copyShort: "Kopieren",
     openCommands: "Befehle öffnen",
     closeCommands: "Befehle schließen",
     commandNavigate: "Navigation",
@@ -2549,13 +2549,26 @@ const TRANSLATIONS = {
     saveFailureAdvice: "Laden Sie jetzt eine Sicherung herunter. Ihre neuesten Änderungen sind nur auf dieser geöffneten Seite vorhanden.",
     loadFailureAdvice: "Vorhandene Browserdaten wurden nicht verändert. Stellen Sie eine bekannte Sicherung wieder her, um sicher fortzufahren.",
     balanceCheck: "Kontostandsprognose",
+    cashPosition: "Kontostand & Ausblick",
+    cashPositionDesc: "Bankposition · Kontostand + erwartete Eingänge − offene Rechnungen",
+    cashPositionUnavailable: "Der Kontostandsausblick ist unvollständig, solange zugehörige Beträge ungültig sind.",
+    bankNow: "Jetzt auf dem Konto",
+    expectedIncoming: "Erwartete Eingänge",
+    unpaidBills: "Offene Rechnungen",
+    projectedCash: "Voraussichtlicher Kontostand",
+    availableIncludingOverdraft: "Verfügbar inkl. Dispo",
+    editCashInputs: "Kontodaten bearbeiten",
+    projectionDetails: "Prognosedetails",
+    budgetSummary: "Budgetübersicht",
+    budgetPlan: "Budgetplanung",
+    projectedRemainderFormula: "Erwartete Einnahmen − geplante Ausgaben",
     balanceCheckDesc: "Kontostand plus erwartetes Geld, minus verbleibende Ausgaben.",
     pendingMoneyIn: "Erwartete Eingänge",
     pendingIncomeLabel: "Beschreibung für erwartetes Geld",
     pendingIncomeLabelPlaceholder: "Überstunden, eBay, Erstattung",
     pendingIncomeFallback: "Erwartet",
     addPendingIncome: "Erwartetes Geld hinzufügen",
-    pendingMoneyTotal: "Erwartetes Geld gesamt",
+    pendingMoneyTotal: "Erwartete Eingänge",
     pendingMoneyLabel: "Label / Notizen",
     pendingMoneyPlaceholder: "Gehalt, Erstattung, erwartete Überweisung",
     overdraftLimit: "Dispolimit",
@@ -2679,7 +2692,7 @@ const TRANSLATIONS = {
     budgetLine: "Budgetzeile",
     search: "Suchen",
     searchPlaceholder: "Elemente suchen...",
-    currentBalance: "Aktueller Kontostand",
+    currentBalance: "Jetzt auf dem Konto",
     projectedBalance: "Voraussichtlicher Kontostand",
     projectedBalanceDesc: "Kontostand - Verbleibend",
     balanceAfterUnpaidExpenses: "Kontostand nach offenen Ausgaben",
@@ -2976,18 +2989,30 @@ export default function BudgitApp() {
   useModalEscape(previewOpen, () => setPreviewOpen(false));
   const [helpOpen, setHelpOpen] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
-  const [commandOpen, setCommandOpen] = useState(false);
-  const commandBubbleRef = useRef(null);
-  useModalEscape(commandOpen, () => setCommandOpen(false));
+  const [exportModalView, setExportModalView] = useState("backup");
+  const [openHeaderMenu, setOpenHeaderMenu] = useState(null);
+  const [monthPickerOpen, setMonthPickerOpen] = useState(false);
+  const [monthActionsOpen, setMonthActionsOpen] = useState(false);
+  const headerMenusRef = useRef(null);
+  const monthControlsRef = useRef(null);
+  useModalEscape(!!openHeaderMenu, () => setOpenHeaderMenu(null));
+  useModalEscape(monthPickerOpen || monthActionsOpen, () => {
+    setMonthPickerOpen(false);
+    setMonthActionsOpen(false);
+  });
 
   useEffect(() => {
-    if (!commandOpen) return undefined;
+    if (!openHeaderMenu && !monthPickerOpen && !monthActionsOpen) return undefined;
     const closeOnOutsidePress = (event) => {
-      if (!commandBubbleRef.current?.contains(event.target)) setCommandOpen(false);
+      if (openHeaderMenu && !headerMenusRef.current?.contains(event.target) && !monthControlsRef.current?.contains(event.target)) setOpenHeaderMenu(null);
+      if ((monthPickerOpen || monthActionsOpen) && !monthControlsRef.current?.contains(event.target)) {
+        setMonthPickerOpen(false);
+        setMonthActionsOpen(false);
+      }
     };
     document.addEventListener("pointerdown", closeOnOutsidePress);
     return () => document.removeEventListener("pointerdown", closeOnOutsidePress);
-  }, [commandOpen]);
+  }, [openHeaderMenu, monthPickerOpen, monthActionsOpen]);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
@@ -3484,6 +3509,20 @@ export default function BudgitApp() {
     return true;
   };
 
+  const openExportDestination = (view) => {
+    setOpenHeaderMenu(null);
+    setExportModalView(view);
+    setExportModalOpen(true);
+  };
+
+  const createEmailDraft = () => {
+    setOpenHeaderMenu(null);
+    const today = new Date().toISOString().split("T")[0];
+    const subject = encodeURIComponent(t("email_subject", { today }));
+    const body = encodeURIComponent(t("email_body"));
+    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  };
+
   const exportFinanceAnalysis = ({ mode, selectedMonthKeys, includeNotes }) => {
     const result = createFinanceAnalysisExport({
       app,
@@ -3759,10 +3798,10 @@ export default function BudgitApp() {
           t={t}
         />
       )}
-      <ExportModal
+      {exportModalOpen ? <ExportModal
         open={exportModalOpen}
+        initialView={exportModalView}
         onClose={() => setExportModalOpen(false)}
-        onPrint={() => window.print()}
         onBackup={exportJSON}
         onImport={importJSON}
         onFinanceExport={exportFinanceAnalysis}
@@ -3773,7 +3812,7 @@ export default function BudgitApp() {
         months={app.months || {}}
         lang={app.lang}
         t={t}
-      />
+      /> : null}
 
       {previewOpen ? (
         <style>{`
@@ -3966,7 +4005,7 @@ export default function BudgitApp() {
           <div>
             {/* Master heading style */}
             <div className="relative flex flex-wrap items-center gap-3 w-full">
-              <img src={budgitLogo} alt="BudgIt" className="h-24 sm:h-32 w-auto select-none shrink-0" />
+              <img src={budgitLogo} alt="BudgIt" className="h-20 w-auto shrink-0 select-none sm:h-28" />
             </div>
           </div>
 
@@ -3978,191 +4017,85 @@ export default function BudgitApp() {
             />
           </div>
 
-          <div className="flex flex-col items-end pt-2 print:hidden">
-            <div className="command-bubble-wrap" ref={commandBubbleRef}>
-              <div className="command-bubble-collapsed">
-                <div
-                  role="status"
-                  aria-live={saveStatus === "error" || saveStatus === "load_error" ? "assertive" : "polite"}
-                  title={saveErrorCode || undefined}
-                  className={`command-save-state ${saveStatus === "error" || saveStatus === "load_error" ? "command-save-state-error" : ""}`}
-                >
-                  <span className={`command-save-dot ${saveStatus === "saving" ? "command-save-dot-saving" : ""}`} aria-hidden="true" />
-                  <span>
-                    {saveStatus === "saving" && t("saveStatusSaving")}
-                    {saveStatus === "saved" && t("saveStatusSaved")}
-                    {saveStatus === "imported" && t("saveStatusImported")}
-                    {saveStatus === "error" && t("saveStatusError")}
-                    {saveStatus === "load_error" && t("saveStatusLoadError")}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  className={`command-launcher ${BUTTON_FOCUS}`}
-                  onClick={() => setCommandOpen((open) => !open)}
-                  aria-expanded={commandOpen}
-                  aria-haspopup="dialog"
-                  aria-controls="budgit-command-panel"
-                  aria-label={commandOpen ? t("closeCommands") : t("openCommands")}
-                >
-                  <span className="command-launcher-mark" aria-hidden="true">⌘</span>
-                  <span>{t("commands")}</span>
-                  <ChevronDownIcon className={`h-4 w-4 transition-transform ${commandOpen ? "rotate-180" : ""}`} />
-                </button>
-              </div>
-
-              {saveStatus === "error" || saveStatus === "load_error" ? (
-                <div className="command-save-error">
-                  {saveStatus === "error" ? t("saveFailureAdvice") : t("loadFailureAdvice")}
-                </div>
-              ) : null}
-
-              {quarantinedMonthKeys.length > 0 ? (
-                <div className="quarantine-status" role="status">
-                  <span className="quarantine-status-mark" aria-hidden="true">!</span>
-                  <span>
-                    <strong>{t("historicalDataNeedsRecovery")}</strong>
-                    <span>{t(quarantinedMonthKeys.length === 1 ? "quarantinedMonthSingular" : "quarantinedMonthPlural", { count: quarantinedMonthKeys.length })}</span>
-                  </span>
-                </div>
-              ) : null}
-
-              {commandOpen ? (
-                <div id="budgit-command-panel" role="dialog" aria-label={t("commands")} className="command-panel">
-                  <div className="command-panel-heading">
-                    <span>{t("commands")}</span>
-                    <span className="command-panel-active">{app.lang.toUpperCase()} · {app.currency}</span>
-                  </div>
-
-                  <div className="command-group">
-                    <div className="command-group-label">{t("commandNavigate")}</div>
-                    <button type="button" className={`command-action ${BUTTON_FOCUS}`} onClick={() => {
-                      setCommandOpen(false);
-                      setOverviewYear(parseYM(app.activeMonth).y || new Date().getFullYear());
-                      setCurrentView("year");
-                    }}><span aria-hidden="true">12</span><span>{t("yearOverview")}</span></button>
-                  </div>
-
-                  <div className="command-group">
-                    <div className="command-group-label">{t("commandOutput")}</div>
-                    <div className="command-grid">
-                      <button type="button" className={`command-action ${BUTTON_FOCUS}`} onClick={() => { setCommandOpen(false); openPreview(); }}><span aria-hidden="true">▤</span><span>{t("preview")}</span></button>
-                      <button type="button" className={`command-action ${BUTTON_FOCUS}`} onClick={() => { setCommandOpen(false); setExportModalOpen(true); }}><span aria-hidden="true">⇩</span><span>{t("data")}</span></button>
-                    </div>
-                  </div>
-
-                  <div className="command-group">
-                    <div className="command-group-label">{t("commandTools")}</div>
-                    <div className="command-grid">
-                      <button type="button" className={`command-action ${BUTTON_FOCUS}`} onClick={() => { setCommandOpen(false); openCalculator(); }}><CalculatorIcon className="h-4 w-4" /><span>{t("calculator")}</span></button>
-                      <button type="button" className={`command-action ${BUTTON_FOCUS}`} onClick={() => { setCommandOpen(false); setHelpOpen(true); }}><span aria-hidden="true">?</span><span>{t("help")}</span></button>
-                      {HUB_URL ? <button type="button" className={`command-action ${BUTTON_FOCUS}`} onClick={() => { setCommandOpen(false); window.location.href = HUB_URL; }}><span aria-hidden="true">↗</span><span>{t("hub")}</span></button> : null}
-                    </div>
-                  </div>
-
-                  <div className="command-preferences">
-                    <div>
-                      <div className="command-group-label">{t("language")}</div>
-                      <div className="command-choice-row" aria-label={t("language")}>
-                        {["en", "de"].map((lang) => <button key={lang} type="button" aria-pressed={app.lang === lang} onClick={() => setLang(lang)} className={`command-choice ${app.lang === lang ? "command-choice-active" : ""} ${BUTTON_FOCUS}`}>{lang.toUpperCase()}</button>)}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="command-group-label">{t("currency")}</div>
-                      <div className="command-choice-row" aria-label={t("currency")}>
-                        {Object.keys(CURRENCIES).map((currency) => <button key={currency} type="button" aria-pressed={app.currency === currency} onClick={() => setApp((current) => ({ ...current, currency }))} className={`command-choice ${app.currency === currency ? "command-choice-active" : ""} ${BUTTON_FOCUS}`}>{currency}</button>)}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : null}
+          <div className="top-utility-area print:hidden" ref={headerMenusRef}>
+            <div role="status" aria-live={saveStatus === "error" || saveStatus === "load_error" ? "assertive" : "polite"} title={saveErrorCode || undefined} className={`header-save-state ${saveStatus === "error" || saveStatus === "load_error" ? "header-save-state-error" : ""}`}>
+              <span className={`command-save-dot ${saveStatus === "saving" ? "command-save-dot-saving" : ""}`} aria-hidden="true" />
+              <span>{saveStatus === "saving" && t("saveStatusSaving")}{saveStatus === "saved" && t("saveStatusSaved")}{saveStatus === "imported" && t("saveStatusImported")}{saveStatus === "error" && t("saveStatusError")}{saveStatus === "load_error" && t("saveStatusLoadError")}</span>
             </div>
+
+            <div className="desktop-utility-menus">
+              {["export", "tools", "settings"].map((menu) => <div key={menu} className="header-menu-wrap">
+                <button type="button" className={`header-menu-launcher ${openHeaderMenu === menu ? "header-menu-launcher-active" : ""} ${BUTTON_FOCUS}`} onClick={() => setOpenHeaderMenu((open) => open === menu ? null : menu)} aria-expanded={openHeaderMenu === menu} aria-haspopup="dialog" aria-controls={`header-${menu}-menu`}><span>{t(menu)}</span><ChevronDownIcon className={`h-4 w-4 transition-transform ${openHeaderMenu === menu ? "rotate-180" : ""}`} /></button>
+                {openHeaderMenu === menu ? <div id={`header-${menu}-menu`} className="header-menu-panel" role="dialog" aria-label={t(menu)}>
+                  {menu === "export" ? <>
+                    <button type="button" onClick={() => openExportDestination("finance")}><ExportIcons.Spark /><span><strong>{t("financeAiMenu")}</strong><small>{t("financeAiMenuDescription")}</small></span></button>
+                    <button type="button" onClick={() => { setOpenHeaderMenu(null); openPreview(); }}><ExportIcons.Print /><span><strong>{t("print")}</strong><small>{t("printMenuDescription")}</small></span></button>
+                    <button type="button" onClick={() => openExportDestination("backup")}><ExportIcons.Download /><span><strong>{t("backupRestore")}</strong><small>{t("backupRestoreDescription")}</small></span></button>
+                    <button type="button" onClick={createEmailDraft}><ExportIcons.Mail /><span><strong>{t("emailDraft")}</strong><small>{t("emailDraftDescription")}</small></span></button>
+                  </> : null}
+                  {menu === "tools" ? <>
+                    <button type="button" onClick={() => { setOpenHeaderMenu(null); openCalculator(); }}><CalculatorIcon className="h-5 w-5" /><span><strong>{t("calculator")}</strong></span></button>
+                    <button type="button" onClick={() => { setOpenHeaderMenu(null); setHelpOpen(true); }}><span aria-hidden="true">?</span><span><strong>{t("help")}</strong></span></button>
+                    {HUB_URL ? <button type="button" onClick={() => { setOpenHeaderMenu(null); window.location.href = HUB_URL; }}><span aria-hidden="true">↗</span><span><strong>{t("hub")}</strong></span></button> : null}
+                  </> : null}
+                  {menu === "settings" ? <div className="header-settings-panel">
+                    <div><span className="header-settings-label">{t("language")}</span><div className="command-choice-row">{["en", "de"].map((lang) => <button key={lang} type="button" aria-pressed={app.lang === lang} onClick={() => setLang(lang)} className={`command-choice ${app.lang === lang ? "command-choice-active" : ""} ${BUTTON_FOCUS}`}>{lang.toUpperCase()}</button>)}</div></div>
+                    <div><span className="header-settings-label">{t("currency")}</span><div className="command-choice-row">{Object.keys(CURRENCIES).map((currency) => <button key={currency} type="button" aria-pressed={app.currency === currency} onClick={() => setApp((current) => ({ ...current, currency }))} className={`command-choice ${app.currency === currency ? "command-choice-active" : ""} ${BUTTON_FOCUS}`}>{currency}</button>)}</div></div>
+                  </div> : null}
+                </div> : null}
+              </div>)}
+            </div>
+            {saveStatus === "error" || saveStatus === "load_error" ? <div className="command-save-error">{saveStatus === "error" ? t("saveFailureAdvice") : t("loadFailureAdvice")}</div> : null}
+            {quarantinedMonthKeys.length > 0 ? <div className="quarantine-status" role="status"><span className="quarantine-status-mark" aria-hidden="true">!</span><span><strong>{t("historicalDataNeedsRecovery")}</strong><span>{t(quarantinedMonthKeys.length === 1 ? "quarantinedMonthSingular" : "quarantinedMonthPlural", { count: quarantinedMonthKeys.length })}</span></span></div> : null}
           </div>
         </div>
 
-        <div className="mt-5 grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div className="primary-surface md:col-span-2 print:shadow-none">
+        <div className="month-top-surface mt-5 print:shadow-none" ref={monthControlsRef}>
             <div className="month-toolbar">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 w-full sm:w-auto">
-                  <MiniActionButton onClick={() => ensureMonth(addMonths(app.activeMonth, -1))} title={t("prevMonthTitle")}>
-                    {t("prevMonth")}
-                  </MiniActionButton>
-                  <MiniActionButton onClick={() => ensureMonth(addMonths(app.activeMonth, 1))} title={t("nextMonthTitle")}>
-                    {t("nextMonth")}
-                  </MiniActionButton>
+              <div className="month-navigator">
+                <button type="button" className={`month-nav-arrow ${BUTTON_FOCUS}`} onClick={() => ensureMonth(addMonths(app.activeMonth, -1))} aria-label={t("prevMonthTitle")}>‹</button>
+                <div className="month-picker-wrap">
+                  <button type="button" className={`month-current-button ${BUTTON_FOCUS}`} onClick={() => setMonthPickerOpen((open) => !open)} aria-expanded={monthPickerOpen} aria-controls="month-picker-panel">
+                    <span>{monthLabel(app.activeMonth, app.lang)}</span><ChevronDownIcon className={`h-4 w-4 transition-transform ${monthPickerOpen ? "rotate-180" : ""}`} />
+                  </button>
+                  {monthPickerOpen ? <div id="month-picker-panel" className="month-picker-panel">
+                    <label><span>{t("monthTitle")}</span><select value={activeYM.m || 1} onChange={(e) => { setActiveMonthNum(Number(e.target.value)); setMonthPickerOpen(false); }}>{Array.from({ length: 12 }).map((_, i) => <option key={i + 1} value={i + 1}>{new Date(2000, i, 1).toLocaleDateString(app.lang === "de" ? "de-DE" : "en-US", { month: "long" })}</option>)}</select></label>
+                    <label><span>{t("yearTitle")}</span><select value={activeYM.y || new Date().getFullYear()} onChange={(e) => { setActiveYear(Number(e.target.value)); setMonthPickerOpen(false); }}>{years.map((y) => <option key={y} value={y}>{y}</option>)}</select></label>
+                  </div> : null}
+                </div>
+                <button type="button" className={`month-nav-arrow ${BUTTON_FOCUS}`} onClick={() => ensureMonth(addMonths(app.activeMonth, 1))} aria-label={t("nextMonthTitle")}>›</button>
+                <button type="button" className={`month-year-view ${BUTTON_FOCUS}`} onClick={() => { setOverviewYear(activeYM.y || new Date().getFullYear()); setCurrentView("year"); }}>{t("yearOverview")}</button>
+              </div>
 
-                  <select
-                    value={activeYM.y || new Date().getFullYear()}
-                    onChange={(e) => setActiveYear(Number(e.target.value))}
-                    className="print:hidden h-10 w-full cursor-pointer rounded-lg border border-neutral-200 bg-white px-3 text-sm font-semibold text-neutral-700 hover:border-neutral-300 hover:bg-neutral-100 focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50"
-                    title={t("yearTitle")}
-                  >
-                    {years.map((y) => (
-                      <option key={y} value={y}>
-                        {y}
-                      </option>
-                    ))}
-                  </select>
-
-                  <select
-                    value={activeYM.m || 1}
-                    onChange={(e) => setActiveMonthNum(Number(e.target.value))}
-                    className="print:hidden h-10 w-full cursor-pointer rounded-lg border border-neutral-200 bg-white px-3 text-sm font-semibold text-neutral-700 hover:border-neutral-300 hover:bg-neutral-100 focus:outline-none focus:ring-2 focus:ring-[#D5FF00]/50"
-                    title={t("monthTitle")}
-                  >
-                    {Array.from({ length: 12 }).map((_, i) => (
-                      <option key={i + 1} value={i + 1}>
-                        {new Date(2000, i, 1).toLocaleDateString(app.lang === "de" ? "de-DE" : "en-US", { month: "long" })}
-                      </option>
-                    ))}
-                  </select>
-
-                  <div className="relative col-span-1">
-                    <MiniActionButton onClick={() => setCopyOpen(true)} title={t("copyNextTitle")} className="!h-8 !text-xs">
-                      {t("copyMonth")}
-                    </MiniActionButton>
-                  </div>
-
-                  <MiniActionButton tone="danger" onClick={clearMonth} title={t("clearMonthTitle")}>
-                    {t("startAgain")}
-                  </MiniActionButton>
+              <div className="ledger-context-row">
+                <div><div className="ledger-context-label">{t("monthlyLedger")}</div><div className="accent-rule" /></div>
+                <div className="desktop-ledger-actions">
+                  <button type="button" className={`ledger-context-action ${BUTTON_FOCUS}`} onClick={() => setCopyOpen(true)}>{t("copyMonth")}</button>
+                  <button type="button" className={`ledger-context-action ${BUTTON_FOCUS}`} onClick={() => setSearchOpen((open) => !open)}><SearchIcon className="h-4 w-4" />{t("search")}</button>
+                  <div className="month-actions-wrap"><button type="button" className={`ledger-context-action ${BUTTON_FOCUS}`} onClick={() => setMonthActionsOpen((open) => !open)} aria-expanded={monthActionsOpen} aria-controls="month-actions-menu">{t("monthActions")}<ChevronDownIcon className="h-4 w-4" /></button>{monthActionsOpen ? <div id="month-actions-menu" className="month-actions-menu"><button type="button" onClick={() => { setMonthActionsOpen(false); clearMonth(); }}>{t("startAgain")}</button></div> : null}</div>
                 </div>
               </div>
 
-              <div className="mt-3">
-                <div className="flex items-end justify-between gap-3">
-                  <div className="flex items-center gap-6">
-                    <div className="month-title">{monthLabel(app.activeMonth, app.lang)}</div>
-                    {searchOpen ? (
-                      <div className="relative flex items-center">
-                        <input 
-                          autoFocus
-                          className="h-9 pl-3 pr-8 rounded-xl text-xs font-medium border border-neutral-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#D5FF00] w-32 sm:w-48 transition-all"
-                          placeholder={t("searchPlaceholder")}
-                          value={searchTerm}
-                          onChange={e => setSearchTerm(e.target.value)}
-                          onKeyDown={e => { if(e.key === 'Escape') { setSearchOpen(false); setSearchTerm(""); } }}
-                        />
-                        <button 
-                          onClick={() => { setSearchOpen(false); setSearchTerm(""); }}
-                          className="absolute right-2 text-neutral-400 hover:text-neutral-600"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ) : (
-                      <button onClick={() => setSearchOpen(true)} title={t("search")} className="h-9 w-9 rounded-xl border border-neutral-200 bg-white hover:bg-[#D5FF00]/30 hover:border-[#D5FF00]/30 hover:text-neutral-800 shadow-sm flex items-center justify-center text-neutral-500 transition">
-                        <SearchIcon className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
-                  <div className="technical-meta hidden sm:block">{app.activeMonth}</div>
-                </div>
-                <div className="accent-rule" />
+              <div className="mobile-ledger-actions">
+                <button type="button" onClick={() => { setOverviewYear(activeYM.y || new Date().getFullYear()); setCurrentView("year"); }}>{t("yearShort")}</button>
+                <button type="button" onClick={() => setCopyOpen(true)}>{t("copyShort")}</button>
+                <button type="button" onClick={() => setSearchOpen((open) => !open)}>{t("search")}</button>
+                <button type="button" onClick={() => setOpenHeaderMenu((open) => open === "mobile" ? null : "mobile")} aria-expanded={openHeaderMenu === "mobile"} aria-controls="mobile-main-menu">{t("menu")}</button>
               </div>
+
+              {openHeaderMenu === "mobile" ? <div id="mobile-main-menu" className="mobile-main-menu" role="dialog" aria-label={t("menu")}>
+                <section><h3>{t("export")}</h3><button type="button" onClick={() => openExportDestination("finance")}>{t("financeAiMenu")}</button><button type="button" onClick={() => { setOpenHeaderMenu(null); openPreview(); }}>{t("print")}</button><button type="button" onClick={() => openExportDestination("backup")}>{t("backupRestore")}</button><button type="button" onClick={createEmailDraft}>{t("emailDraft")}</button></section>
+                <section><h3>{t("tools")}</h3><button type="button" onClick={() => { setOpenHeaderMenu(null); openCalculator(); }}>{t("calculator")}</button><button type="button" onClick={() => { setOpenHeaderMenu(null); setHelpOpen(true); }}>{t("help")}</button>{HUB_URL ? <button type="button" onClick={() => { setOpenHeaderMenu(null); window.location.href = HUB_URL; }}>{t("hub")}</button> : null}</section>
+                <section><h3>{t("settings")}</h3><div className="mobile-setting-row"><span>{t("language")}</span>{["en", "de"].map((lang) => <button key={lang} type="button" aria-pressed={app.lang === lang} onClick={() => setLang(lang)} className={app.lang === lang ? "active" : ""}>{lang.toUpperCase()}</button>)}</div><div className="mobile-setting-row"><span>{t("currency")}</span>{Object.keys(CURRENCIES).map((currency) => <button key={currency} type="button" aria-pressed={app.currency === currency} onClick={() => setApp((current) => ({ ...current, currency }))} className={app.currency === currency ? "active" : ""}>{currency}</button>)}</div></section>
+                <section><h3>{t("monthActions")}</h3><button type="button" className="text-red-700" onClick={() => { setOpenHeaderMenu(null); clearMonth(); }}>{t("startAgain")}</button></section>
+              </div> : null}
+
+              {searchOpen ? <div className="ledger-search-row"><input autoFocus placeholder={t("searchPlaceholder")} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} onKeyDown={(e) => { if (e.key === "Escape") { setSearchOpen(false); setSearchTerm(""); } }} /><button type="button" onClick={() => { setSearchOpen(false); setSearchTerm(""); }} aria-label={t("close")}>×</button></div> : null}
             </div>
+        </div>
 
+        <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
+          <div className="primary-surface order-2 md:order-1 md:col-span-2 print:shadow-none">
             <div className="min-w-0 max-w-full p-4 space-y-4">
               {/* Income */}
               <section className="ledger-section">
@@ -4850,9 +4783,9 @@ export default function BudgitApp() {
           </div>
 
           {/* Summary */}
-          <div className="flex flex-col gap-3">
+          <div className="order-1 flex flex-col gap-3 md:order-2">
             <div className="summary-panel print:shadow-none">
-              <div className="summary-heading">{t("summary")}</div>
+              <div className="summary-heading">{t("budgetSummary")}</div>
               <div className="p-4 space-y-4">
               {invalidIncomeCount > 0 || invalidExpenseCount > 0 ? (
                 <div role="status" className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
@@ -4879,6 +4812,7 @@ export default function BudgitApp() {
                       {negative ? <span className="sr-only">{t("negativeValue")}: </span> : null}
                       <Money value={value} currency={app.currency} />
                     </div>
+                    {label === "leftAfterPlannedExpenses" ? <div className="summary-context"><strong>{t("budgetPlan")}</strong><span>{t("projectedRemainderFormula")}</span></div> : null}
                   </div>
                 ))}
               </div>
